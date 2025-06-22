@@ -28,36 +28,34 @@ const Navbar = () => {
   }, [darkMode]);
 
   return (
-    <header className="relative z-50 text-black dark:text-white">
+    <header className="relative z-50 text-black dark:text-white overflow-x-hidden">
       {/* Top Bar */}
-      <div className="bg-white dark:bg-black py-6 text-center">
-        {/* Sign In Button */}
-        <div className="absolute top-2 right-4 sm:top-4 sm:right-6 z-50">
-          <Link
-            to="/auth"
-            className="text-black dark:text-white px-4 py-1 font-semibold text-sm"
-          >
-            Sign in
-          </Link>
-        </div>
-
+      <div className="flex items-center justify-between bg-white dark:bg-black py-4 px-4 sm:px-6">
         {/* Hamburger Icon */}
-        <div className="absolute left-4 top-4 z-50">
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="text-black dark:text-white focus:outline-none"
-          >
-            <Menu size={28} />
-          </button>
+        <button
+          onClick={() => setMenuOpen(true)}
+          className="text-black dark:text-white focus:outline-none"
+        >
+          <Menu size={28} />
+        </button>
+
+        {/* Centered Title */}
+        <div className="flex-1 text-center px-4">
+          <h1 className="text-2xl sm:text-5xl font-extrabold tracking-wide">
+            CELLULOIDVERSE
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-base mt-1">
+            Creativity is the soul of Artificial Intelligence.
+          </p>
         </div>
 
-        {/* Title & Quote */}
-        <h1 className="text-5xl font-extrabold tracking-wide">
-          CELLULOIDVERSE
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-base mt-2">
-          Creativity is the soul of Artificial Intelligence.
-        </p>
+        {/* Sign In Button */}
+        <Link
+          to="/auth"
+          className="text-black dark:text-white px-3 py-1 font-semibold text-sm"
+        >
+          Sign in
+        </Link>
       </div>
 
       {/* Separator */}
@@ -65,12 +63,12 @@ const Navbar = () => {
 
       {/* Main Nav */}
       <nav className="py-4 bg-transparent">
-        <div className="flex justify-center gap-8 text-lg font-medium">
-          <Link to="/" className="text-black dark:text-white">Home</Link>
-          <Link to="/shorts" className="text-black dark:text-white">Shorts</Link>
-          <Link to="/videos" className="text-black dark:text-white">Videos</Link>
-          <Link to="/contact" className="text-black dark:text-white">Contact</Link>
-          <Link to="/about" className="text-black dark:text-white">About</Link>
+        <div className="flex justify-center gap-6 sm:gap-8 text-base sm:text-lg font-medium px-4">
+          <Link to="/">Home</Link>
+          <Link to="/shorts">Shorts</Link>
+          <Link to="/videos">Videos</Link>
+          <Link to="/contact">Contact</Link>
+          <Link to="/about">About</Link>
         </div>
       </nav>
 
@@ -81,7 +79,7 @@ const Navbar = () => {
         } transition-transform duration-300 ease-in-out flex flex-col`}
       >
         {/* Menu Header */}
-        <div className="flex justify-between items-center p-4 border-b border-black/10 dark:border-white/10 relative">
+        <div className="flex justify-between items-center p-4 border-b border-black/10 dark:border-white/10">
           <h2 className="text-xl font-bold">Menu</h2>
           <div className="flex items-center gap-2">
             {/* Theme Toggle */}
@@ -108,11 +106,11 @@ const Navbar = () => {
 
         {/* Links */}
         <div className="flex flex-col p-4 gap-4 text-lg font-medium mt-6">
-          <Link to="/" onClick={() => setMenuOpen(false)} className="text-black dark:text-white">Home</Link>
-          <Link to="/shorts" onClick={() => setMenuOpen(false)} className="text-black dark:text-white">Shorts</Link>
-          <Link to="/videos" onClick={() => setMenuOpen(false)} className="text-black dark:text-white">Videos</Link>
-          <Link to="/contact" onClick={() => setMenuOpen(false)} className="text-black dark:text-white">Contact</Link>
-          <Link to="/about" onClick={() => setMenuOpen(false)} className="text-black dark:text-white">About</Link>
+          <Link to="/" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link to="/shorts" onClick={() => setMenuOpen(false)}>Shorts</Link>
+          <Link to="/videos" onClick={() => setMenuOpen(false)}>Videos</Link>
+          <Link to="/contact" onClick={() => setMenuOpen(false)}>Contact</Link>
+          <Link to="/about" onClick={() => setMenuOpen(false)}>About</Link>
         </div>
 
         {/* Social Links */}
