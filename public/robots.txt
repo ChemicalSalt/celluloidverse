@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://celluloidverse-7d324.web.app/sitemap.xml

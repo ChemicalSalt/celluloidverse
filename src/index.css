@@ -1,0 +1,10 @@
+@import "tailwindcss";
+/* Only hide reCAPTCHA badge if NOT on /contact page */
+body:not(.contact-page) .grecaptcha-badge {
+  visibility: hidden !important;
+}
+/* Enable dark mode with the .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
