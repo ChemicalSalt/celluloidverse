@@ -1,11 +1,4 @@
-const express = require("express");
-const { Client, GatewayIntentBits } = require("discord.js");
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("*", (_req, res) => res.send("Bot is alive"));
-app.listen(PORT, () => console.log(`Web server on ${PORT}`));
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const client = new Client({
   intents: [
@@ -15,8 +8,36 @@ const client = new Client({
   ],
 });
 
-client.once("ready", () => {
+const commands = [
+  new SlashCommandBuilder()
+    .setName("ping")
+    .setDescription("Replies with Pong!"),
+].map(command => command.toJSON());
+
+// Register commands for your server
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
+  
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(client.user.id, GUILD_ID), // replace with your server ID
+      { body: commands }
+    );
+    console.log("Slash command registered!");
+  } catch (error) {
+    console.error(error);
+  }
 });
 
-client.login(process.env.TOKEN); 
+// Listen for slash command interactions
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "ping") {
+    await interaction.reply("Pong! 🏓");
+  }
+});
+
+client.login(process.env.TOKEN);
