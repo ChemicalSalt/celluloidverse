@@ -22,7 +22,7 @@ client.once("ready", async () => {
   
   try {
     await rest.put(
-      Routes.applicationGuildCommands(client.user.id, GUILD_ID), // replace with your server ID
+      Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID), 
       { body: commands }
     );
     console.log("Slash command registered!");
