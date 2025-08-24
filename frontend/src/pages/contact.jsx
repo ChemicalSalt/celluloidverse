@@ -54,13 +54,12 @@ const Contact = () => {
   };
 
   return (
-    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col justify-center items-center px-4 transition-colors duration-300">
+    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center px-4 transition-colors duration-300">
       {/* Welcome Section */}
       <section className="text-center mt-12">
         <h2 className="text-2xl font-bold mb-2">Welcome!</h2>
         <p className="text-gray-600 dark:text-gray-400">
-          This platform features AI-generated stories, riddles, and more creative content.
-        </p>
+Have questions or feedback? Reach out to the Celluloidverse team to connect about the bot or our latest videos.        </p>
       </section>
 
       {/* Contact Form */}

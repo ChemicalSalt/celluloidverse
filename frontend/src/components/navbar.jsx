@@ -45,7 +45,7 @@ const Navbar = () => {
             CELLULOIDVERSE
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-base mt-1">
-            Creativity is the soul of Artificial Intelligence.
+            Creativity is what makes us stand out.
           </p>
         </div>
 

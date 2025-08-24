@@ -8,6 +8,7 @@ import Shorts from './pages/shorts';
 import Videos from './pages/videos';
 import About from './pages/about';
 import Auth from './pages/auth';
+import Callback from './pages/Callback';
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-300">
@@ -23,6 +24,7 @@ function App() {
           <Route path="/videos" element={<Videos />} />
           <Route path="/about" element={<About />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/discord/callback" element={<Callback />} />
         </Routes>
       </main>
 
