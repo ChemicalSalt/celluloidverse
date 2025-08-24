@@ -1,34 +1,26 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Dependencies (all folders)
-**/node_modules/
-
-# Production builds
-**/dist/
-**/dist-ssr/
-
-# Local files
-*.local
+# Node modules (all three folders)
+frontend/node_modules/
+backend/node_modules/
+bot/node_modules/
 
 # Environment variables
-**/*.env
-.env.*
-bot/serviceAccountKey.json
+frontend/.env
+bot/.env
 
-# Editor settings
-.vscode/*
-!.vscode/extensions.json
-.idea
+
+# Firebase Admin service account
+backend/serviceAccountKey.json
+
+# Frontend build output (Vite)
+frontend/dist/
+frontend/.vite/
+
+# Logs
+*.log
+
+
+# IDE / OS
+.vscode/
+.idea/
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db

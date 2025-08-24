@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 
