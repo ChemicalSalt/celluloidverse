@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const admin = require("firebase-admin");
+const express = require("express");
 require("dotenv").config(); // make sure BOT_TOKEN is in .env
 
 // --- Initialize Discord Client ---
@@ -36,3 +37,13 @@ client.once("ready", () => {
 
 // --- Login Bot ---
 client.login(process.env.TOKEN);
+
+// --- Minimal Express Server for Render ---
+const app = express();
+app.get("/", (_req, res) => res.send("Bot is alive"));
+
+// Render assigns a PORT
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Web server listening on port ${PORT}`);
+});
