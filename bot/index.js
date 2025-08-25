@@ -6,12 +6,11 @@ require("dotenv").config(); // make sure BOT_TOKEN is in .env
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 // --- Initialize Firebase ---
-const serviceAccount = require("./serviceAccountKey.json"); // in bot folder
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
+
 const db = admin.firestore();
 const statusRef = db.collection("botStatus").doc("main");
 

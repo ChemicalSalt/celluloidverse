@@ -19,8 +19,7 @@ const Home = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/status"); 
-        // ⚠️ Replace with your deployed backend URL when live
+        const res = await fetch("https://celluloidverse.onrender.com/api/status"); 
         const data = await res.json();
         setStatus(data);
       } catch (err) {
@@ -76,6 +75,17 @@ const Home = () => {
             Dashboard
           </button>
         </div>
+
+        {/* 🔹 Bot Details */}
+        {status && (
+          <div className="mt-8 p-6 bg-gray-100 dark:bg-gray-900 rounded-2xl shadow text-left w-full max-w-2xl">
+            <h2 className="text-2xl font-bold mb-4">Bot Status Details</h2>
+            <p><strong>Online:</strong> {status.online ? "✅ Yes" : "❌ No"}</p>
+            <p><strong>Servers:</strong> {status.servers}</p>
+            <p><strong>Ping:</strong> {status.ping} ms</p>
+            <p><strong>Last Updated:</strong> {new Date(status.timestamp).toLocaleTimeString()}</p>
+          </div>
+        )}
       </section>
 
       {/* Get Started Modal */}
