@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Home = () => {
   const [showModal, setShowModal] = useState(false);
   const [step, setStep] = useState(1);
+
+  // 🔹 Bot status state
+  const [status, setStatus] = useState(null);
 
   const handleNext = () => setStep(prev => prev + 1);
   const handleBack = () => setStep(prev => prev - 1);
@@ -11,6 +14,24 @@ const Home = () => {
     window.open(url, "_blank");
     setTimeout(() => handleNext(), 5000);
   };
+
+  // 🔹 Fetch bot status from backend
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/status"); 
+        // ⚠️ Replace with your deployed backend URL when live
+        const data = await res.json();
+        setStatus(data);
+      } catch (err) {
+        console.error("Failed to fetch bot status:", err);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000); // auto-refresh every 5s
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center justify-start px-4 transition-colors duration-300 pt-16">
@@ -23,30 +44,38 @@ const Home = () => {
         <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
           Explore your bot dashboard and enjoy videos and shorts posted on our YouTube channel.
         </p>
-{/* Buttons */}
-<div className="flex flex-col sm:flex-row justify-center gap-4 mt-6 w-full">
-  <button
-    onClick={() => setShowModal(true)}
-    className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-  >
-    Get Started
-  </button>
 
-  <button
-    onClick={() => alert("Status page coming soon!")}
-    className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-  >
-    Status
-  </button>
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6 w-full">
+          <button
+            onClick={() => setShowModal(true)}
+            className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+          >
+            Get Started
+          </button>
 
-  <button
-    onClick={() => alert("Dashboard page coming soon!")}
-    className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-  >
-    Dashboard
-  </button>
-</div>
+          {/* 🔹 Status Button */}
+          <button
+            className={`w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors ${
+              status?.online
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-red-600 text-white hover:bg-red-700"
+            }`}
+          >
+            {status
+              ? status.online
+                ? `Bot Online ✅ (${status.servers} servers)`
+                : "Bot Offline ❌"
+              : "Checking..."}
+          </button>
 
+          <button
+            onClick={() => alert("Dashboard page coming soon!")}
+            className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+          >
+            Dashboard
+          </button>
+        </div>
       </section>
 
       {/* Get Started Modal */}
@@ -62,7 +91,7 @@ const Home = () => {
 
           {/* Modal Content */}
           <div className="bg-white dark:bg-black text-black dark:text-white p-8 rounded-2xl max-w-lg w-full shadow-xl transition-colors duration-300">
-            {/* Steps 1-9 */}
+            {/* Steps */}
             {step === 1 && (
               <div className="text-center">
                 <h2 className="text-2xl font-bold mb-4">Welcome to Celluloidverse</h2>

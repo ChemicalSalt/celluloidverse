@@ -10,6 +10,7 @@ bot/.env
 
 # Firebase Admin service account
 backend/serviceAccountKey.json
+bot/serviceAccountKey.json
 
 # Frontend build output (Vite)
 frontend/dist/

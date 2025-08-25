@@ -1,55 +1,39 @@
-require("dotenv").config();
-const express = require("express");
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits } = require("discord.js");
+const admin = require("firebase-admin");
+require("dotenv").config(); // make sure BOT_TOKEN is in .env
 
-// --- Express server to keep Render awake ---
-const app = express();
-const PORT = process.env.PORT || 3000;
+// --- Initialize Discord Client ---
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-app.get(/.*/, (_req, res) => res.send("Bot is alive"));
-app.listen(PORT, () => console.log(`Web server on ${PORT}`));
+// --- Initialize Firebase ---
+const serviceAccount = require("./serviceAccountKey.json"); // in bot folder
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+const db = admin.firestore();
+const statusRef = db.collection("botStatus").doc("main");
 
-// --- Discord client ---
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+// --- Bot Ready ---
+client.once("ready", () => {
+  console.log(`Bot logged in as ${client.user.tag}`);
+
+  // Update Firestore every 5 seconds
+  setInterval(async () => {
+    try {
+      await statusRef.set({
+        online: true,
+        ping: client.ws.ping,
+        servers: client.guilds.cache.size,
+        timestamp: new Date().toISOString()
+      });
+      console.log("Status updated");
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  }, 5000);
 });
 
-// --- Slash command definition ---
-const commands = [
-  new SlashCommandBuilder()
-    .setName("ping")
-    .setDescription("Replies with Pong!"),
-].map(cmd => cmd.toJSON());
-
-// --- Register slash command ---
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
-      { body: commands }
-    );
-    console.log("Slash command registered!");
-  } catch (error) {
-    console.error(error);
-  }
-});
-
-// --- Handle slash command interactions ---
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isCommand()) return;
-
-  if (interaction.commandName === "ping") {
-    await interaction.reply("Pong!");
-  }
-});
-
-// --- Login to Discord ---
+// --- Login Bot ---
 client.login(process.env.TOKEN);
