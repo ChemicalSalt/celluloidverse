@@ -5,7 +5,7 @@ const BotStatus = () => {
 
   const API_URL = import.meta.env.DEV
     ? "http://localhost:5000/api/status"
-    : "https://celluloidverse.onrender.com/api/status";
+    : "https://celluloidverse-5c0i.onrender.com/api/status";
 
   useEffect(() => {
     const fetchStatus = async () => {
