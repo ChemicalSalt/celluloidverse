@@ -6,6 +6,7 @@ bot/node_modules/
 # Environment variables
 frontend/.env
 bot/.env
+backend/.env
 
 
 # Firebase Admin service account

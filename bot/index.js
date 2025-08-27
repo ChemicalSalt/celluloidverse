@@ -20,19 +20,28 @@ client.once("ready", () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
   // Update Firestore every 5 seconds
-  setInterval(async () => {
-    try {
-      await statusRef.set({
-        online: true,
-        ping: client.ws.ping,
-        servers: client.guilds.cache.size,
-        timestamp: new Date().toISOString()
-      });
-      console.log("Status updated");
-    } catch (err) {
-      console.error("Failed to update status:", err);
-    }
-  }, 5000);
+// Update Firestore every 5 seconds
+setInterval(async () => {
+  try {
+    const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+    const totalChannels = client.channels.cache.size;
+    const cachedUsers = client.users.cache.size;
+    
+    await statusRef.set({
+      online: true,
+      ping: client.ws.ping,
+      servers: client.guilds.cache.size,
+      users: totalUsers,
+      cachedUsers: cachedUsers,
+      channels: totalChannels,
+      timestamp: new Date().toISOString()
+    });
+    console.log("Status updated");
+  } catch (err) {
+    console.error("Failed to update status:", err);
+  }
+}, 5000);
+
 });
 
 // --- Login Bot ---
