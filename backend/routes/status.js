@@ -3,8 +3,7 @@ const admin = require("firebase-admin");
 const router = express.Router();
 
 // Initialize Firebase
-const serviceAccount = require("../serviceAccountKey.json"); // your bot's service account
-
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 if (!admin.apps.length) {
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
