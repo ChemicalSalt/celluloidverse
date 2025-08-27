@@ -9,7 +9,8 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: "https://celluloidverse-7d324.web.app", // your Firebase frontend URL
+  origin: "https://celluloidverse-7d324.web.app", 
+   methods: ["GET", "POST"],
   credentials: true
 }));
 app.use(express.json());
