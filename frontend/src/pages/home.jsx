@@ -5,7 +5,7 @@ const Home = () => {
 
   // Determine correct API URL for local vs production
   const API_URL = import.meta.env.DEV
-    ? "http://localhost:5000/api/status"
+    ? "http://celluloidverse-5c0i.onrender.com/api/status"
     : "https://celluloidverse.onrender.com/api/status";
 
   useEffect(() => {
@@ -51,7 +51,7 @@ const Home = () => {
 
 
           <button
-  onClick={() => window.location.href = "http://localhost:5000/api/dashboard/login"}
+  onClick={() => window.location.href = "http://celluloidverse-5c0i.onrender.com/api/dashboard/login"}
   className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
 >
   Dashboard

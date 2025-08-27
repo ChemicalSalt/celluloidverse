@@ -47,7 +47,7 @@ router.get("/callback", async (req, res) => {
     console.log("OAuth success for user:", user.username);
 
     // Redirect to frontend (Vite local)
-    res.redirect(`http://localhost:5173/dashboard?token=${data.access_token}`);
+    res.redirect(`http://celluloidverse-5c0i.onrender/dashboard?token=${data.access_token}`);
   } catch (err) {
     console.error("OAuth callback failed:", err);
     res.status(500).send("OAuth callback failed");

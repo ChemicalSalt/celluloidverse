@@ -24,7 +24,7 @@ const Dashboard = () => {
   const fetchGuilds = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:5000/api/dashboard/servers", {
+      const res = await fetch("http://celluloidverse-5c0i.onrender.com/api/dashboard/servers", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -62,7 +62,7 @@ const Dashboard = () => {
   };
 
   const handleSave = () => {
-    fetch(`http://localhost:5000/api/dashboard/servers/${selectedServer.id}/messages`, {
+    fetch(`http://celluloidverse-5c0i.onrender.com/api/dashboard/servers/${selectedServer.id}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(messages),

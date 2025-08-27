@@ -8,7 +8,10 @@ const dashboardRoute = require("./routes/dashboard");
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "https://celluloidverse-7d324.web.app", // your Firebase frontend URL
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
