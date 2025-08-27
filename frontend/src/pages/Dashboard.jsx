@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 
+
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 
 const Dashboard = () => {
@@ -12,7 +13,7 @@ const Dashboard = () => {
     serverFarewell: "",
     dmFarewell: "",
   });
-
+const [saveMessage, setSaveMessage] = useState("");
   // Get OAuth token from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -24,7 +25,7 @@ const Dashboard = () => {
   const fetchGuilds = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://celluloidverse-5c0i.onrender.com/api/dashboard/servers", {
+const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -61,13 +62,26 @@ const Dashboard = () => {
     setMessages(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    fetch(`http://celluloidverse-5c0i.onrender.com/api/dashboard/servers/${selectedServer.id}/messages`, {
+const handleSave = async () => {
+  try {
+    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(messages),
-    }).then(() => alert("Messages saved!"));
-  };
+    });
+
+    // Show a small message in UI
+    setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
+
+    // Hide message after 3 seconds
+    setTimeout(() => setSaveMessage(""), 3000);
+
+  } catch (err) {
+    console.error("Failed to save messages:", err);
+    setSaveMessage("Failed to save messages. Try again.");
+  }
+};
+
 
   // Show features page if server selected
   if (selectedServer) {
@@ -107,6 +121,12 @@ const Dashboard = () => {
             Save Messages
           </button>
         </div>
+         {/* Toast message */}
+      {saveMessage && (
+        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+          {saveMessage}
+        </div>
+      )}
       </div>
     );
   }
@@ -114,7 +134,7 @@ const Dashboard = () => {
   // Default: show all servers
   return (
     <div className="min-h-screen px-6 py-8">
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
 
       {servers.length > 0 && (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
@@ -126,12 +146,12 @@ const Dashboard = () => {
                 <span>{g.name}</span>
               </div>
               {!g.hasBot ? (
-                <button onClick={() => handleAddBot(g.id)} className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">
+                <button onClick={() => handleAddBot(g.id)} className="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
                   Add Bot
                 </button>
               ) : (
-                <button onClick={() => handleDashboard(g.id)} className="px-4 py-1 bg-green-600 text-white rounded hover:bg-green-700">
-                  Dashboard
+                <button onClick={() => handleDashboard(g.id)} className="px-4 py-1 bg-black text-white rounded hover:bg-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-300">
+                  Plug-ins
                 </button>
               )}
             </div>

@@ -5,7 +5,7 @@ const router = express.Router();
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
-const BOT_TOKEN = process.env.TOKEN;
+const TOKEN = process.env.TOKEN;
 
 // ---- OAuth Login ----
 router.get("/login", (req, res) => {
@@ -68,7 +68,7 @@ router.get("/servers", async (req, res) => {
 
     // 2️⃣ Get bot's guilds
     const botGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+      headers: { Authorization: `Bot ${TOKEN}` },
     });
     const botGuilds = await botGuildRes.json();
     const botGuildIds = botGuilds.map(g => g.id);

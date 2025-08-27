@@ -1,17 +1,14 @@
 # Node modules (all three folders)
 frontend/node_modules/
 backend/node_modules/
-bot/node_modules/
 
 # Environment variables
 frontend/.env
-bot/.env
 backend/.env
 
 
 # Firebase Admin service account
 backend/serviceAccountKey.json
-bot/serviceAccountKey.json
 
 # Frontend build output (Vite)
 frontend/dist/
