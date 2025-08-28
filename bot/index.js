@@ -4,7 +4,12 @@ const express = require("express");
 require("dotenv").config(); // make sure BOT_TOKEN is in .env
 
 // --- Initialize Discord Client ---
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ 
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers 
+  ]
+});
 
 // --- Initialize Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
