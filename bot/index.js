@@ -1,15 +1,19 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
-require("dotenv").config(); // make sure BOT_TOKEN is in .env
+require("dotenv").config(); 
 
 // --- Initialize Discord Client ---
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers 
-  ]
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,   
+    GatewayIntentBits.MessageContent   
+  ],
+  partials: ['GUILD_MEMBER']
 });
+
 
 // --- Initialize Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -24,7 +28,6 @@ const statusRef = db.collection("botStatus").doc("main");
 client.once("ready", () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
-  // Update Firestore every 5 seconds
 // Update Firestore every 5 seconds
 setInterval(async () => {
   try {
@@ -47,6 +50,24 @@ setInterval(async () => {
   }
 }, 5000);
 
+});
+
+
+  // --- Listen for member joins ---
+client.on("guildMemberAdd", member => {
+  console.log(`New member joined: ${member.user.tag} in ${member.guild.name}`);
+});
+
+// --- Listen for member leaves ---
+client.on("guildMemberRemove", member => {
+  console.log(`Member left: ${member.user.tag} from ${member.guild.name}`);
+});
+
+client.on("messageCreate", (message) => {
+  if (message.author.bot) return; // ignore bot messages
+  if (message.content.toLowerCase() === "!ping") {
+    message.channel.send("Pong!");
+  }
 });
 
 // --- Login Bot ---
