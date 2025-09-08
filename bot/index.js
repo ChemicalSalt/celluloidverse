@@ -47,12 +47,24 @@ client.once("ready", async () => {
     const docRef = db.collection("guilds").doc(guild.id);
     const doc = await docRef.get();
     if (!doc.exists) {
-      await docRef.set({
-        plugins: {
-          welcome: { enabled: true, channelId: guild.systemChannelId, message: "Welcome {user} to {server}!" },
-          farewell: { enabled: true, channelId: guild.systemChannelId, message: "Goodbye {user} from {server}!" }
-        }
-      });
+      // When creating default Firestore doc
+await docRef.set({
+  plugins: {
+    welcome: { 
+      enabled: true, 
+      channelId: guild.systemChannelId, 
+      serverMessage: "Welcome {user} to {server}!", 
+      dmMessage: "" // empty by default, user can fill via dashboard
+    },
+    farewell: { 
+      enabled: true, 
+      channelId: guild.systemChannelId, 
+      serverMessage: "Goodbye {user} from {server}!", 
+      dmMessage: "" 
+    }
+  }
+});
+
       console.log(`Created default Firestore doc for guild: ${guild.name}`);
     }
   }
@@ -73,30 +85,75 @@ client.once("ready", async () => {
 });
 
 // --- Welcome / Farewell ---
+// --- Welcome ---
 client.on("guildMemberAdd", async member => {
   try {
     const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const welcome = doc.data()?.plugins?.welcome;
+    const data = doc.data();
+    if (!data) return;
+
+    const welcome = data.plugins?.welcome;
     if (!welcome?.enabled) return;
-    const channel = member.guild.channels.cache.get(welcome.channelId);
-    if (!channel) return;
-    const msg = welcome.message.replace("{user}", `<@${member.id}>`).replace("{server}", member.guild.name);
-    channel.send(msg);
-  } catch (err) { console.error(err); }
+
+    // Send server message if channel exists
+    if (welcome.serverMessage && welcome.channelId) {
+      const channel = member.guild.channels.cache.get(welcome.channelId);
+      if (channel) {
+        const msg = welcome.serverMessage
+          .replace("{user}", `<@${member.id}>`)
+          .replace("{server}", member.guild.name);
+        channel.send(msg);
+      }
+    }
+
+    // Send DM if set
+    if (welcome.dmMessage) {
+      const msg = welcome.dmMessage
+        .replace("{user}", member.user.username)
+        .replace("{server}", member.guild.name);
+      member.send(msg).catch(() => {}); // ignore if DMs blocked
+    }
+
+  } catch (err) {
+    console.error("Welcome error:", err);
+  }
 });
 
+// --- Farewell ---
 client.on("guildMemberRemove", async member => {
   try {
     if (member.partial) await member.fetch();
     const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const farewell = doc.data()?.plugins?.farewell;
+    const data = doc.data();
+    if (!data) return;
+
+    const farewell = data.plugins?.farewell;
     if (!farewell?.enabled) return;
-    const channel = member.guild.channels.cache.get(farewell.channelId);
-    if (!channel) return;
-    const msg = farewell.message.replace("{user}", `<@${member.id}>`).replace("{server}", member.guild.name);
-    channel.send(msg);
-  } catch (err) { console.error(err); }
+
+    // Send server message
+    if (farewell.serverMessage && farewell.channelId) {
+      const channel = member.guild.channels.cache.get(farewell.channelId);
+      if (channel) {
+        const msg = farewell.serverMessage
+          .replace("{user}", `<@${member.id}>`)
+          .replace("{server}", member.guild.name);
+        channel.send(msg);
+      }
+    }
+
+    // Send DM
+    if (farewell.dmMessage) {
+      const msg = farewell.dmMessage
+        .replace("{user}", member.user.username)
+        .replace("{server}", member.guild.name);
+      member.send(msg).catch(() => {});
+    }
+
+  } catch (err) {
+    console.error("Farewell error:", err);
+  }
 });
+
 
 // --- Slash command handling ---
 client.on("interactionCreate", async interaction => {

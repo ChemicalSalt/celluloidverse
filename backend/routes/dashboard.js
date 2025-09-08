@@ -1,11 +1,21 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
+const admin = require("firebase-admin");
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
 const TOKEN = process.env.TOKEN;
+
+// Initialize Firebase once
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+const db = admin.firestore();
 
 // ---- OAuth Login ----
 router.get("/login", (req, res) => {
@@ -30,7 +40,6 @@ router.get("/callback", async (req, res) => {
       scope: "identify guilds",
     });
 
-    // Exchange code for access token
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
@@ -39,15 +48,13 @@ router.get("/callback", async (req, res) => {
     const data = await tokenRes.json();
     if (data.error) return res.status(400).send("OAuth error: " + data.error);
 
-    // Fetch user info
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
     const user = await userRes.json();
     console.log("OAuth success for user:", user.username);
 
-    // Redirect to frontend (Vite local)
-res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
   } catch (err) {
     console.error("OAuth callback failed:", err);
     res.status(500).send("OAuth callback failed");
@@ -60,23 +67,19 @@ router.get("/servers", async (req, res) => {
   if (!accessToken) return res.status(401).json({ error: "No token provided" });
 
   try {
-    // 1️⃣ Get user's guilds
     const userGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const userGuilds = await userGuildRes.json();
 
-    // 2️⃣ Get bot's guilds
     const botGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     const botGuilds = await botGuildRes.json();
     const botGuildIds = botGuilds.map(g => g.id);
 
-    // 3️⃣ Filter guilds where user can manage bot (MANAGE_GUILD)
     const manageableGuilds = userGuilds.filter(g => (g.permissions & 0x20) === 0x20);
 
-    // 4️⃣ Map guild info
     const guildsWithInfo = manageableGuilds.map(g => ({
       id: g.id,
       name: g.name,
@@ -98,10 +101,32 @@ router.post("/servers/:id/messages", async (req, res) => {
   const { id } = req.params;
   const messages = req.body;
 
-  // TODO: Save to Firestore/DB
-  console.log(`Save messages for server ${id}:`, messages);
+  try {
+    const docRef = db.collection("guilds").doc(id);
+    const doc = await docRef.get();
+    const defaultChannelId = doc.data()?.plugins?.welcome?.channelId || null;
 
-  res.json({ success: true });
+    await docRef.set({
+      plugins: {
+        welcome: {
+          enabled: true,
+          channelId: defaultChannelId,
+          serverMessage: messages.serverWelcome || "Welcome {user} to {server}!", 
+          dmMessage: messages.dmWelcome || ""       },
+        farewell: {
+          enabled: true,
+          channelId: defaultChannelId,
+          serverMessage: messages.serverFarewell || "Goodbye {user} from {server}!",
+          dmMessage: messages.dmFarewell || ""        }
+      }
+    }, { merge: true });
+
+    console.log(`Saved messages for server ${id} to Firestore`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to save messages:", err);
+    res.status(500).json({ error: "Failed to save messages" });
+  }
 });
 
 module.exports = router;
