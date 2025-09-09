@@ -78,29 +78,6 @@ client.once("ready", async () => {
   for (const guild of client.guilds.cache.values()) {
     await guild.members.fetch();
 
-    // Auto-create default Firestore doc if missing
-    const docRef = db.collection("guilds").doc(guild.id);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      await docRef.set({
-        plugins: {
-          welcome: { 
-            enabled: true, 
-            channelId: defaultChannelId,
-            serverMessage: "Welcome {user} to {server}!",
-            dmMessage: ""
-          },
-          farewell: { 
-            enabled: true,
-            channelId: defaultChannelId,
-            serverMessage: "Goodbye {user} from {server}!",
-            dmMessage: "" 
-          }
-        }
-      }, { merge: true });
-
-      console.log(`Created default Firestore doc for guild: ${guild.name}`);
-    }
   }
 
   // Update bot status every 5 seconds

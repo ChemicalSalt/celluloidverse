@@ -102,14 +102,14 @@ const Dashboard = () => {
     const fetchChannels = async () => {
       try {
         const res = await fetch(
-  `${import.meta.env.VITE_API_URL}/api/guilds/${selectedServer.id}/channels`,
+  `${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/channels`,
   { headers: { Authorization: `Bearer ${token}` } }
 );
 
         const data = await res.json();
         setChannels(data);
-        setSelectedWelcomeChannel(data[0]?.id || "");
-        setSelectedFarewellChannel(data[0]?.id || "");
+        setSelectedWelcomeChannel("");
+        setSelectedFarewellChannel("");
       } catch (err) {
         console.error("Failed to fetch channels:", err);
       }
@@ -187,7 +187,7 @@ const Dashboard = () => {
               <select
                 value={selectedWelcomeChannel}
                 onChange={e => setSelectedWelcomeChannel(e.target.value)}
-                className="p-2 rounded border"
+                className="p-2 rounded border bg-white text-black dark:bg-zinc-700 dark:text-white"
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (
@@ -229,7 +229,7 @@ const Dashboard = () => {
               <select
                 value={selectedFarewellChannel}
                 onChange={e => setSelectedFarewellChannel(e.target.value)}
-                className="p-2 rounded border"
+                className="p-2 rounded border bg-white text-black dark:bg-zinc-700 dark:text-white"
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (

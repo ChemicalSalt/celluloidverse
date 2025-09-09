@@ -114,43 +114,26 @@ router.post("/servers/:id/messages", async (req, res) => {
     const doc = await docRef.get();
     const currentData = doc.data() || {};
 
-    await docRef.set(
-      {
-        plugins: {
-          welcome: {
-            enabled: welcome?.enabled ?? true,
-            channelId:
-              welcome?.channelId ??
-              currentData.plugins?.welcome?.channelId ??
-              null,
-            serverMessage:
-              welcome?.serverMessage ??
-              currentData.plugins?.welcome?.serverMessage ??
-              "Welcome {user} to {server}!",
-            dmMessage:
-              welcome?.dmMessage ??
-              currentData.plugins?.welcome?.dmMessage ??
-              "",
-          },
-          farewell: {
-            enabled: farewell?.enabled ?? true,
-            channelId:
-              farewell?.channelId ??
-              currentData.plugins?.farewell?.channelId ??
-              null,
-            serverMessage:
-              farewell?.serverMessage ??
-              currentData.plugins?.farewell?.serverMessage ??
-              "Goodbye {user} from {server}!",
-            dmMessage:
-              farewell?.dmMessage ??
-              currentData.plugins?.farewell?.dmMessage ??
-              "",
-          },
-        },
+   await docRef.set(
+  {
+    plugins: {
+      welcome: {
+        enabled: welcome?.enabled ?? true,
+        channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
+        serverMessage: welcome?.serverMessage ?? "", // no default
+        dmMessage: welcome?.dmMessage ?? "",         // no default
       },
-      { merge: true }
-    );
+      farewell: {
+        enabled: farewell?.enabled ?? true,
+        channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
+        serverMessage: farewell?.serverMessage ?? "", // no default
+        dmMessage: farewell?.dmMessage ?? "",         // no default
+      },
+    },
+  },
+  { merge: true }
+);
+
 
     console.log(`Saved messages for server ${id} to Firestore`);
     res.json({ success: true });
