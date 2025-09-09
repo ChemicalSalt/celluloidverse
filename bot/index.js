@@ -2,6 +2,28 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require
 const admin = require("firebase-admin");
 const express = require("express");
 require("dotenv").config();
+const app = express();
+app.use(express.json());
+
+// --- Helper: Placeholder Parser ---
+function parsePlaceholders(template, member) {
+  if (!template) return "";
+
+  const guild = member.guild;
+
+  return template
+    .replace(/{user}/g, `<@${member.id}>`) // mention
+    .replace(/{username}/g, member.user.username) // plain name
+    .replace(/{server}/g, guild.name) // guild name
+    .replace(/{role:(.*?)}/g, (_, roleName) => {
+      const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+      return role ? `<@&${role.id}>` : `{role:${roleName}}`;
+    })
+    .replace(/{channel:(.*?)}/g, (_, channelName) => {
+      const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
+      return channel ? `<#${channel.id}>` : `{channel:${channelName}}`;
+    });
+}
 
 // --- Initialize Discord Client ---
 const client = new Client({ 
@@ -52,18 +74,18 @@ await docRef.set({
   plugins: {
     welcome: { 
       enabled: true, 
-      channelId: guild.systemChannelId, 
-      serverMessage: "Welcome {user} to {server}!", 
-      dmMessage: "" // empty by default, user can fill via dashboard
+      channelId: guild.systemChannelId|| defaultChannelId,
+      serverMessage: messages.serverWelcome || "Welcome {user} to {server}!",
+      dmMessage: messages.dmWelcome || ""
     },
     farewell: { 
-      enabled: true, 
-      channelId: guild.systemChannelId, 
-      serverMessage: "Goodbye {user} from {server}!", 
-      dmMessage: "" 
+      enabled: true,
+      channelId: messages.farewellChannelId || defaultChannelId,
+      serverMessage: messages.serverFarewell || "Goodbye {user} from {server}!",
+      dmMessage: messages.dmFarewell || "" 
     }
   }
-});
+  },{ merge: true });
 
       console.log(`Created default Firestore doc for guild: ${guild.name}`);
     }
@@ -99,18 +121,14 @@ client.on("guildMemberAdd", async member => {
     if (welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
-        const msg = welcome.serverMessage
-          .replace("{user}", `<@${member.id}>`)
-          .replace("{server}", member.guild.name);
+     const msg = parsePlaceholders(welcome.serverMessage, member);
         channel.send(msg);
       }
     }
 
     // Send DM if set
     if (welcome.dmMessage) {
-      const msg = welcome.dmMessage
-        .replace("{user}", member.user.username)
-        .replace("{server}", member.guild.name);
+   const msg = parsePlaceholders(welcome.dmMessage, member);
       member.send(msg).catch(() => {}); // ignore if DMs blocked
     }
 
@@ -134,18 +152,14 @@ client.on("guildMemberRemove", async member => {
     if (farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
-        const msg = farewell.serverMessage
-          .replace("{user}", `<@${member.id}>`)
-          .replace("{server}", member.guild.name);
+       const msg = parsePlaceholders(farewell.serverMessage, member);
         channel.send(msg);
       }
     }
 
     // Send DM
     if (farewell.dmMessage) {
-      const msg = farewell.dmMessage
-        .replace("{user}", member.user.username)
-        .replace("{server}", member.guild.name);
+       const msg = parsePlaceholders(farewell.dmMessage, member);
       member.send(msg).catch(() => {});
     }
 
@@ -168,7 +182,45 @@ client.on("interactionCreate", async interaction => {
 client.login(process.env.TOKEN);
 
 // --- Express Server ---
-const app = express();
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
+// Save guild settings (welcome/farewell messages & channels)
+app.post("/api/guilds/:guildId/settings", async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const { welcome, farewell } = req.body; // JSON from frontend
+
+    // Merge new settings into Firestore
+    await db.collection("guilds").doc(guildId).set({
+      plugins: {
+        welcome,
+        farewell
+      }
+    }, { merge: true });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to update settings:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+// Fetch channels for a guild
+app.get("/api/guilds/:guildId/channels", async (req, res) => {
+  try {
+    const { guildId } = req.params;
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) return res.status(404).json({ error: "Guild not found" });
+
+    // Only text channels
+    const channels = guild.channels.cache
+      .filter(c => c.type === 0) // 0 = GUILD_TEXT in Discord.js v14
+      .map(c => ({ id: c.id, name: c.name }));
+
+    res.json(channels);
+  } catch (err) {
+    console.error("Failed to fetch channels:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.listen(PORT, "0.0.0.0", () => console.log(`Web server listening on port ${PORT}`));

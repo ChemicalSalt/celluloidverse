@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 
 const Dashboard = () => {
@@ -13,7 +12,13 @@ const Dashboard = () => {
     serverFarewell: "",
     dmFarewell: "",
   });
-const [saveMessage, setSaveMessage] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // --- NEW: channel selection states ---
+  const [channels, setChannels] = useState([]);
+  const [selectedWelcomeChannel, setSelectedWelcomeChannel] = useState("");
+  const [selectedFarewellChannel, setSelectedFarewellChannel] = useState("");
+
   // Get OAuth token from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -25,7 +30,7 @@ const [saveMessage, setSaveMessage] = useState("");
   const fetchGuilds = async () => {
     if (!token) return;
     try {
-const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -62,26 +67,57 @@ const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers`, {
     setMessages(prev => ({ ...prev, [field]: value }));
   };
 
-const handleSave = async () => {
-  try {
-    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(messages),
-    });
+  // --- Fetch channels when server selected ---
+  useEffect(() => {
+    if (!selectedServer || !token) return;
 
-    // Show a small message in UI
-    setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
+    const fetchChannels = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/guilds/${selectedServer.id}/channels`);
+        const data = await res.json();
+        setChannels(data);
 
-    // Hide message after 3 seconds
-    setTimeout(() => setSaveMessage(""), 3000);
+        // preselect first channel if exists
+        setSelectedWelcomeChannel(data[0]?.id || "");
+        setSelectedFarewellChannel(data[0]?.id || "");
+      } catch (err) {
+        console.error("Failed to fetch channels:", err);
+      }
+    };
 
-  } catch (err) {
-    console.error("Failed to save messages:", err);
-    setSaveMessage("Failed to save messages. Try again.");
-  }
-};
+    fetchChannels();
+  }, [selectedServer, token]);
 
+  const handleSave = async () => {
+    try {
+      const payload = {
+        welcome: {
+          enabled: true,
+          channelId: selectedWelcomeChannel,
+          serverMessage: messages.serverWelcome,
+          dmMessage: messages.dmWelcome,
+        },
+        farewell: {
+          enabled: true,
+          channelId: selectedFarewellChannel,
+          serverMessage: messages.serverFarewell,
+          dmMessage: messages.dmFarewell,
+        },
+      };
+
+      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err) {
+      console.error("Failed to save messages:", err);
+      setSaveMessage("Failed to save messages. Try again.");
+    }
+  };
 
   // Show features page if server selected
   if (selectedServer) {
@@ -102,6 +138,21 @@ const handleSave = async () => {
               <label>DM Welcome</label>
               <input type="text" placeholder="Hi [username]!" value={messages.dmWelcome} onChange={e => handleChange("dmWelcome", e.target.value)} className="p-2 rounded border"/>
             </div>
+
+            {/* Server Welcome Channel */}
+            <div className="flex flex-col mt-2">
+              <label>Server Welcome Channel</label>
+              <select 
+                value={selectedWelcomeChannel} 
+                onChange={e => setSelectedWelcomeChannel(e.target.value)}
+                className="p-2 rounded border"
+              >
+                <option value="">Select a channel</option>
+                {channels.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Farewell Messages */}
@@ -115,18 +166,34 @@ const handleSave = async () => {
               <label>DM Farewell</label>
               <input type="text" placeholder="Sad to see you go [username]!" value={messages.dmFarewell} onChange={e => handleChange("dmFarewell", e.target.value)} className="p-2 rounded border"/>
             </div>
+
+            {/* Server Farewell Channel */}
+            <div className="flex flex-col mt-2">
+              <label>Server Farewell Channel</label>
+              <select 
+                value={selectedFarewellChannel} 
+                onChange={e => setSelectedFarewellChannel(e.target.value)}
+                className="p-2 rounded border"
+              >
+                <option value="">Select a channel</option>
+                {channels.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <button onClick={handleSave} className="px-6 py-3 rounded bg-purple-600 text-white hover:bg-purple-700 mt-4">
             Save Messages
           </button>
         </div>
-         {/* Toast message */}
-      {saveMessage && (
-        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
-          {saveMessage}
-        </div>
-      )}
+
+        {/* Toast message */}
+        {saveMessage && (
+          <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+            {saveMessage}
+          </div>
+        )}
       </div>
     );
   }
