@@ -69,55 +69,63 @@ const Dashboard = () => {
 
   // --- Fetch channels when server selected ---
   useEffect(() => {
-    if (!selectedServer || !token) return;
+  if (!selectedServer || !token) return;
 
-    const fetchChannels = async () => {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/guilds/${selectedServer.id}/channels`);
-        const data = await res.json();
-        setChannels(data);
-
-        // preselect first channel if exists
-        setSelectedWelcomeChannel(data[0]?.id || "");
-        setSelectedFarewellChannel(data[0]?.id || "");
-      } catch (err) {
-        console.error("Failed to fetch channels:", err);
-      }
-    };
-
-    fetchChannels();
-  }, [selectedServer, token]);
-
-  const handleSave = async () => {
+  const fetchMessages = async () => {
     try {
-      const payload = {
-        welcome: {
-          enabled: true,
-          channelId: selectedWelcomeChannel,
-          serverMessage: messages.serverWelcome,
-          dmMessage: messages.dmWelcome,
-        },
-        farewell: {
-          enabled: true,
-          channelId: selectedFarewellChannel,
-          serverMessage: messages.serverFarewell,
-          dmMessage: messages.dmFarewell,
-        },
-      };
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
 
-      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      setMessages({
+        serverWelcome: data.plugins?.welcome?.serverMessage || "",
+        dmWelcome: data.plugins?.welcome?.dmMessage || "",
+        serverFarewell: data.plugins?.farewell?.serverMessage || "",
+        dmFarewell: data.plugins?.farewell?.dmMessage || "",
       });
 
-      setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
-      setTimeout(() => setSaveMessage(""), 3000);
+      setSelectedWelcomeChannel(data.plugins?.welcome?.channelId || "");
+      setSelectedFarewellChannel(data.plugins?.farewell?.channelId || "");
     } catch (err) {
-      console.error("Failed to save messages:", err);
-      setSaveMessage("Failed to save messages. Try again.");
+      console.error("Failed to fetch messages:", err);
     }
   };
+
+  fetchMessages();
+}, [selectedServer, token]);
+
+
+ const handleSave = async () => {
+  try {
+    const payload = {
+      welcome: {
+        enabled: true,
+        channelId: selectedWelcomeChannel,
+        serverMessage: messages.serverWelcome,
+        dmMessage: messages.dmWelcome,
+      },
+      farewell: {
+        enabled: true,
+        channelId: selectedFarewellChannel,
+        serverMessage: messages.serverFarewell,
+        dmMessage: messages.dmFarewell,
+      },
+    };
+
+    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
+    setTimeout(() => setSaveMessage(""), 3000);
+  } catch (err) {
+    console.error("Failed to save messages:", err);
+    setSaveMessage("Failed to save messages. Try again.");
+  }
+};
 
   // Show features page if server selected
   if (selectedServer) {
