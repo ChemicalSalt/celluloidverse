@@ -102,9 +102,10 @@ const Dashboard = () => {
     const fetchChannels = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/channels`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+  `${import.meta.env.VITE_API_URL}/api/guilds/${selectedServer.id}/channels`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);
+
         const data = await res.json();
         setChannels(data);
         setSelectedWelcomeChannel(data[0]?.id || "");
