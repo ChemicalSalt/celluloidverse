@@ -42,6 +42,9 @@ if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(
 const db = admin.firestore();
 const statusRef = db.collection("botStatus").doc("main");
 
+// --- NEW: Default channel fallback ---
+let defaultChannelId = null;
+
 // --- Slash command setup ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
@@ -62,30 +65,39 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
+  // --- NEW: Set default channel ---
+  for (const guild of client.guilds.cache.values()) {
+    if (guild.systemChannelId) {
+      defaultChannelId = guild.systemChannelId;
+      break;
+    }
+  }
+  console.log("Default channel set to:", defaultChannelId);
+
   // Fetch all members for leave event reliability
   for (const guild of client.guilds.cache.values()) {
     await guild.members.fetch();
+
     // Auto-create default Firestore doc if missing
     const docRef = db.collection("guilds").doc(guild.id);
     const doc = await docRef.get();
     if (!doc.exists) {
-      // When creating default Firestore doc
-await docRef.set({
-  plugins: {
-    welcome: { 
-      enabled: true, 
-      channelId: guild.systemChannelId|| defaultChannelId,
-      serverMessage: messages.serverWelcome || "Welcome {user} to {server}!",
-      dmMessage: messages.dmWelcome || ""
-    },
-    farewell: { 
-      enabled: true,
-      channelId: messages.farewellChannelId || defaultChannelId,
-      serverMessage: messages.serverFarewell || "Goodbye {user} from {server}!",
-      dmMessage: messages.dmFarewell || "" 
-    }
-  }
-  },{ merge: true });
+      await docRef.set({
+        plugins: {
+          welcome: { 
+            enabled: true, 
+            channelId: defaultChannelId,
+            serverMessage: "Welcome {user} to {server}!",
+            dmMessage: ""
+          },
+          farewell: { 
+            enabled: true,
+            channelId: defaultChannelId,
+            serverMessage: "Goodbye {user} from {server}!",
+            dmMessage: "" 
+          }
+        }
+      }, { merge: true });
 
       console.log(`Created default Firestore doc for guild: ${guild.name}`);
     }
@@ -107,7 +119,6 @@ await docRef.set({
 });
 
 // --- Welcome / Farewell ---
-// --- Welcome ---
 client.on("guildMemberAdd", async member => {
   try {
     const doc = await db.collection("guilds").doc(member.guild.id).get();
@@ -117,27 +128,23 @@ client.on("guildMemberAdd", async member => {
     const welcome = data.plugins?.welcome;
     if (!welcome?.enabled) return;
 
-    // Send server message if channel exists
     if (welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
-     const msg = parsePlaceholders(welcome.serverMessage, member);
+        const msg = parsePlaceholders(welcome.serverMessage, member);
         channel.send(msg);
       }
     }
 
-    // Send DM if set
     if (welcome.dmMessage) {
-   const msg = parsePlaceholders(welcome.dmMessage, member);
-      member.send(msg).catch(() => {}); // ignore if DMs blocked
+      const msg = parsePlaceholders(welcome.dmMessage, member);
+      member.send(msg).catch(() => {});
     }
-
   } catch (err) {
     console.error("Welcome error:", err);
   }
 });
 
-// --- Farewell ---
 client.on("guildMemberRemove", async member => {
   try {
     if (member.partial) await member.fetch();
@@ -148,26 +155,22 @@ client.on("guildMemberRemove", async member => {
     const farewell = data.plugins?.farewell;
     if (!farewell?.enabled) return;
 
-    // Send server message
     if (farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
-       const msg = parsePlaceholders(farewell.serverMessage, member);
+        const msg = parsePlaceholders(farewell.serverMessage, member);
         channel.send(msg);
       }
     }
 
-    // Send DM
     if (farewell.dmMessage) {
-       const msg = parsePlaceholders(farewell.dmMessage, member);
+      const msg = parsePlaceholders(farewell.dmMessage, member);
       member.send(msg).catch(() => {});
     }
-
   } catch (err) {
     console.error("Farewell error:", err);
   }
 });
-
 
 // --- Slash command handling ---
 client.on("interactionCreate", async interaction => {
@@ -184,42 +187,21 @@ client.login(process.env.TOKEN);
 // --- Express Server ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
-// Save guild settings (welcome/farewell messages & channels)
+
+// Save guild settings
 app.post("/api/guilds/:guildId/settings", async (req, res) => {
   try {
     const { guildId } = req.params;
-    const { welcome, farewell } = req.body; // JSON from frontend
+    const { welcome, farewell } = req.body;
 
-    // Merge new settings into Firestore
     await db.collection("guilds").doc(guildId).set({
-      plugins: {
-        welcome,
-        farewell
-      }
+      plugins: { welcome, farewell }
     }, { merge: true });
 
     res.json({ success: true });
   } catch (err) {
     console.error("Failed to update settings:", err);
     res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-// Fetch channels for a guild
-app.get("/api/guilds/:guildId/channels", async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) return res.status(404).json({ error: "Guild not found" });
-
-    // Only text channels
-    const channels = guild.channels.cache
-      .filter(c => c.type === 0) // 0 = GUILD_TEXT in Discord.js v14
-      .map(c => ({ id: c.id, name: c.name }));
-
-    res.json(channels);
-  } catch (err) {
-    console.error("Failed to fetch channels:", err);
-    res.status(500).json({ error: "Internal server error" });
   }
 });
 

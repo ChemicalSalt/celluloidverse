@@ -67,82 +67,86 @@ const Dashboard = () => {
     setMessages(prev => ({ ...prev, [field]: value }));
   };
 
-  // --- Fetch channels when server selected ---
+  // --- Fetch messages when server selected ---
   useEffect(() => {
-  if (!selectedServer || !token) return;
+    if (!selectedServer || !token) return;
 
-  const fetchMessages = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+    const fetchMessages = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
 
-      setMessages({
-        serverWelcome: data.plugins?.welcome?.serverMessage || "",
-        dmWelcome: data.plugins?.welcome?.dmMessage || "",
-        serverFarewell: data.plugins?.farewell?.serverMessage || "",
-        dmFarewell: data.plugins?.farewell?.dmMessage || "",
-      });
+        setMessages({
+          serverWelcome: data.plugins?.welcome?.serverMessage || "",
+          dmWelcome: data.plugins?.welcome?.dmMessage || "",
+          serverFarewell: data.plugins?.farewell?.serverMessage || "",
+          dmFarewell: data.plugins?.farewell?.dmMessage || "",
+        });
 
-      setSelectedWelcomeChannel(data.plugins?.welcome?.channelId || "");
-      setSelectedFarewellChannel(data.plugins?.farewell?.channelId || "");
-    } catch (err) {
-      console.error("Failed to fetch messages:", err);
-    }
-  };
-
-  fetchMessages();
-}, [selectedServer, token]);
-
-useEffect(() => {
-  if (!selectedServer) return;
-
-  const fetchChannels = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/guilds/${selectedServer.id}/channels`);
-      const data = await res.json();
-      setChannels(data);
-      setSelectedWelcomeChannel(data[0]?.id || "");
-      setSelectedFarewellChannel(data[0]?.id || "");
-    } catch (err) {
-      console.error("Failed to fetch channels:", err);
-    }
-  };
-
-  fetchChannels();
-}, [selectedServer]);
-
- const handleSave = async () => {
-  try {
-    const payload = {
-      welcome: {
-        enabled: true,
-        channelId: selectedWelcomeChannel,
-        serverMessage: messages.serverWelcome,
-        dmMessage: messages.dmWelcome,
-      },
-      farewell: {
-        enabled: true,
-        channelId: selectedFarewellChannel,
-        serverMessage: messages.serverFarewell,
-        dmMessage: messages.dmFarewell,
-      },
+        setSelectedWelcomeChannel(data.plugins?.welcome?.channelId || "");
+        setSelectedFarewellChannel(data.plugins?.farewell?.channelId || "");
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      }
     };
 
-    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    fetchMessages();
+  }, [selectedServer, token]);
 
-    setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
-    setTimeout(() => setSaveMessage(""), 3000);
-  } catch (err) {
-    console.error("Failed to save messages:", err);
-    setSaveMessage("Failed to save messages. Try again.");
-  }
-};
+  // --- Fetch channels when server selected ---
+  useEffect(() => {
+    if (!selectedServer || !token) return;
+
+    const fetchChannels = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/channels`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        setChannels(data);
+        setSelectedWelcomeChannel(data[0]?.id || "");
+        setSelectedFarewellChannel(data[0]?.id || "");
+      } catch (err) {
+        console.error("Failed to fetch channels:", err);
+      }
+    };
+
+    fetchChannels();
+  }, [selectedServer, token]);
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        welcome: {
+          enabled: true,
+          channelId: selectedWelcomeChannel,
+          serverMessage: messages.serverWelcome,
+          dmMessage: messages.dmWelcome,
+        },
+        farewell: {
+          enabled: true,
+          channelId: selectedFarewellChannel,
+          serverMessage: messages.serverFarewell,
+          dmMessage: messages.dmFarewell,
+        },
+      };
+
+      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      setSaveMessage("Plugin activated! Welcome & Farewell messages enabled.");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err) {
+      console.error("Failed to save messages:", err);
+      setSaveMessage("Failed to save messages. Try again.");
+    }
+  };
 
   // Show features page if server selected
   if (selectedServer) {
@@ -157,24 +161,38 @@ useEffect(() => {
             <h3 className="font-semibold text-lg">Welcome Messages</h3>
             <div className="flex flex-col">
               <label>Server Welcome</label>
-              <input type="text" placeholder="Welcome [usermention]!" value={messages.serverWelcome} onChange={e => handleChange("serverWelcome", e.target.value)} className="p-2 rounded border"/>
+              <input
+                type="text"
+                placeholder="Welcome [usermention]!"
+                value={messages.serverWelcome}
+                onChange={e => handleChange("serverWelcome", e.target.value)}
+                className="p-2 rounded border"
+              />
             </div>
             <div className="flex flex-col">
               <label>DM Welcome</label>
-              <input type="text" placeholder="Hi [username]!" value={messages.dmWelcome} onChange={e => handleChange("dmWelcome", e.target.value)} className="p-2 rounded border"/>
+              <input
+                type="text"
+                placeholder="Hi [username]!"
+                value={messages.dmWelcome}
+                onChange={e => handleChange("dmWelcome", e.target.value)}
+                className="p-2 rounded border"
+              />
             </div>
 
             {/* Server Welcome Channel */}
             <div className="flex flex-col mt-2">
               <label>Server Welcome Channel</label>
-              <select 
-                value={selectedWelcomeChannel} 
+              <select
+                value={selectedWelcomeChannel}
                 onChange={e => setSelectedWelcomeChannel(e.target.value)}
                 className="p-2 rounded border"
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -185,30 +203,47 @@ useEffect(() => {
             <h3 className="font-semibold text-lg">Farewell Messages</h3>
             <div className="flex flex-col">
               <label>Server Farewell</label>
-              <input type="text" placeholder="Goodbye [usermention]!" value={messages.serverFarewell} onChange={e => handleChange("serverFarewell", e.target.value)} className="p-2 rounded border"/>
+              <input
+                type="text"
+                placeholder="Goodbye [usermention]!"
+                value={messages.serverFarewell}
+                onChange={e => handleChange("serverFarewell", e.target.value)}
+                className="p-2 rounded border"
+              />
             </div>
             <div className="flex flex-col">
               <label>DM Farewell</label>
-              <input type="text" placeholder="Sad to see you go [username]!" value={messages.dmFarewell} onChange={e => handleChange("dmFarewell", e.target.value)} className="p-2 rounded border"/>
+              <input
+                type="text"
+                placeholder="Sad to see you go [username]!"
+                value={messages.dmFarewell}
+                onChange={e => handleChange("dmFarewell", e.target.value)}
+                className="p-2 rounded border"
+              />
             </div>
 
             {/* Server Farewell Channel */}
             <div className="flex flex-col mt-2">
               <label>Server Farewell Channel</label>
-              <select 
-                value={selectedFarewellChannel} 
+              <select
+                value={selectedFarewellChannel}
                 onChange={e => setSelectedFarewellChannel(e.target.value)}
                 className="p-2 rounded border"
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <button onClick={handleSave} className="px-6 py-3 rounded bg-purple-600 text-white hover:bg-purple-700 mt-4">
+          <button
+            onClick={handleSave}
+            className="px-6 py-3 rounded bg-purple-600 text-white hover:bg-purple-700 mt-4"
+          >
             Save Messages
           </button>
         </div>
@@ -234,15 +269,27 @@ useEffect(() => {
           {servers.map(g => (
             <div key={g.id} className="flex items-center justify-between p-2 border-b">
               <div className="flex items-center gap-2">
-                {g.icon && <img src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`} alt={g.name} className="w-8 h-8 rounded-full" />}
+                {g.icon && (
+                  <img
+                    src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`}
+                    alt={g.name}
+                    className="w-8 h-8 rounded-full"
+                  />
+                )}
                 <span>{g.name}</span>
               </div>
               {!g.hasBot ? (
-                <button onClick={() => handleAddBot(g.id)} className="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                <button
+                  onClick={() => handleAddBot(g.id)}
+                  className="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >
                   Add Bot
                 </button>
               ) : (
-                <button onClick={() => handleDashboard(g.id)} className="px-4 py-1 bg-black text-white rounded hover:bg-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-300">
+                <button
+                  onClick={() => handleDashboard(g.id)}
+                  className="px-4 py-1 bg-black text-white rounded hover:bg-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-300"
+                >
                   Plug-ins
                 </button>
               )}

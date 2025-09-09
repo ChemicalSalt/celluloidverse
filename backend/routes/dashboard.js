@@ -114,22 +114,43 @@ router.post("/servers/:id/messages", async (req, res) => {
     const doc = await docRef.get();
     const currentData = doc.data() || {};
 
-    await docRef.set({
-      plugins: {
-        welcome: {
-          enabled: welcome?.enabled ?? true,
-          channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
-          serverMessage: welcome?.serverMessage ?? currentData.plugins?.welcome?.serverMessage ?? "Welcome {user} to {server}!",
-          dmMessage: welcome?.dmMessage ?? currentData.plugins?.welcome?.dmMessage ?? "",
-        },
-        farewell: {
-          enabled: farewell?.enabled ?? true,
-          channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
-          serverMessage: farewell?.serverMessage ?? currentData.plugins?.farewell?.serverMessage ?? "Goodbye {user} from {server}!",
-          dmMessage: farewell?.dmMessage ?? currentData.plugins?.farewell?.dmMessage ?? "",
+    await docRef.set(
+      {
+        plugins: {
+          welcome: {
+            enabled: welcome?.enabled ?? true,
+            channelId:
+              welcome?.channelId ??
+              currentData.plugins?.welcome?.channelId ??
+              null,
+            serverMessage:
+              welcome?.serverMessage ??
+              currentData.plugins?.welcome?.serverMessage ??
+              "Welcome {user} to {server}!",
+            dmMessage:
+              welcome?.dmMessage ??
+              currentData.plugins?.welcome?.dmMessage ??
+              "",
+          },
+          farewell: {
+            enabled: farewell?.enabled ?? true,
+            channelId:
+              farewell?.channelId ??
+              currentData.plugins?.farewell?.channelId ??
+              null,
+            serverMessage:
+              farewell?.serverMessage ??
+              currentData.plugins?.farewell?.serverMessage ??
+              "Goodbye {user} from {server}!",
+            dmMessage:
+              farewell?.dmMessage ??
+              currentData.plugins?.farewell?.dmMessage ??
+              "",
+          },
         },
       },
-    }, { merge: true });
+      { merge: true }
+    );
 
     console.log(`Saved messages for server ${id} to Firestore`);
     res.json({ success: true });
@@ -139,26 +160,30 @@ router.post("/servers/:id/messages", async (req, res) => {
   }
 });
 
-router.get("/guilds/:guildId/channels", async (req, res) => {
+// ---- Fetch channels for a guild ----
+router.get("/servers/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
 
   try {
-    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
-      headers: { Authorization: `Bot ${TOKEN}` },
-    });
+    const response = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/channels`,
+      {
+        headers: { Authorization: `Bot ${TOKEN}` },
+      }
+    );
     const channels = await response.json();
 
-    console.log("Discord API response for channels:", channels); // <- ADD THIS
+    console.log("Discord API response for channels:", channels);
 
     // filter text channels only
-    const textChannels = channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
+    const textChannels = channels
+      .filter(c => c.type === 0)
+      .map(c => ({ id: c.id, name: c.name }));
     res.json(textChannels);
   } catch (err) {
     console.error("Failed to fetch channels:", err);
     res.status(500).json({ error: "Failed to fetch channels" });
   }
 });
-
-
 
 module.exports = router;
