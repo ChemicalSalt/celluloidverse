@@ -16,10 +16,6 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-// --- Initialize Discord client (required for channels) ---
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
-client.login(TOKEN);
-
 // ---- OAuth Login ----
 router.get("/login", (req, res) => {
   const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
