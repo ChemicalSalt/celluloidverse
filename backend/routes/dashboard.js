@@ -139,7 +139,6 @@ router.post("/servers/:id/messages", async (req, res) => {
   }
 });
 
-// ---- Fetch text channels for a guild ----
 router.get("/guilds/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
 
@@ -149,6 +148,8 @@ router.get("/guilds/:guildId/channels", async (req, res) => {
     });
     const channels = await response.json();
 
+    console.log("Discord API response for channels:", channels); // <- ADD THIS
+
     // filter text channels only
     const textChannels = channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
     res.json(textChannels);
@@ -157,6 +158,7 @@ router.get("/guilds/:guildId/channels", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch channels" });
   }
 });
+
 
 
 module.exports = router;

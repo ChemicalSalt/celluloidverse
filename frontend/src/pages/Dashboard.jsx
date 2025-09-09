@@ -95,6 +95,23 @@ const Dashboard = () => {
   fetchMessages();
 }, [selectedServer, token]);
 
+useEffect(() => {
+  if (!selectedServer) return;
+
+  const fetchChannels = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/guilds/${selectedServer.id}/channels`);
+      const data = await res.json();
+      setChannels(data);
+      setSelectedWelcomeChannel(data[0]?.id || "");
+      setSelectedFarewellChannel(data[0]?.id || "");
+    } catch (err) {
+      console.error("Failed to fetch channels:", err);
+    }
+  };
+
+  fetchChannels();
+}, [selectedServer]);
 
  const handleSave = async () => {
   try {
