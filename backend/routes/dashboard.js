@@ -2,6 +2,7 @@ const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
 const admin = require("firebase-admin");
+const { Client, GatewayIntentBits } = require("discord.js");
 
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
@@ -16,6 +17,10 @@ if (!admin.apps.length) {
   });
 }
 const db = admin.firestore();
+
+// --- Initialize Discord client (required for channels) ---
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+client.login(TOKEN);
 
 // ---- OAuth Login ----
 router.get("/login", (req, res) => {
@@ -47,12 +52,6 @@ router.get("/callback", async (req, res) => {
     });
     const data = await tokenRes.json();
     if (data.error) return res.status(400).send("OAuth error: " + data.error);
-
-    const userRes = await fetch("https://discord.com/api/users/@me", {
-      headers: { Authorization: `Bearer ${data.access_token}` },
-    });
-    const user = await userRes.json();
-    console.log("OAuth success for user:", user.username);
 
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
   } catch (err) {
@@ -96,29 +95,46 @@ router.get("/servers", async (req, res) => {
   }
 });
 
+// ---- Fetch saved messages for a server ----
+router.get("/servers/:id/messages", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const doc = await db.collection("guilds").doc(id).get();
+    if (!doc.exists) return res.json({ plugins: {} });
+
+    res.json(doc.data());
+  } catch (err) {
+    console.error("Failed to fetch messages:", err);
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
 // ---- Save messages/settings for a server ----
 router.post("/servers/:id/messages", async (req, res) => {
   const { id } = req.params;
-  const messages = req.body;
+  const { welcome, farewell } = req.body;
 
   try {
     const docRef = db.collection("guilds").doc(id);
     const doc = await docRef.get();
-    const defaultChannelId = doc.data()?.plugins?.welcome?.channelId || null;
+    const currentData = doc.data() || {};
 
     await docRef.set({
       plugins: {
         welcome: {
-          enabled: true,
-          channelId: defaultChannelId,
-          serverMessage: messages.serverWelcome || "Welcome {user} to {server}!", 
-          dmMessage: messages.dmWelcome || ""       },
+          enabled: welcome?.enabled ?? true,
+          channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
+          serverMessage: welcome?.serverMessage ?? currentData.plugins?.welcome?.serverMessage ?? "Welcome {user} to {server}!",
+          dmMessage: welcome?.dmMessage ?? currentData.plugins?.welcome?.dmMessage ?? "",
+        },
         farewell: {
-          enabled: true,
-          channelId: defaultChannelId,
-          serverMessage: messages.serverFarewell || "Goodbye {user} from {server}!",
-          dmMessage: messages.dmFarewell || ""        }
-      }
+          enabled: farewell?.enabled ?? true,
+          channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
+          serverMessage: farewell?.serverMessage ?? currentData.plugins?.farewell?.serverMessage ?? "Goodbye {user} from {server}!",
+          dmMessage: farewell?.dmMessage ?? currentData.plugins?.farewell?.dmMessage ?? "",
+        },
+      },
     }, { merge: true });
 
     console.log(`Saved messages for server ${id} to Firestore`);
@@ -126,6 +142,23 @@ router.post("/servers/:id/messages", async (req, res) => {
   } catch (err) {
     console.error("Failed to save messages:", err);
     res.status(500).json({ error: "Failed to save messages" });
+  }
+});
+
+// ---- Fetch text channels for a guild ----
+router.get("/guilds/:guildId/channels", async (req, res) => {
+  try {
+    const guild = client.guilds.cache.get(req.params.guildId);
+    if (!guild) return res.status(404).json({ error: "Guild not found" });
+
+    const channels = guild.channels.cache
+      .filter(c => c.type === 0) // Text channels only
+      .map(c => ({ id: c.id, name: c.name }));
+
+    res.json(channels);
+  } catch (err) {
+    console.error("Failed to fetch channels:", err);
+    res.status(500).json({ error: "Failed to fetch channels" });
   }
 });
 
