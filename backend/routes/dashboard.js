@@ -2,8 +2,6 @@ const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
 const admin = require("firebase-admin");
-const { Client, GatewayIntentBits } = require("discord.js");
-
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
@@ -147,19 +145,22 @@ router.post("/servers/:id/messages", async (req, res) => {
 
 // ---- Fetch text channels for a guild ----
 router.get("/guilds/:guildId/channels", async (req, res) => {
+  const guildId = req.params.guildId;
+
   try {
-    const guild = client.guilds.cache.get(req.params.guildId);
-    if (!guild) return res.status(404).json({ error: "Guild not found" });
+    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    const channels = await response.json();
 
-    const channels = guild.channels.cache
-      .filter(c => c.type === 0) // Text channels only
-      .map(c => ({ id: c.id, name: c.name }));
-
-    res.json(channels);
+    // filter text channels only
+    const textChannels = channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
+    res.json(textChannels);
   } catch (err) {
     console.error("Failed to fetch channels:", err);
     res.status(500).json({ error: "Failed to fetch channels" });
   }
 });
+
 
 module.exports = router;
