@@ -3,6 +3,38 @@ const router = express.Router();
 const fetch = require("node-fetch");
 const { db } = require("../firebase");
 
+// ---- Discord OAuth2 Login ----
+router.get("/login", async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.status(400).json({ error: "Missing code" });
+
+  try {
+    const params = new URLSearchParams();
+    params.append("client_id", process.env.CLIENT_ID);
+    params.append("client_secret", process.env.CLIENT_SECRET);
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append("redirect_uri", process.env.REDIRECT_URI);
+
+    const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      body: params,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+
+    const tokenData = await tokenRes.json();
+    if (tokenData.error) {
+      console.error("OAuth error:", tokenData);
+      return res.status(400).json(tokenData);
+    }
+
+    res.json(tokenData); // frontend will get { access_token, token_type, expires_in, refresh_token, scope }
+  } catch (err) {
+    console.error("Failed to exchange code:", err);
+    res.status(500).json({ error: "OAuth2 failed" });
+  }
+});
+
 // ---- Get user's servers ----
 router.get("/servers", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -19,7 +51,6 @@ router.get("/servers", async (req, res) => {
     });
     const guilds = await guildRes.json();
 
-    // Check which servers have the bot
     const results = await Promise.all(
       guilds.map(async (guild) => {
         const doc = await db.collection("guilds").doc(guild.id).get();
@@ -53,7 +84,6 @@ router.get("/servers/:id/channels", async (req, res) => {
     });
     const data = await response.json();
 
-    // Only return text channels
     const textChannels = data.filter((c) => c.type === 0).map((c) => ({
       id: c.id,
       name: c.name,
