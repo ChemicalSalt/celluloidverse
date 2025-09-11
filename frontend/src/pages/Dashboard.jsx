@@ -4,37 +4,35 @@ const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 
 const Dashboard = () => {
   const [token, setToken] = useState(null);
-  const [servers, setServers] = useState([]);
-  const [selectedServer, setSelectedServer] = useState(null);
-
+  const [servers, setServers] = useState([]);      // all servers user can manage
+  const [selectedServer, setSelectedServer] = useState(null); // for features page
   const [messages, setMessages] = useState({
     serverWelcome: "",
     dmWelcome: "",
     serverFarewell: "",
     dmFarewell: "",
   });
-
   const [saveMessage, setSaveMessage] = useState("");
 
-  // --- Toggles ---
-  const [serverWelcomeEnabled, setServerWelcomeEnabled] = useState(false);
-  const [dmWelcomeEnabled, setDmWelcomeEnabled] = useState(false);
-  const [serverFarewellEnabled, setServerFarewellEnabled] = useState(false);
-  const [dmFarewellEnabled, setDmFarewellEnabled] = useState(false);
+  // New: toggles for individual features
+  const [serverWelcomeEnabled, setServerWelcomeEnabled] = useState(true);
+  const [dmWelcomeEnabled, setDmWelcomeEnabled] = useState(true);
+  const [serverFarewellEnabled, setServerFarewellEnabled] = useState(true);
+  const [dmFarewellEnabled, setDmFarewellEnabled] = useState(true);
 
-  // --- Channels ---
+  // --- NEW: channel selection states ---
   const [channels, setChannels] = useState([]);
   const [selectedWelcomeChannel, setSelectedWelcomeChannel] = useState("");
   const [selectedFarewellChannel, setSelectedFarewellChannel] = useState("");
 
-  // Get OAuth token
+  // Get OAuth token from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     setToken(t);
   }, []);
 
-  // Fetch servers
+  // Fetch user's guilds from backend
   const fetchGuilds = async () => {
     if (!token) return;
     try {
@@ -42,7 +40,7 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setServers(data);
+      setServers(data); // all servers
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
     }
@@ -52,6 +50,7 @@ const Dashboard = () => {
     fetchGuilds();
   }, [token]);
 
+  // Handle Add Bot
   const handleAddBot = guildId => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -59,11 +58,12 @@ const Dashboard = () => {
     const timer = setInterval(() => {
       if (popup.closed) {
         clearInterval(timer);
-        fetchGuilds();
+        fetchGuilds(); // refresh guilds
       }
     }, 1000);
   };
 
+  // Handle Dashboard click
   const handleDashboard = guildId => {
     const server = servers.find(s => s.id === guildId);
     if (server) setSelectedServer(server);
@@ -73,7 +73,7 @@ const Dashboard = () => {
     setMessages(prev => ({ ...prev, [field]: value }));
   };
 
-  // --- Load saved settings ---
+  // --- Fetch messages when server selected ---
   useEffect(() => {
     if (!selectedServer || !token) return;
 
@@ -84,24 +84,16 @@ const Dashboard = () => {
         });
         const data = await res.json();
 
-        const plugins = data.plugins || {};
-        const welcome = plugins.welcome || {};
-        const farewell = plugins.farewell || {};
-
+        // keep blank initially
         setMessages({
-          serverWelcome: welcome.serverMessage || "",
-          dmWelcome: welcome.dmMessage || "",
-          serverFarewell: farewell.serverMessage || "",
-          dmFarewell: farewell.dmMessage || "",
+          serverWelcome: "",
+          dmWelcome: "",
+          serverFarewell: "",
+          dmFarewell: "",
         });
+        setSelectedWelcomeChannel("");
+        setSelectedFarewellChannel("");
 
-        setServerWelcomeEnabled(!!welcome.serverEnabled);
-        setDmWelcomeEnabled(!!welcome.dmEnabled);
-        setServerFarewellEnabled(!!farewell.serverEnabled);
-        setDmFarewellEnabled(!!farewell.dmEnabled);
-
-        setSelectedWelcomeChannel(welcome.channelId || "");
-        setSelectedFarewellChannel(farewell.channelId || "");
       } catch (err) {
         console.error("Failed to fetch messages:", err);
       }
@@ -110,7 +102,7 @@ const Dashboard = () => {
     fetchMessages();
   }, [selectedServer, token]);
 
-  // --- Fetch channels ---
+  // --- Fetch channels when server selected ---
   useEffect(() => {
     if (!selectedServer || !token) return;
 
@@ -120,8 +112,11 @@ const Dashboard = () => {
           `${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/channels`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
+
         const data = await res.json();
         setChannels(data);
+        setSelectedWelcomeChannel("");
+        setSelectedFarewellChannel("");
       } catch (err) {
         console.error("Failed to fetch channels:", err);
       }
@@ -130,7 +125,7 @@ const Dashboard = () => {
     fetchChannels();
   }, [selectedServer, token]);
 
-  // --- Save per feature ---
+  // --- Handle Save per feature ---
   const handleSave = async (feature) => {
     try {
       let payload = {};
@@ -138,7 +133,7 @@ const Dashboard = () => {
       if (feature === "welcomeServer") {
         payload = {
           welcome: {
-            serverEnabled: serverWelcomeEnabled,
+            enabled: serverWelcomeEnabled,
             channelId: selectedWelcomeChannel,
             serverMessage: messages.serverWelcome,
           },
@@ -153,7 +148,7 @@ const Dashboard = () => {
       } else if (feature === "farewellServer") {
         payload = {
           farewell: {
-            serverEnabled: serverFarewellEnabled,
+            enabled: serverFarewellEnabled,
             channelId: selectedFarewellChannel,
             serverMessage: messages.serverFarewell,
           },
@@ -181,7 +176,7 @@ const Dashboard = () => {
     }
   };
 
-  // --- Features page ---
+  // Show features page if server selected
   if (selectedServer) {
     return (
       <div className="min-h-screen px-6 py-8">
@@ -189,11 +184,9 @@ const Dashboard = () => {
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4">
           <h2 className="font-bold text-xl">Configure Messages</h2>
 
-          {/* Welcome */}
+          {/* Welcome Messages */}
           <div className="flex flex-col gap-4">
             <h3 className="font-semibold text-lg">Welcome Messages</h3>
-
-            {/* Server Welcome */}
             <div className="flex flex-col">
               <label>Server Welcome</label>
               <input
@@ -203,23 +196,28 @@ const Dashboard = () => {
                 onChange={e => handleChange("serverWelcome", e.target.value)}
                 className="p-2 rounded border"
               />
-              <div className="flex items-center gap-2 mt-1">
-                <button onClick={() => setServerWelcomeEnabled(true)}
-                  className={`px-3 py-1 rounded ${serverWelcomeEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>
-                  On
-                </button>
-                <button onClick={() => setServerWelcomeEnabled(false)}
-                  className={`px-3 py-1 rounded ${!serverWelcomeEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}>
-                  Off
-                </button>
-                <button onClick={() => handleSave("welcomeServer")}
-                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
-                  Save
-                </button>
-              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={() => setServerWelcomeEnabled(true)}
+                className={`px-3 py-1 rounded ${serverWelcomeEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}
+              >
+                On
+              </button>
+              <button
+                onClick={() => setServerWelcomeEnabled(false)}
+                className={`px-3 py-1 rounded ${!serverWelcomeEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}
+              >
+                Off
+              </button>
+              <button
+                onClick={() => handleSave("welcomeServer")}
+                className="px-4 py-1 bg-purple-600 text-white rounded ml-2"
+              >
+                Save
+              </button>
             </div>
 
-            {/* DM Welcome */}
             <div className="flex flex-col mt-2">
               <label>DM Welcome</label>
               <input
@@ -230,16 +228,22 @@ const Dashboard = () => {
                 className="p-2 rounded border"
               />
               <div className="flex items-center gap-2 mt-1">
-                <button onClick={() => setDmWelcomeEnabled(true)}
-                  className={`px-3 py-1 rounded ${dmWelcomeEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setDmWelcomeEnabled(true)}
+                  className={`px-3 py-1 rounded ${dmWelcomeEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   On
                 </button>
-                <button onClick={() => setDmWelcomeEnabled(false)}
-                  className={`px-3 py-1 rounded ${!dmWelcomeEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setDmWelcomeEnabled(false)}
+                  className={`px-3 py-1 rounded ${!dmWelcomeEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   Off
                 </button>
-                <button onClick={() => handleSave("welcomeDM")}
-                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
+                <button
+                  onClick={() => handleSave("welcomeDM")}
+                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2"
+                >
                   Save
                 </button>
               </div>
@@ -255,17 +259,17 @@ const Dashboard = () => {
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Farewell */}
+          {/* Farewell Messages */}
           <div className="flex flex-col gap-4 mt-4">
             <h3 className="font-semibold text-lg">Farewell Messages</h3>
-
-            {/* Server Farewell */}
             <div className="flex flex-col">
               <label>Server Farewell</label>
               <input
@@ -276,22 +280,27 @@ const Dashboard = () => {
                 className="p-2 rounded border"
               />
               <div className="flex items-center gap-2 mt-1">
-                <button onClick={() => setServerFarewellEnabled(true)}
-                  className={`px-3 py-1 rounded ${serverFarewellEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setServerFarewellEnabled(true)}
+                  className={`px-3 py-1 rounded ${serverFarewellEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   On
                 </button>
-                <button onClick={() => setServerFarewellEnabled(false)}
-                  className={`px-3 py-1 rounded ${!serverFarewellEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setServerFarewellEnabled(false)}
+                  className={`px-3 py-1 rounded ${!serverFarewellEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   Off
                 </button>
-                <button onClick={() => handleSave("farewellServer")}
-                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
+                <button
+                  onClick={() => handleSave("farewellServer")}
+                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2"
+                >
                   Save
                 </button>
               </div>
             </div>
 
-            {/* DM Farewell */}
             <div className="flex flex-col mt-2">
               <label>DM Farewell</label>
               <input
@@ -302,16 +311,22 @@ const Dashboard = () => {
                 className="p-2 rounded border"
               />
               <div className="flex items-center gap-2 mt-1">
-                <button onClick={() => setDmFarewellEnabled(true)}
-                  className={`px-3 py-1 rounded ${dmFarewellEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setDmFarewellEnabled(true)}
+                  className={`px-3 py-1 rounded ${dmFarewellEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   On
                 </button>
-                <button onClick={() => setDmFarewellEnabled(false)}
-                  className={`px-3 py-1 rounded ${!dmFarewellEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}>
+                <button
+                  onClick={() => setDmFarewellEnabled(false)}
+                  className={`px-3 py-1 rounded ${!dmFarewellEnabled ? 'bg-red-500 text-white' : 'bg-gray-300 text-black'}`}
+                >
                   Off
                 </button>
-                <button onClick={() => handleSave("farewellDM")}
-                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
+                <button
+                  onClick={() => handleSave("farewellDM")}
+                  className="px-4 py-1 bg-purple-600 text-white rounded ml-2"
+                >
                   Save
                 </button>
               </div>
@@ -327,14 +342,16 @@ const Dashboard = () => {
               >
                 <option value="">Select a channel</option>
                 {channels.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
         </div>
 
-        {/* Toast */}
+        {/* Toast message */}
         {saveMessage && (
           <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
             {saveMessage}
@@ -344,10 +361,11 @@ const Dashboard = () => {
     );
   }
 
-  // Default server list
+  // Default: show all servers
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
+
       {servers.length > 0 && (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
           <h2 className="font-bold text-xl">Your Servers</h2>
