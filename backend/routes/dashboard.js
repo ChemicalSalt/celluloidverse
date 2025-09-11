@@ -4,7 +4,13 @@ const fetch = require("node-fetch");
 const { db } = require("../firebase");
 
 // ---- Discord OAuth2 Login ----
-router.get("/login", async (req, res) => {
+router.get("/login", (req, res) => {
+  const redirect = `https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID}&redirect_uri=${encodeURIComponent(process.env.REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
+  res.redirect(redirect);
+});
+
+// ---- Discord OAuth2 Callback ----
+router.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).json({ error: "Missing code" });
 
@@ -28,7 +34,7 @@ router.get("/login", async (req, res) => {
       return res.status(400).json(tokenData);
     }
 
-    res.json(tokenData); // frontend will get { access_token, token_type, expires_in, refresh_token, scope }
+    res.json(tokenData); // frontend will get { access_token, ... }
   } catch (err) {
     console.error("Failed to exchange code:", err);
     res.status(500).json({ error: "OAuth2 failed" });
