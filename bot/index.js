@@ -95,7 +95,7 @@ client.once("ready", async () => {
   }, 5000);
 });
 
-// --- Welcome / Farewell ---
+// --- Welcome ---
 client.on("guildMemberAdd", async member => {
   try {
     const doc = await db.collection("guilds").doc(member.guild.id).get();
@@ -103,9 +103,10 @@ client.on("guildMemberAdd", async member => {
     if (!data) return;
 
     const welcome = data.plugins?.welcome;
-    if (!welcome?.enabled) return;
+    if (!welcome) return;
 
-    if (welcome.serverMessage && welcome.channelId) {
+    // server message
+    if (welcome.enabled && welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
         const msg = parsePlaceholders(welcome.serverMessage, member);
@@ -113,7 +114,8 @@ client.on("guildMemberAdd", async member => {
       }
     }
 
-    if (welcome.dmMessage) {
+    // DM message
+    if (welcome.dmEnabled && welcome.dmMessage) {
       const msg = parsePlaceholders(welcome.dmMessage, member);
       member.send(msg).catch(() => {});
     }
@@ -122,6 +124,7 @@ client.on("guildMemberAdd", async member => {
   }
 });
 
+// --- Farewell ---
 client.on("guildMemberRemove", async member => {
   try {
     if (member.partial) await member.fetch();
@@ -130,9 +133,10 @@ client.on("guildMemberRemove", async member => {
     if (!data) return;
 
     const farewell = data.plugins?.farewell;
-    if (!farewell?.enabled) return;
+    if (!farewell) return;
 
-    if (farewell.serverMessage && farewell.channelId) {
+    // server message
+    if (farewell.enabled && farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
         const msg = parsePlaceholders(farewell.serverMessage, member);
@@ -140,7 +144,8 @@ client.on("guildMemberRemove", async member => {
       }
     }
 
-    if (farewell.dmMessage) {
+    // DM message
+    if (farewell.dmEnabled && farewell.dmMessage) {
       const msg = parsePlaceholders(farewell.dmMessage, member);
       member.send(msg).catch(() => {});
     }
@@ -148,6 +153,7 @@ client.on("guildMemberRemove", async member => {
     console.error("Farewell error:", err);
   }
 });
+
 
 // --- Slash command handling ---
 client.on("interactionCreate", async interaction => {

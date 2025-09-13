@@ -125,56 +125,57 @@ const Dashboard = () => {
     fetchChannels();
   }, [selectedServer, token]);
 
-  // --- Handle Save per feature ---
-  const handleSave = async (feature) => {
-    try {
-      let payload = {};
+ // --- Handle Save per feature ---
+const handleSave = async (feature) => {
+  try {
+    let payload = {};
 
-      if (feature === "welcomeServer") {
-        payload = {
-          welcome: {
-            enabled: serverWelcomeEnabled,
-            channelId: selectedWelcomeChannel,
-            serverMessage: messages.serverWelcome,
-          },
-        };
-      } else if (feature === "welcomeDM") {
-        payload = {
-          welcome: {
-            dmEnabled: dmWelcomeEnabled,
-            dmMessage: messages.dmWelcome,
-          },
-        };
-      } else if (feature === "farewellServer") {
-        payload = {
-          farewell: {
-            enabled: serverFarewellEnabled,
-            channelId: selectedFarewellChannel,
-            serverMessage: messages.serverFarewell,
-          },
-        };
-      } else if (feature === "farewellDM") {
-        payload = {
-          farewell: {
-            dmEnabled: dmFarewellEnabled,
-            dmMessage: messages.dmFarewell,
-          },
-        };
-      }
-
-      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      setSaveMessage("Saved successfully!");
-      setTimeout(() => setSaveMessage(""), 3000);
-    } catch (err) {
-      console.error("Failed to save messages:", err);
-      setSaveMessage("Failed to save messages. Try again.");
+    if (feature === "welcomeServer") {
+      payload = {
+        welcome: {
+          enabled: serverWelcomeEnabled,
+          channelId: selectedWelcomeChannel,
+          serverMessage: messages.serverWelcome,
+        },
+      };
+    } else if (feature === "welcomeDM") {
+      payload = {
+        welcome: {
+          dmEnabled: dmWelcomeEnabled,
+          dmMessage: messages.dmWelcome,
+        },
+      };
+    } else if (feature === "farewellServer") {
+      payload = {
+        farewell: {
+          enabled: serverFarewellEnabled,
+          channelId: selectedFarewellChannel,
+          serverMessage: messages.serverFarewell,
+        },
+      };
+    } else if (feature === "farewellDM") {
+      payload = {
+        farewell: {
+          dmEnabled: dmFarewellEnabled,
+          dmMessage: messages.dmFarewell,
+        },
+      };
     }
-  };
+
+    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    setSaveMessage("Saved successfully!");
+    setTimeout(() => setSaveMessage(""), 3000);
+  } catch (err) {
+    console.error("Failed to save messages:", err);
+    setSaveMessage("Failed to save messages. Try again.");
+  }
+};
+
 
   // Show features page if server selected
   if (selectedServer) {

@@ -114,26 +114,27 @@ router.post("/servers/:id/messages", async (req, res) => {
     const doc = await docRef.get();
     const currentData = doc.data() || {};
 
-   await docRef.set(
-  {
-    plugins: {
-      welcome: {
-        enabled: welcome?.enabled ?? true,
-        channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
-        serverMessage: welcome?.serverMessage ?? "", // no default
-        dmMessage: welcome?.dmMessage ?? "",         // no default
+    await docRef.set(
+      {
+        plugins: {
+          welcome: {
+            enabled: welcome?.enabled ?? currentData.plugins?.welcome?.enabled ?? false,
+            channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
+            serverMessage: welcome?.serverMessage ?? currentData.plugins?.welcome?.serverMessage ?? "",
+            dmEnabled: welcome?.dmEnabled ?? currentData.plugins?.welcome?.dmEnabled ?? false,
+            dmMessage: welcome?.dmMessage ?? currentData.plugins?.welcome?.dmMessage ?? "",
+          },
+          farewell: {
+            enabled: farewell?.enabled ?? currentData.plugins?.farewell?.enabled ?? false,
+            channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
+            serverMessage: farewell?.serverMessage ?? currentData.plugins?.farewell?.serverMessage ?? "",
+            dmEnabled: farewell?.dmEnabled ?? currentData.plugins?.farewell?.dmEnabled ?? false,
+            dmMessage: farewell?.dmMessage ?? currentData.plugins?.farewell?.dmMessage ?? "",
+          },
+        },
       },
-      farewell: {
-        enabled: farewell?.enabled ?? true,
-        channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
-        serverMessage: farewell?.serverMessage ?? "", // no default
-        dmMessage: farewell?.dmMessage ?? "",         // no default
-      },
-    },
-  },
-  { merge: true }
-);
-
+      { merge: true }
+    );
 
     console.log(`Saved messages for server ${id} to Firestore`);
     res.json({ success: true });
@@ -142,6 +143,7 @@ router.post("/servers/:id/messages", async (req, res) => {
     res.status(500).json({ error: "Failed to save messages" });
   }
 });
+
 
 // ---- Fetch channels for a guild ----
 router.get("/servers/:guildId/channels", async (req, res) => {
