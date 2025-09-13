@@ -12,7 +12,7 @@ function parsePlaceholders(template, member) {
   const guild = member.guild;
 
   return template
-    .replace(/{user}/g, `<@${member.id}>`)                     // mention user
+    .replace(/{usermention}/g, `<@${member.id}>`)                     // mention user
     .replace(/{username}/g, member.user.username)              // plain username
     .replace(/{server}/g, guild.name)                          // server name
     .replace(/{role:(.*?)}/g, (_, roleName) => {
