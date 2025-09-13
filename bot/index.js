@@ -12,16 +12,16 @@ function parsePlaceholders(template, member) {
   const guild = member.guild;
 
   return template
-    .replace(/{user}/g, `<@${member.id}>`) // mention
-    .replace(/{username}/g, member.user.username) // plain name
-    .replace(/{server}/g, guild.name) // guild name
+    .replace(/{user}/g, `<@${member.id}>`)                     // mention user
+    .replace(/{username}/g, member.user.username)              // plain username
+    .replace(/{server}/g, guild.name)                          // server name
     .replace(/{role:(.*?)}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-      return role ? `<@&${role.id}>` : `{role:${roleName}}`;
+      return role ? `<@&${role.id}>` : roleName;               // fallback to plain text
     })
     .replace(/{channel:(.*?)}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-      return channel ? `<#${channel.id}>` : `{channel:${channelName}}`;
+      return channel ? `<#${channel.id}>` : channelName;       // fallback to plain text
     });
 }
 
