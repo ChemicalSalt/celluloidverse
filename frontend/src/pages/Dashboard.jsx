@@ -4,8 +4,8 @@ const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 
 const Dashboard = () => {
   const [token, setToken] = useState(null);
-  const [servers, setServers] = useState([]);      // all servers user can manage
-  const [selectedServer, setSelectedServer] = useState(null); // for features page
+  const [servers, setServers] = useState([]);
+  const [selectedServer, setSelectedServer] = useState(null);
   const [messages, setMessages] = useState({
     serverWelcome: "",
     dmWelcome: "",
@@ -14,25 +14,21 @@ const Dashboard = () => {
   });
   const [saveMessage, setSaveMessage] = useState("");
 
-  // New: toggles for individual features
   const [serverWelcomeEnabled, setServerWelcomeEnabled] = useState(true);
   const [dmWelcomeEnabled, setDmWelcomeEnabled] = useState(true);
   const [serverFarewellEnabled, setServerFarewellEnabled] = useState(true);
   const [dmFarewellEnabled, setDmFarewellEnabled] = useState(true);
 
-  // --- NEW: channel selection states ---
   const [channels, setChannels] = useState([]);
   const [selectedWelcomeChannel, setSelectedWelcomeChannel] = useState("");
   const [selectedFarewellChannel, setSelectedFarewellChannel] = useState("");
 
-  // Get OAuth token from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("token");
     setToken(t);
   }, []);
 
-  // Fetch user's guilds from backend
   const fetchGuilds = async () => {
     if (!token) return;
     try {
@@ -40,7 +36,7 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      setServers(data); // all servers
+      setServers(data);
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
     }
@@ -50,7 +46,6 @@ const Dashboard = () => {
     fetchGuilds();
   }, [token]);
 
-  // Handle Add Bot
   const handleAddBot = guildId => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -58,12 +53,11 @@ const Dashboard = () => {
     const timer = setInterval(() => {
       if (popup.closed) {
         clearInterval(timer);
-        fetchGuilds(); // refresh guilds
+        fetchGuilds();
       }
     }, 1000);
   };
 
-  // Handle Dashboard click
   const handleDashboard = guildId => {
     const server = servers.find(s => s.id === guildId);
     if (server) setSelectedServer(server);
@@ -73,7 +67,6 @@ const Dashboard = () => {
     setMessages(prev => ({ ...prev, [field]: value }));
   };
 
-  // --- Fetch messages when server selected ---
   useEffect(() => {
     if (!selectedServer || !token) return;
 
@@ -84,7 +77,6 @@ const Dashboard = () => {
         });
         const data = await res.json();
 
-        // keep blank initially
         setMessages({
           serverWelcome: "",
           dmWelcome: "",
@@ -93,7 +85,6 @@ const Dashboard = () => {
         });
         setSelectedWelcomeChannel("");
         setSelectedFarewellChannel("");
-
       } catch (err) {
         console.error("Failed to fetch messages:", err);
       }
@@ -102,7 +93,6 @@ const Dashboard = () => {
     fetchMessages();
   }, [selectedServer, token]);
 
-  // --- Fetch channels when server selected ---
   useEffect(() => {
     if (!selectedServer || !token) return;
 
@@ -125,59 +115,56 @@ const Dashboard = () => {
     fetchChannels();
   }, [selectedServer, token]);
 
- // --- Handle Save per feature ---
-const handleSave = async (feature) => {
-  try {
-    let payload = {};
+  const handleSave = async (feature) => {
+    try {
+      let payload = {};
 
-    if (feature === "welcomeServer") {
-      payload = {
-        welcome: {
-          enabled: serverWelcomeEnabled,
-          channelId: selectedWelcomeChannel,
-          serverMessage: messages.serverWelcome,
-        },
-      };
-    } else if (feature === "welcomeDM") {
-      payload = {
-        welcome: {
-          dmEnabled: dmWelcomeEnabled,
-          dmMessage: messages.dmWelcome,
-        },
-      };
-    } else if (feature === "farewellServer") {
-      payload = {
-        farewell: {
-          enabled: serverFarewellEnabled,
-          channelId: selectedFarewellChannel,
-          serverMessage: messages.serverFarewell,
-        },
-      };
-    } else if (feature === "farewellDM") {
-      payload = {
-        farewell: {
-          dmEnabled: dmFarewellEnabled,
-          dmMessage: messages.dmFarewell,
-        },
-      };
+      if (feature === "welcomeServer") {
+        payload = {
+          welcome: {
+            enabled: serverWelcomeEnabled,
+            channelId: selectedWelcomeChannel,
+            serverMessage: messages.serverWelcome,
+          },
+        };
+      } else if (feature === "welcomeDM") {
+        payload = {
+          welcome: {
+            dmEnabled: dmWelcomeEnabled,
+            dmMessage: messages.dmWelcome,
+          },
+        };
+      } else if (feature === "farewellServer") {
+        payload = {
+          farewell: {
+            enabled: serverFarewellEnabled,
+            channelId: selectedFarewellChannel,
+            serverMessage: messages.serverFarewell,
+          },
+        };
+      } else if (feature === "farewellDM") {
+        payload = {
+          farewell: {
+            dmEnabled: dmFarewellEnabled,
+            dmMessage: messages.dmFarewell,
+          },
+        };
+      }
+
+      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      setSaveMessage("Saved successfully!");
+      setTimeout(() => setSaveMessage(""), 3000);
+    } catch (err) {
+      console.error("Failed to save messages:", err);
+      setSaveMessage("Failed to save messages. Try again.");
     }
+  };
 
-    await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${selectedServer.id}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    setSaveMessage("Saved successfully!");
-    setTimeout(() => setSaveMessage(""), 3000);
-  } catch (err) {
-    console.error("Failed to save messages:", err);
-    setSaveMessage("Failed to save messages. Try again.");
-  }
-};
-
-
-  // Show features page if server selected
   if (selectedServer) {
     return (
       <div className="min-h-screen px-6 py-8">
@@ -188,7 +175,26 @@ const handleSave = async (feature) => {
           {/* Welcome Messages */}
           <div className="flex flex-col gap-4">
             <h3 className="font-semibold text-lg">Welcome Messages</h3>
+
+            {/* Channel selector FIRST */}
             <div className="flex flex-col">
+              <label>Server Welcome Channel</label>
+              <select
+                value={selectedWelcomeChannel}
+                onChange={e => setSelectedWelcomeChannel(e.target.value)}
+                className="p-2 rounded border bg-white text-black dark:bg-zinc-700 dark:text-white"
+              >
+                <option value="">Select a channel</option>
+                {channels.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Then message input */}
+            <div className="flex flex-col mt-2">
               <label>Server Welcome</label>
               <input
                 type="text"
@@ -198,6 +204,7 @@ const handleSave = async (feature) => {
                 className="p-2 rounded border"
               />
             </div>
+
             <div className="flex items-center gap-2 mt-1">
               <button
                 onClick={() => setServerWelcomeEnabled(true)}
@@ -249,13 +256,18 @@ const handleSave = async (feature) => {
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Server Welcome Channel */}
-            <div className="flex flex-col mt-2">
-              <label>Server Welcome Channel</label>
+          {/* Farewell Messages */}
+          <div className="flex flex-col gap-4 mt-4">
+            <h3 className="font-semibold text-lg">Farewell Messages</h3>
+
+            {/* Channel selector FIRST */}
+            <div className="flex flex-col">
+              <label>Server Farewell Channel</label>
               <select
-                value={selectedWelcomeChannel}
-                onChange={e => setSelectedWelcomeChannel(e.target.value)}
+                value={selectedFarewellChannel}
+                onChange={e => setSelectedFarewellChannel(e.target.value)}
                 className="p-2 rounded border bg-white text-black dark:bg-zinc-700 dark:text-white"
               >
                 <option value="">Select a channel</option>
@@ -266,12 +278,9 @@ const handleSave = async (feature) => {
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Farewell Messages */}
-          <div className="flex flex-col gap-4 mt-4">
-            <h3 className="font-semibold text-lg">Farewell Messages</h3>
-            <div className="flex flex-col">
+            {/* Then message input */}
+            <div className="flex flex-col mt-2">
               <label>Server Farewell</label>
               <input
                 type="text"
@@ -332,27 +341,9 @@ const handleSave = async (feature) => {
                 </button>
               </div>
             </div>
-
-            {/* Server Farewell Channel */}
-            <div className="flex flex-col mt-2">
-              <label>Server Farewell Channel</label>
-              <select
-                value={selectedFarewellChannel}
-                onChange={e => setSelectedFarewellChannel(e.target.value)}
-                className="p-2 rounded border bg-white text-black dark:bg-zinc-700 dark:text-white"
-              >
-                <option value="">Select a channel</option>
-                {channels.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
 
-        {/* Toast message */}
         {saveMessage && (
           <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
             {saveMessage}
@@ -362,7 +353,6 @@ const handleSave = async (feature) => {
     );
   }
 
-  // Default: show all servers
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
