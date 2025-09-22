@@ -91,13 +91,11 @@ client.once("ready", async () => {
 // --- Welcome ---
 client.on("guildMemberAdd", async member => {
   try {
-    console.log(`Member joined: ${member.user.tag}`);
-
     const doc = await db.collection("guilds").doc(member.guild.id).get();
     const welcome = doc.data()?.plugins?.welcome;
     if (!welcome) return;
 
-    // Server message
+    // SERVER MESSAGE
     if (welcome.enabled && welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
@@ -106,13 +104,13 @@ client.on("guildMemberAdd", async member => {
       }
     }
 
-    // DM message
+    // DM MESSAGE
     if (welcome.dmEnabled && welcome.dmMessage) {
       const msg = parsePlaceholders(welcome.dmMessage, member);
-      await member.send(msg).catch(() => {}); // silently fail if DMs are blocked
+      await member.send(msg).catch(() => {}); // ignore if DMs blocked
     }
   } catch (err) {
-    console.error("Welcome error:", err);
+    console.error("Welcome plugin error:", err);
   }
 });
 
@@ -120,13 +118,11 @@ client.on("guildMemberAdd", async member => {
 client.on("guildMemberRemove", async member => {
   try {
     if (member.partial) await member.fetch();
-    console.log(`Member left: ${member.user?.tag || member.id}`);
-
     const doc = await db.collection("guilds").doc(member.guild.id).get();
     const farewell = doc.data()?.plugins?.farewell;
     if (!farewell) return;
 
-    // Server message
+    // SERVER MESSAGE
     if (farewell.enabled && farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
@@ -135,15 +131,16 @@ client.on("guildMemberRemove", async member => {
       }
     }
 
-    // DM message
+    // DM MESSAGE
     if (farewell.dmEnabled && farewell.dmMessage) {
       const msg = parsePlaceholders(farewell.dmMessage, member);
       await member.send(msg).catch(() => {});
     }
   } catch (err) {
-    console.error("Farewell error:", err);
+    console.error("Farewell plugin error:", err);
   }
 });
+
 
 // --- Slash command handling ---
 client.on("interactionCreate", async interaction => {
