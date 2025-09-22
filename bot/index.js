@@ -1,27 +1,33 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+require("dotenv").config();
+const { 
+  Client, 
+  GatewayIntentBits, 
+  Partials, 
+  REST, 
+  Routes, 
+  SlashCommandBuilder 
+} = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
-require("dotenv").config();
 const app = express();
 app.use(express.json());
 
 // --- Helper: Placeholder Parser ---
 function parsePlaceholders(template, member) {
   if (!template) return "";
-
   const guild = member.guild;
 
   return template
-    .replace(/{usermention}/g, `<@${member.id}>`)                     // mention user
-    .replace(/{username}/g, member.user.username)              // plain username
-    .replace(/{server}/g, guild.name)                          // server name
+    .replace(/{usermention}/g, `<@${member.id}>`)
+    .replace(/{username}/g, member.user.username)
+    .replace(/{server}/g, guild.name)
     .replace(/{role:(.*?)}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-      return role ? `<@&${role.id}>` : roleName;               // fallback to plain text
+      return role ? `<@&${role.id}>` : roleName;
     })
     .replace(/{channel:(.*?)}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-      return channel ? `<#${channel.id}>` : channelName;       // fallback to plain text
+      return channel ? `<#${channel.id}>` : channelName;
     });
 }
 
@@ -30,20 +36,19 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,   
-    GatewayIntentBits.MessageContent   
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ],
-  partials: ['GUILD_MEMBER']
+  partials: [Partials.GuildMember]   // ✅ needed for farewell on kick/leave
 });
 
 // --- Initialize Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+if (!admin.apps.length) {
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+}
 const db = admin.firestore();
 const statusRef = db.collection("botStatus").doc("main");
-
-// --- NEW: Default channel fallback ---
-let defaultChannelId = null;
 
 // --- Slash command setup ---
 const commands = [
@@ -65,22 +70,10 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
-  // --- NEW: Set default channel ---
   for (const guild of client.guilds.cache.values()) {
-    if (guild.systemChannelId) {
-      defaultChannelId = guild.systemChannelId;
-      break;
-    }
-  }
-  console.log("Default channel set to:", defaultChannelId);
-
-  // Fetch all members for leave event reliability
-  for (const guild of client.guilds.cache.values()) {
-    await guild.members.fetch();
-
+    await guild.members.fetch(); // ensures memberRemove is reliable
   }
 
-  // Update bot status every 5 seconds
   setInterval(async () => {
     try {
       const totalUsers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
@@ -98,6 +91,7 @@ client.once("ready", async () => {
 // --- Welcome ---
 client.on("guildMemberAdd", async member => {
   try {
+    console.log(`Member joined: ${member.user.tag}`);
     const doc = await db.collection("guilds").doc(member.guild.id).get();
     const data = doc.data();
     if (!data) return;
@@ -105,7 +99,6 @@ client.on("guildMemberAdd", async member => {
     const welcome = data.plugins?.welcome;
     if (!welcome) return;
 
-    // server message
     if (welcome.enabled && welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
@@ -114,7 +107,6 @@ client.on("guildMemberAdd", async member => {
       }
     }
 
-    // DM message
     if (welcome.dmEnabled && welcome.dmMessage) {
       const msg = parsePlaceholders(welcome.dmMessage, member);
       member.send(msg).catch(() => {});
@@ -128,6 +120,8 @@ client.on("guildMemberAdd", async member => {
 client.on("guildMemberRemove", async member => {
   try {
     if (member.partial) await member.fetch();
+    console.log(`Member left: ${member.user?.tag || member.id}`);
+
     const doc = await db.collection("guilds").doc(member.guild.id).get();
     const data = doc.data();
     if (!data) return;
@@ -135,7 +129,6 @@ client.on("guildMemberRemove", async member => {
     const farewell = data.plugins?.farewell;
     if (!farewell) return;
 
-    // server message
     if (farewell.enabled && farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
@@ -144,7 +137,6 @@ client.on("guildMemberRemove", async member => {
       }
     }
 
-    // DM message
     if (farewell.dmEnabled && farewell.dmMessage) {
       const msg = parsePlaceholders(farewell.dmMessage, member);
       member.send(msg).catch(() => {});
@@ -153,7 +145,6 @@ client.on("guildMemberRemove", async member => {
     console.error("Farewell error:", err);
   }
 });
-
 
 // --- Slash command handling ---
 client.on("interactionCreate", async interaction => {
@@ -171,7 +162,6 @@ client.login(process.env.TOKEN);
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
 
-// Save guild settings
 app.post("/api/guilds/:guildId/settings", async (req, res) => {
   try {
     const { guildId } = req.params;
