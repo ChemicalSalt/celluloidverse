@@ -39,7 +39,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ],
-  partials: [Partials.GuildMember]   // ✅ needed for farewell on kick/leave
+  partials: [Partials.GuildMember]
 });
 
 // --- Initialize Firebase ---
@@ -92,24 +92,24 @@ client.once("ready", async () => {
 client.on("guildMemberAdd", async member => {
   try {
     console.log(`Member joined: ${member.user.tag}`);
-    const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const data = doc.data();
-    if (!data) return;
 
-    const welcome = data.plugins?.welcome;
+    const doc = await db.collection("guilds").doc(member.guild.id).get();
+    const welcome = doc.data()?.plugins?.welcome;
     if (!welcome) return;
 
+    // Server message
     if (welcome.enabled && welcome.serverMessage && welcome.channelId) {
       const channel = member.guild.channels.cache.get(welcome.channelId);
       if (channel) {
         const msg = parsePlaceholders(welcome.serverMessage, member);
-        channel.send(msg);
+        await channel.send(msg).catch(console.error);
       }
     }
 
+    // DM message
     if (welcome.dmEnabled && welcome.dmMessage) {
       const msg = parsePlaceholders(welcome.dmMessage, member);
-      member.send(msg).catch(() => {});
+      await member.send(msg).catch(() => {}); // silently fail if DMs are blocked
     }
   } catch (err) {
     console.error("Welcome error:", err);
@@ -123,23 +123,22 @@ client.on("guildMemberRemove", async member => {
     console.log(`Member left: ${member.user?.tag || member.id}`);
 
     const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const data = doc.data();
-    if (!data) return;
-
-    const farewell = data.plugins?.farewell;
+    const farewell = doc.data()?.plugins?.farewell;
     if (!farewell) return;
 
+    // Server message
     if (farewell.enabled && farewell.serverMessage && farewell.channelId) {
       const channel = member.guild.channels.cache.get(farewell.channelId);
       if (channel) {
         const msg = parsePlaceholders(farewell.serverMessage, member);
-        channel.send(msg);
+        await channel.send(msg).catch(console.error);
       }
     }
 
+    // DM message
     if (farewell.dmEnabled && farewell.dmMessage) {
       const msg = parsePlaceholders(farewell.dmMessage, member);
-      member.send(msg).catch(() => {});
+      await member.send(msg).catch(() => {});
     }
   } catch (err) {
     console.error("Farewell error:", err);
@@ -160,6 +159,7 @@ client.login(process.env.TOKEN);
 
 // --- Express Server ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
+
 const PORT = process.env.PORT || 3000;
 
 app.post("/api/guilds/:guildId/settings", async (req, res) => {

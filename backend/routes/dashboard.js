@@ -2,6 +2,7 @@ const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
 const admin = require("firebase-admin");
+
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const REDIRECT_URI = process.env.REDIRECT_URI;
@@ -10,17 +11,13 @@ const TOKEN = process.env.TOKEN;
 // Initialize Firebase once
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 const db = admin.firestore();
 
 // ---- OAuth Login ----
 router.get("/login", (req, res) => {
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}`;
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
   res.redirect(url);
 });
 
@@ -44,6 +41,7 @@ router.get("/callback", async (req, res) => {
       body: params,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
+
     const data = await tokenRes.json();
     if (data.error) return res.status(400).send("OAuth error: " + data.error);
 
@@ -89,124 +87,13 @@ router.get("/servers", async (req, res) => {
   }
 });
 
-// ---- Fetch saved messages for a server ----
-router.get("/servers/:id/messages", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const doc = await db.collection("guilds").doc(id).get();
-    if (!doc.exists) return res.json({ plugins: {} });
-
-    res.json(doc.data());
-  } catch (err) {
-    console.error("Failed to fetch messages:", err);
-    res.status(500).json({ error: "Failed to fetch messages" });
-  }
-});
-
-// ---- Save messages/settings for a server ----
-router.post("/servers/:id/messages", async (req, res) => {
-  const { id } = req.params;
-  const { welcome, farewell } = req.body;
-
-  try {
-    const docRef = db.collection("guilds").doc(id);
-    const doc = await docRef.get();
-    const currentData = doc.data() || {};
-
-    await docRef.set(
-      {
-        plugins: {
-          welcome: {
-            enabled: welcome?.enabled ?? currentData.plugins?.welcome?.enabled ?? false,
-            channelId: welcome?.channelId ?? currentData.plugins?.welcome?.channelId ?? null,
-            serverMessage: welcome?.serverMessage ?? currentData.plugins?.welcome?.serverMessage ?? "",
-            dmEnabled: welcome?.dmEnabled ?? currentData.plugins?.welcome?.dmEnabled ?? false,
-            dmMessage: welcome?.dmMessage ?? currentData.plugins?.welcome?.dmMessage ?? "",
-          },
-          farewell: {
-            enabled: farewell?.enabled ?? currentData.plugins?.farewell?.enabled ?? false,
-            channelId: farewell?.channelId ?? currentData.plugins?.farewell?.channelId ?? null,
-            serverMessage: farewell?.serverMessage ?? currentData.plugins?.farewell?.serverMessage ?? "",
-            dmEnabled: farewell?.dmEnabled ?? currentData.plugins?.farewell?.dmEnabled ?? false,
-            dmMessage: farewell?.dmMessage ?? currentData.plugins?.farewell?.dmMessage ?? "",
-          },
-        },
-      },
-      { merge: true }
-    );
-
-    console.log(`Saved messages for server ${id} to Firestore`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Failed to save messages:", err);
-    res.status(500).json({ error: "Failed to save messages" });
-  }
-});
-
-
-// ---- Fetch channels for a guild ----
-router.get("/servers/:guildId/channels", async (req, res) => {
-  const guildId = req.params.guildId;
-
-  try {
-    const response = await fetch(
-      `https://discord.com/api/v10/guilds/${guildId}/channels`,
-      {
-        headers: { Authorization: `Bot ${TOKEN}` },
-      }
-    );
-    const channels = await response.json();
-
-    console.log("Discord API response for channels:", channels);
-
-    // filter text channels only
-    const textChannels = channels
-      .filter(c => c.type === 0)
-      .map(c => ({ id: c.id, name: c.name }));
-    res.json(textChannels);
-  } catch (err) {
-    console.error("Failed to fetch channels:", err);
-    res.status(500).json({ error: "Failed to fetch channels" });
-  }
-});
-
-// ---- Fetch server basic info + plugins ----
-router.get("/servers/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
-      headers: { Authorization: `Bot ${TOKEN}` },
-    });
-    if (!guildRes.ok) {
-      return res.status(guildRes.status).json({ error: "Failed to fetch guild info" });
-    }
-    const guildData = await guildRes.json();
-
-    const doc = await db.collection("guilds").doc(id).get();
-    const settings = doc.exists ? doc.data() : { plugins: {} };
-
-    res.json({
-      id: guildData.id,
-      name: guildData.name,
-      icon: guildData.icon,
-      plugins: settings.plugins || {},
-    });
-  } catch (err) {
-    console.error("Failed to fetch server info:", err);
-    res.status(500).json({ error: "Failed to fetch server info" });
-  }
-});
-// ---- Fetch a specific plugin config ----
+// ---- Fetch saved messages/settings for a server ----
 router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
 
   try {
     const doc = await db.collection("guilds").doc(id).get();
-    if (!doc.exists) return res.json({});
-
-    const data = doc.data().plugins?.[plugin] || {};
+    const data = doc.exists ? doc.data().plugins?.[plugin] || {} : {};
     res.json(data);
   } catch (err) {
     console.error("Failed to fetch plugin:", err);
@@ -214,22 +101,14 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
-// ---- Save a specific plugin config ----
+// ---- Save a specific plugin config dynamically ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
   try {
     const docRef = db.collection("guilds").doc(id);
-    await docRef.set(
-      {
-        plugins: {
-          [plugin]: payload
-        },
-      },
-      { merge: true }
-    );
-
+    await docRef.set({ plugins: { [plugin]: payload } }, { merge: true });
     console.log(`Saved ${plugin} config for server ${id}`);
     res.json({ success: true });
   } catch (err) {
@@ -238,5 +117,51 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
+// ---- Fetch channels for a guild dynamically ----
+router.get("/servers/:guildId/channels", async (req, res) => {
+  const guildId = req.params.guildId;
+
+  try {
+    const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    const channels = await response.json();
+
+    const textChannels = channels
+      .filter(c => c.type === 0)
+      .map(c => ({ id: c.id, name: c.name }));
+
+    res.json(textChannels);
+  } catch (err) {
+    console.error("Failed to fetch channels:", err);
+    res.status(500).json({ error: "Failed to fetch channels" });
+  }
+});
+
+// ---- Fetch server info + all plugins ----
+router.get("/servers/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    if (!guildRes.ok) return res.status(guildRes.status).json({ error: "Failed to fetch guild info" });
+
+    const guildData = await guildRes.json();
+    const doc = await db.collection("guilds").doc(id).get();
+    const plugins = doc.exists ? doc.data().plugins || {} : {};
+
+    res.json({
+      id: guildData.id,
+      name: guildData.name,
+      icon: guildData.icon,
+      plugins
+    });
+  } catch (err) {
+    console.error("Failed to fetch server info:", err);
+    res.status(500).json({ error: "Failed to fetch server info" });
+  }
+});
 
 module.exports = router;

@@ -34,13 +34,13 @@ const PluginsOverview = () => {
       <h1 className="text-3xl font-bold mb-6">Plugins Overview</h1>
       <div className="flex flex-col gap-4">
         <button
-          className="px-4 py-2 bg-blue-500 text-white rounded"
+          className="px-4 py-2 bg-black text-white dark:bg-white text-black rounded"
           onClick={() => navigate(`/dashboard/${serverId}/plugins/welcome?token=${token}`)}
         >
           Configure Welcome Messages
         </button>
         <button
-          className="px-4 py-2 bg-red-500 text-white rounded"
+          className="px-4 py-2 bg-black text-white dark:bg-white text-black rounded"
           onClick={() => navigate(`/dashboard/${serverId}/plugins/farewell?token=${token}`)}
         >
           Configure Farewell Messages

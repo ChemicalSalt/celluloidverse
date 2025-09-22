@@ -18,12 +18,14 @@ const Welcome = () => {
 
     const fetchData = async () => {
       try {
+        // Fetch channels
         const resChannels = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const dataChannels = await resChannels.json();
         setChannels(dataChannels);
 
+        // Fetch plugin data
         const resPlugin = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -53,11 +55,13 @@ const Welcome = () => {
         dmEnabled,
         dmMessage: messages.dmMessage,
       };
+
       await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
+
       setSaveMessage("Saved successfully!");
       setTimeout(() => setSaveMessage(""), 3000);
     } catch (err) {
@@ -71,14 +75,14 @@ const Welcome = () => {
   };
 
   return (
-    <div className="min-h-screen px-6 py-8 bg-gray-900 text-white">
+    <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">Configure Welcome Messages</h1>
       <div className="flex flex-col gap-4">
         <label>Server Welcome Channel</label>
         <select
           value={selectedChannel}
           onChange={e => setSelectedChannel(e.target.value)}
-          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="p-2 border rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Select a channel</option>
           {channels.map(c => (
@@ -87,40 +91,35 @@ const Welcome = () => {
         </select>
 
         <label>Server Welcome</label>
-        <input
-          type="text"
+        <textarea
           value={messages.serverMessage}
           onChange={e => handleChange("serverMessage", e.target.value)}
-          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="p-2 border rounded resize-none"
+          rows={3}
         />
 
         <label>DM Welcome</label>
-        <input
-          type="text"
+        <textarea
           value={messages.dmMessage}
           onChange={e => handleChange("dmMessage", e.target.value)}
-          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="p-2 border rounded resize-none"
+          rows={3}
         />
 
         <div className="flex gap-2 mt-2">
           <button
             onClick={() => setServerEnabled(!serverEnabled)}
-            className={`px-3 py-1 rounded ${serverEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
+            className={`px-3 py-1 rounded ${serverEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
           >
-            Server {serverEnabled ? "On" : "Off"}
+            SERVER {serverEnabled ? "ON" : "OFF"}
           </button>
           <button
             onClick={() => setDmEnabled(!dmEnabled)}
-            className={`px-3 py-1 rounded ${dmEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
+            className={`px-3 py-1 rounded ${dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
           >
-            DM {dmEnabled ? "On" : "Off"}
+            DM {dmEnabled ? "ON" : "OFF"}
           </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-1 bg-purple-600 text-white rounded"
-          >
-            Save
-          </button>
+          <button onClick={handleSave} className="px-4 py-1 bg-purple-600 text-white rounded">SAVE</button>
         </div>
       </div>
 
