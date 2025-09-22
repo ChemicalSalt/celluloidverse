@@ -171,4 +171,32 @@ router.get("/servers/:guildId/channels", async (req, res) => {
   }
 });
 
+// ---- Fetch server basic info + plugins ----
+router.get("/servers/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    if (!guildRes.ok) {
+      return res.status(guildRes.status).json({ error: "Failed to fetch guild info" });
+    }
+    const guildData = await guildRes.json();
+
+    const doc = await db.collection("guilds").doc(id).get();
+    const settings = doc.exists ? doc.data() : { plugins: {} };
+
+    res.json({
+      id: guildData.id,
+      name: guildData.name,
+      icon: guildData.icon,
+      plugins: settings.plugins || {},
+    });
+  } catch (err) {
+    console.error("Failed to fetch server info:", err);
+    res.status(500).json({ error: "Failed to fetch server info" });
+  }
+});
+
 module.exports = router;

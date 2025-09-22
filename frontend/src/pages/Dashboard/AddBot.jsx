@@ -34,6 +34,7 @@ const AddBot = () => {
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
+
     const timer = setInterval(() => {
       if (popup.closed) {
         clearInterval(timer);
@@ -43,13 +44,12 @@ const AddBot = () => {
   };
 
   const goToPlugins = (guildId) => {
-    navigate(`/dashboard/${guildId}/plugins/overview`);
+    navigate(`/dashboard/${guildId}/plugins/overview?token=${token}`);
   };
 
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
-
       {servers.length > 0 && (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
           <h2 className="font-bold text-xl">Your Servers</h2>
@@ -65,7 +65,6 @@ const AddBot = () => {
                 )}
                 <span>{g.name}</span>
               </div>
-
               {!g.hasBot ? (
                 <button
                   onClick={() => handleAddBot(g.id)}

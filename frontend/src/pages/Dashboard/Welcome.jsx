@@ -1,137 +1,91 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 const Welcome = () => {
   const { serverId } = useParams();
-  const [token, setToken] = useState(null);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token");
+
   const [messages, setMessages] = useState({ serverWelcome: "", dmWelcome: "" });
   const [channels, setChannels] = useState([]);
-  const [selectedWelcomeChannel, setSelectedWelcomeChannel] = useState("");
-  const [serverWelcomeEnabled, setServerWelcomeEnabled] = useState(true);
-  const [dmWelcomeEnabled, setDmWelcomeEnabled] = useState(true);
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [serverEnabled, setServerEnabled] = useState(true);
+  const [dmEnabled, setDmEnabled] = useState(true);
   const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const t = params.get("token");
-    setToken(t);
-  }, []);
+    if (!serverId || !token) return;
 
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchChannels = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setChannels(data);
-        setSelectedWelcomeChannel("");
+        const resChannels = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataChannels = await resChannels.json();
+        setChannels(dataChannels);
+
+        const resMessages = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataMessages = await resMessages.json();
+        setMessages({ serverWelcome: "", dmWelcome: "" });
+        setSelectedChannel("");
       } catch (err) {
         console.error(err);
       }
     };
 
-    fetchChannels();
+    fetchData();
   }, [serverId, token]);
 
-  useEffect(() => {
-    if (!token) return;
-
-    const fetchMessages = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setMessages({ serverWelcome: data.serverWelcome || "", dmWelcome: data.dmWelcome || "" });
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchMessages();
-  }, [serverId, token]);
-
-  const handleChange = (field, value) => {
-    setMessages((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = async (feature) => {
+  const handleSave = async () => {
     try {
-      let payload = {};
-      if (feature === "welcomeServer") {
-        payload = { welcome: { enabled: serverWelcomeEnabled, channelId: selectedWelcomeChannel, serverMessage: messages.serverWelcome } };
-      } else if (feature === "welcomeDM") {
-        payload = { welcome: { dmEnabled: dmWelcomeEnabled, dmMessage: messages.dmWelcome } };
-      }
-
+      const payload = {
+        welcome: {
+          enabled: serverEnabled,
+          channelId: selectedChannel,
+          serverMessage: messages.serverWelcome,
+          dmEnabled,
+          dmMessage: messages.dmWelcome,
+        },
+      };
       await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       setSaveMessage("Saved successfully!");
       setTimeout(() => setSaveMessage(""), 3000);
     } catch (err) {
       console.error(err);
-      setSaveMessage("Failed to save messages. Try again.");
+      setSaveMessage("Failed to save messages");
     }
+  };
+
+  const handleChange = (field, value) => {
+    setMessages(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <div className="min-h-screen px-6 py-8">
-      <h1 className="text-3xl font-bold mb-6">Welcome Plugin</h1>
-
-      {/* Server Welcome */}
+      <h1 className="text-3xl font-bold mb-6">Configure Welcome Messages</h1>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col">
-          <label>Server Welcome Channel</label>
-          <select value={selectedWelcomeChannel} onChange={(e) => setSelectedWelcomeChannel(e.target.value)}>
-            <option value="">Select a channel</option>
-            {channels.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <label>Server Welcome Channel</label>
+        <select value={selectedChannel} onChange={e => setSelectedChannel(e.target.value)} className="p-2 border rounded">
+          <option value="">Select a channel</option>
+          {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
 
-        <div className="flex flex-col mt-2">
-          <label>Server Welcome Message</label>
-          <input type="text" placeholder="Welcome {usermention}!" value={messages.serverWelcome} onChange={(e) => handleChange("serverWelcome", e.target.value)} />
-          <div className="flex items-center gap-2 mt-1">
-            <button onClick={() => setServerWelcomeEnabled(true)} className={`px-3 py-1 rounded ${serverWelcomeEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}>
-              On
-            </button>
-            <button onClick={() => setServerWelcomeEnabled(false)} className={`px-3 py-1 rounded ${!serverWelcomeEnabled ? "bg-red-500 text-white" : "bg-gray-300 text-black"}`}>
-              Off
-            </button>
-            <button onClick={() => handleSave("welcomeServer")} className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
-              Save
-            </button>
-          </div>
-        </div>
+        <label>Server Welcome</label>
+        <input type="text" value={messages.serverWelcome} onChange={e => handleChange("serverWelcome", e.target.value)} className="p-2 border rounded" />
 
-        {/* DM Welcome */}
-        <div className="flex flex-col mt-2">
-          <label>DM Welcome Message</label>
-          <input type="text" placeholder="Hi {username}!" value={messages.dmWelcome} onChange={(e) => handleChange("dmWelcome", e.target.value)} />
-          <div className="flex items-center gap-2 mt-1">
-            <button onClick={() => setDmWelcomeEnabled(true)} className={`px-3 py-1 rounded ${dmWelcomeEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}>
-              On
-            </button>
-            <button onClick={() => setDmWelcomeEnabled(false)} className={`px-3 py-1 rounded ${!dmWelcomeEnabled ? "bg-red-500 text-white" : "bg-gray-300 text-black"}`}>
-              Off
-            </button>
-            <button onClick={() => handleSave("welcomeDM")} className="px-4 py-1 bg-purple-600 text-white rounded ml-2">
-              Save
-            </button>
-          </div>
+        <label>DM Welcome</label>
+        <input type="text" value={messages.dmWelcome} onChange={e => handleChange("dmWelcome", e.target.value)} className="p-2 border rounded" />
+
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => setServerEnabled(!serverEnabled)} className={`px-3 py-1 rounded ${serverEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>Server {serverEnabled ? "On" : "Off"}</button>
+          <button onClick={() => setDmEnabled(!dmEnabled)} className={`px-3 py-1 rounded ${dmEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>DM {dmEnabled ? "On" : "Off"}</button>
+          <button onClick={handleSave} className="px-4 py-1 bg-purple-600 text-white rounded">Save</button>
         </div>
       </div>
 
