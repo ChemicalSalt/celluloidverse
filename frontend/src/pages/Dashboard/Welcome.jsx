@@ -25,19 +25,7 @@ const Welcome = () => {
         const dataChannels = await resChannels.json();
         setChannels(dataChannels);
 
-        // Fetch plugin data
-        const resPlugin = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const dataPlugin = await resPlugin.json();
-
-        setMessages({
-          serverMessage: dataPlugin.serverMessage || "",
-          dmMessage: dataPlugin.dmMessage || "",
-        });
-        setSelectedChannel(dataPlugin.channelId || "");
-        setServerEnabled(dataPlugin.enabled ?? true);
-        setDmEnabled(dataPlugin.dmEnabled ?? true);
+        // Skip fetching old messages to start fresh
       } catch (err) {
         console.error(err);
       }
@@ -64,6 +52,12 @@ const Welcome = () => {
 
       setSaveMessage("Saved successfully!");
       setTimeout(() => setSaveMessage(""), 3000);
+
+      // Clear inputs after save
+      setMessages({ serverMessage: "", dmMessage: "" });
+      setSelectedChannel("");
+      setServerEnabled(true);
+      setDmEnabled(true);
     } catch (err) {
       console.error(err);
       setSaveMessage("Failed to save messages");

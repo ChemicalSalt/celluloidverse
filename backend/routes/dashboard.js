@@ -16,8 +16,21 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ---- OAuth Login ----
-router.get("/login", (req, res) => {
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+router.get("/login", async (req, res) => {
+  const userId = req.query.userId; // optional if you want pre-check
+  // Check if user token already exists in Firestore
+  if (userId) {
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (userDoc.exists && userDoc.data().access_token) {
+      // Token exists, redirect straight to dashboard
+      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${userDoc.data().access_token}`);
+    }
+  }
+
+  // If not, proceed with OAuth
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}`;
   res.redirect(url);
 });
 
@@ -45,6 +58,24 @@ router.get("/callback", async (req, res) => {
     const data = await tokenRes.json();
     if (data.error) return res.status(400).send("OAuth error: " + data.error);
 
+    // Fetch user info
+    const userRes = await fetch("https://discord.com/api/users/@me", {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    const userData = await userRes.json();
+
+    // Save token in Firestore keyed by user id
+    await db.collection("users").doc(userData.id).set(
+      {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+        token_type: data.token_type,
+        user: userData,
+      },
+      { merge: true }
+    );
+
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
   } catch (err) {
     console.error("OAuth callback failed:", err);
@@ -54,10 +85,14 @@ router.get("/callback", async (req, res) => {
 
 // ---- Fetch user's servers & bot presence ----
 router.get("/servers", async (req, res) => {
-  const accessToken = req.headers.authorization?.split(" ")[1];
+  let accessToken = req.headers.authorization?.split(" ")[1];
   if (!accessToken) return res.status(401).json({ error: "No token provided" });
 
   try {
+    // Optionally, you can fetch token from Firestore by user ID
+    // const userDoc = await db.collection("users").doc(userId).get();
+    // accessToken = userDoc.data().access_token || accessToken;
+
     const userGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
@@ -87,7 +122,7 @@ router.get("/servers", async (req, res) => {
   }
 });
 
-// ---- Fetch saved messages/settings for a server ----
+// ---- Fetch plugin config ----
 router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
 
@@ -101,7 +136,7 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
-// ---- Save a specific plugin config dynamically ----
+// ---- Save a plugin config ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
@@ -117,7 +152,7 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
-// ---- Fetch channels for a guild dynamically ----
+// ---- Fetch channels for a guild ----
 router.get("/servers/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
 
@@ -156,7 +191,7 @@ router.get("/servers/:id", async (req, res) => {
       id: guildData.id,
       name: guildData.name,
       icon: guildData.icon,
-      plugins
+      plugins,
     });
   } catch (err) {
     console.error("Failed to fetch server info:", err);
