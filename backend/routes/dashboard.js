@@ -198,5 +198,45 @@ router.get("/servers/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch server info" });
   }
 });
+// ---- Fetch a specific plugin config ----
+router.get("/servers/:id/plugins/:plugin", async (req, res) => {
+  const { id, plugin } = req.params;
+
+  try {
+    const doc = await db.collection("guilds").doc(id).get();
+    if (!doc.exists) return res.json({});
+
+    const data = doc.data().plugins?.[plugin] || {};
+    res.json(data);
+  } catch (err) {
+    console.error("Failed to fetch plugin:", err);
+    res.status(500).json({ error: "Failed to fetch plugin" });
+  }
+});
+
+// ---- Save a specific plugin config ----
+router.post("/servers/:id/plugins/:plugin", async (req, res) => {
+  const { id, plugin } = req.params;
+  const payload = req.body;
+
+  try {
+    const docRef = db.collection("guilds").doc(id);
+    await docRef.set(
+      {
+        plugins: {
+          [plugin]: payload
+        },
+      },
+      { merge: true }
+    );
+
+    console.log(`Saved ${plugin} config for server ${id}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Failed to save plugin:", err);
+    res.status(500).json({ error: "Failed to save plugin" });
+  }
+});
+
 
 module.exports = router;

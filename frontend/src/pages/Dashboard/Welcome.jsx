@@ -6,7 +6,7 @@ const Welcome = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
-  const [messages, setMessages] = useState({ serverWelcome: "", dmWelcome: "" });
+  const [messages, setMessages] = useState({ serverMessage: "", dmMessage: "" });
   const [channels, setChannels] = useState([]);
   const [selectedChannel, setSelectedChannel] = useState("");
   const [serverEnabled, setServerEnabled] = useState(true);
@@ -24,12 +24,18 @@ const Welcome = () => {
         const dataChannels = await resChannels.json();
         setChannels(dataChannels);
 
-        const resMessages = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`, {
+        const resPlugin = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const dataMessages = await resMessages.json();
-        setMessages({ serverWelcome: "", dmWelcome: "" });
-        setSelectedChannel("");
+        const dataPlugin = await resPlugin.json();
+
+        setMessages({
+          serverMessage: dataPlugin.serverMessage || "",
+          dmMessage: dataPlugin.dmMessage || "",
+        });
+        setSelectedChannel(dataPlugin.channelId || "");
+        setServerEnabled(dataPlugin.enabled ?? true);
+        setDmEnabled(dataPlugin.dmEnabled ?? true);
       } catch (err) {
         console.error(err);
       }
@@ -41,17 +47,15 @@ const Welcome = () => {
   const handleSave = async () => {
     try {
       const payload = {
-        welcome: {
-          enabled: serverEnabled,
-          channelId: selectedChannel,
-          serverMessage: messages.serverWelcome,
-          dmEnabled,
-          dmMessage: messages.dmWelcome,
-        },
+        enabled: serverEnabled,
+        channelId: selectedChannel,
+        serverMessage: messages.serverMessage,
+        dmEnabled,
+        dmMessage: messages.dmMessage,
       };
-      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
       setSaveMessage("Saved successfully!");
@@ -67,29 +71,64 @@ const Welcome = () => {
   };
 
   return (
-    <div className="min-h-screen px-6 py-8">
+    <div className="min-h-screen px-6 py-8 bg-gray-900 text-white">
       <h1 className="text-3xl font-bold mb-6">Configure Welcome Messages</h1>
       <div className="flex flex-col gap-4">
         <label>Server Welcome Channel</label>
-        <select value={selectedChannel} onChange={e => setSelectedChannel(e.target.value)} className="p-2 border rounded">
+        <select
+          value={selectedChannel}
+          onChange={e => setSelectedChannel(e.target.value)}
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
           <option value="">Select a channel</option>
-          {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {channels.map(c => (
+            <option key={c.id} value={c.id} className="bg-gray-800 text-white">{c.name}</option>
+          ))}
         </select>
 
         <label>Server Welcome</label>
-        <input type="text" value={messages.serverWelcome} onChange={e => handleChange("serverWelcome", e.target.value)} className="p-2 border rounded" />
+        <input
+          type="text"
+          value={messages.serverMessage}
+          onChange={e => handleChange("serverMessage", e.target.value)}
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
         <label>DM Welcome</label>
-        <input type="text" value={messages.dmWelcome} onChange={e => handleChange("dmWelcome", e.target.value)} className="p-2 border rounded" />
+        <input
+          type="text"
+          value={messages.dmMessage}
+          onChange={e => handleChange("dmMessage", e.target.value)}
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
 
         <div className="flex gap-2 mt-2">
-          <button onClick={() => setServerEnabled(!serverEnabled)} className={`px-3 py-1 rounded ${serverEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>Server {serverEnabled ? "On" : "Off"}</button>
-          <button onClick={() => setDmEnabled(!dmEnabled)} className={`px-3 py-1 rounded ${dmEnabled ? 'bg-green-500 text-white' : 'bg-gray-300 text-black'}`}>DM {dmEnabled ? "On" : "Off"}</button>
-          <button onClick={handleSave} className="px-4 py-1 bg-purple-600 text-white rounded">Save</button>
+          <button
+            onClick={() => setServerEnabled(!serverEnabled)}
+            className={`px-3 py-1 rounded ${serverEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
+          >
+            Server {serverEnabled ? "On" : "Off"}
+          </button>
+          <button
+            onClick={() => setDmEnabled(!dmEnabled)}
+            className={`px-3 py-1 rounded ${dmEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
+          >
+            DM {dmEnabled ? "On" : "Off"}
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-1 bg-purple-600 text-white rounded"
+          >
+            Save
+          </button>
         </div>
       </div>
 
-      {saveMessage && <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">{saveMessage}</div>}
+      {saveMessage && (
+        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+          {saveMessage}
+        </div>
+      )}
     </div>
   );
 };

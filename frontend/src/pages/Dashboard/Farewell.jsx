@@ -6,7 +6,7 @@ const Farewell = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
 
-  const [messages, setMessages] = useState({ serverFarewell: "", dmFarewell: "" });
+  const [messages, setMessages] = useState({ serverMessage: "", dmMessage: "" });
   const [channels, setChannels] = useState([]);
   const [selectedChannel, setSelectedChannel] = useState("");
   const [serverEnabled, setServerEnabled] = useState(true);
@@ -18,22 +18,24 @@ const Farewell = () => {
 
     const fetchData = async () => {
       try {
-        const resChannels = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const resChannels = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const dataChannels = await resChannels.json();
         setChannels(dataChannels);
 
-        const resMessages = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const dataMessages = await resMessages.json();
+        const resPlugin = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/farewell`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataPlugin = await resPlugin.json();
 
-        // Initialize messages
-        setMessages({ serverFarewell: "", dmFarewell: "" });
-        setSelectedChannel("");
+        setMessages({
+          serverMessage: dataPlugin.serverMessage || "",
+          dmMessage: dataPlugin.dmMessage || "",
+        });
+        setSelectedChannel(dataPlugin.channelId || "");
+        setServerEnabled(dataPlugin.enabled ?? true);
+        setDmEnabled(dataPlugin.dmEnabled ?? true);
       } catch (err) {
         console.error(err);
       }
@@ -45,21 +47,17 @@ const Farewell = () => {
   const handleSave = async () => {
     try {
       const payload = {
-        farewell: {
-          enabled: serverEnabled,
-          channelId: selectedChannel,
-          serverMessage: messages.serverFarewell,
-          dmEnabled,
-          dmMessage: messages.dmFarewell,
-        },
+        enabled: serverEnabled,
+        channelId: selectedChannel,
+        serverMessage: messages.serverMessage,
+        dmEnabled,
+        dmMessage: messages.dmMessage,
       };
-
-      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/messages`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/farewell`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-
       setSaveMessage("Saved successfully!");
       setTimeout(() => setSaveMessage(""), 3000);
     } catch (err) {
@@ -73,51 +71,56 @@ const Farewell = () => {
   };
 
   return (
-    <div className="min-h-screen px-6 py-8">
+    <div className="min-h-screen px-6 py-8 bg-gray-900 text-white">
       <h1 className="text-3xl font-bold mb-6">Configure Farewell Messages</h1>
       <div className="flex flex-col gap-4">
         <label>Server Farewell Channel</label>
         <select
           value={selectedChannel}
           onChange={e => setSelectedChannel(e.target.value)}
-          className="p-2 border rounded"
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">Select a channel</option>
           {channels.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id} className="bg-gray-800 text-white">{c.name}</option>
           ))}
         </select>
 
         <label>Server Farewell</label>
         <input
           type="text"
-          value={messages.serverFarewell}
-          onChange={e => handleChange("serverFarewell", e.target.value)}
-          className="p-2 border rounded"
+          value={messages.serverMessage}
+          onChange={e => handleChange("serverMessage", e.target.value)}
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
         <label>DM Farewell</label>
         <input
           type="text"
-          value={messages.dmFarewell}
-          onChange={e => handleChange("dmFarewell", e.target.value)}
-          className="p-2 border rounded"
+          value={messages.dmMessage}
+          onChange={e => handleChange("dmMessage", e.target.value)}
+          className="p-2 border border-gray-700 rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
         <div className="flex gap-2 mt-2">
           <button
             onClick={() => setServerEnabled(!serverEnabled)}
-            className={`px-3 py-1 rounded ${serverEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+            className={`px-3 py-1 rounded ${serverEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
           >
             Server {serverEnabled ? "On" : "Off"}
           </button>
           <button
             onClick={() => setDmEnabled(!dmEnabled)}
-            className={`px-3 py-1 rounded ${dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+            className={`px-3 py-1 rounded ${dmEnabled ? 'bg-green-500 text-white' : 'bg-gray-600 text-black'}`}
           >
             DM {dmEnabled ? "On" : "Off"}
           </button>
-          <button onClick={handleSave} className="px-4 py-1 bg-purple-600 text-white rounded">Save</button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-1 bg-purple-600 text-white rounded"
+          >
+            Save
+          </button>
         </div>
       </div>
 

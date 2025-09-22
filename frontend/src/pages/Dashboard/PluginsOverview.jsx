@@ -31,7 +31,7 @@ const PluginsOverview = () => {
 
   return (
     <div className="min-h-screen px-6 py-8">
-      <h1 className="text-3xl font-bold mb-6">{server.name} - Plugins Overview</h1>
+      <h1 className="text-3xl font-bold mb-6">Plugins Overview</h1>
       <div className="flex flex-col gap-4">
         <button
           className="px-4 py-2 bg-blue-500 text-white rounded"
