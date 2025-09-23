@@ -3,9 +3,6 @@ const {
   Client, 
   GatewayIntentBits, 
   Partials, 
-  REST, 
-  Routes, 
-  SlashCommandBuilder 
 } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
@@ -33,7 +30,6 @@ if (!admin.apps.length) {
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 const db = admin.firestore();
-const statusRef = db.collection("botStatus").doc("main");
 
 // --- Google Sheets Setup ---
 const sheetsAuth = new google.auth.GoogleAuth({
@@ -42,7 +38,7 @@ const sheetsAuth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = "1nRaiJ3m0z7o9Wq_zNeUm07v5f_JbbX8oTUkNz085pzg";
-const RANGE = "Sheet1!A:A"; // Column with words
+const RANGE = "Sheet1!A:H"; // All relevant columns
 
 async function getRandomWord() {
   const clientSheets = await sheetsAuth.getClient();
@@ -51,63 +47,43 @@ async function getRandomWord() {
     spreadsheetId: SPREADSHEET_ID,
     range: RANGE
   });
-  const words = res.data.values?.flat() || [];
-  if (words.length === 0) return "No word found";
-  return words[Math.floor(Math.random() * words.length)];
-}
+  const rows = res.data.values || [];
+  if (rows.length === 0) return null;
 
-// --- Helper: Placeholder Parser ---
-function parsePlaceholders(template, member) {
-  if (!template) return "";
-  const guild = member.guild;
-
-  return template
-    .replace(/{usermention}/g, `<@${member.id}>`)
-    .replace(/{username}/g, member.user.username)
-    .replace(/{server}/g, guild.name)
-    .replace(/{role:(.*?)}/g, (_, roleName) => {
-      const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-      return role ? `<@&${role.id}>` : roleName;
-    })
-    .replace(/{channel:(.*?)}/g, (_, channelName) => {
-      const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-      return channel ? `<#${channel.id}>` : channelName;
-    });
+  // Pick random row
+  const row = rows[Math.floor(Math.random() * rows.length)];
+  return {
+    kanji: row[0] || "",
+    hiragana: row[1] || "",
+    romaji: row[2] || "",
+    meaning: row[3] || "",
+    sentenceJP: row[4] || "",
+    sentenceHiragana: row[5] || "",
+    sentenceRomaji: row[6] || "",
+    sentenceMeaning: row[7] || "",
+  };
 }
 
 // --- Bot Ready ---
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
+  // Pre-fetch members for all guilds
   for (const guild of client.guilds.cache.values()) {
     await guild.members.fetch();
   }
 
-  setInterval(async () => {
-    try {
-      const totalUsers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
-      await statusRef.set({
-        online: true,
-        ping: client.ws.ping,
-        servers: client.guilds.cache.size,
-        users: totalUsers,
-        timestamp: new Date().toISOString()
-      });
-    } catch (err) { console.error("Failed to update status:", err); }
-  }, 5000);
-
-  // --- Language Plugin: Schedule per-server cron (24h format) ---
+  // --- Schedule language plugin per guild based on Firestore ---
   const snapshot = await db.collection("guilds").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
     const lang = doc.data()?.plugins?.language;
+    if (!lang || !lang.channelId || !lang.time || !lang.enabled) return;
 
-    if (!lang || !lang.channelId || !lang.time) return;
-
-    // Clear any previous cron jobs for safety
-    cron.getTasks().forEach(task => task.stop());
-
+    // Extract hour & minute from saved "HH:MM"
     const [hour, minute] = lang.time.split(":");
+
+    // Cron schedule
     cron.schedule(`${minute} ${hour} * * *`, async () => {
       try {
         const guild = client.guilds.cache.get(guildId);
@@ -117,33 +93,26 @@ client.once("ready", async () => {
         if (!channel) return;
 
         const word = await getRandomWord();
-        await channel.send(`📖 Word of the Day: **${word}**`);
-        console.log(`Sent word "${word}" to guild ${guildId}`);
+        if (!word) return;
+
+        const message = `📖 **Japanese Word of the Day**  
+**Kanji:** ${word.kanji}  
+**Hiragana/Katakana:** ${word.hiragana}  
+**Romaji:** ${word.romaji}  
+**Meaning:** ${word.meaning}  
+
+📌 **Example Sentence**  
+**JP:** ${word.sentenceJP}  
+**Hiragana/Katakana:** ${word.sentenceHiragana}  
+**Romaji:** ${word.sentenceRomaji}  
+**English:** ${word.sentenceMeaning}`;
+
+        await channel.send(message);
       } catch (err) {
         console.error(`Error sending word for guild ${guildId}:`, err);
       }
     });
-
-    console.log(`Scheduled daily word for guild ${guildId} at ${lang.time} in channel ${lang.channelId}`);
   });
-});
-
-// --- Slash commands ---
-const commands = [
-  new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
-  new SlashCommandBuilder().setName("welcome").setDescription("Test welcome message")
-].map(cmd => cmd.toJSON());
-
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-(async () => {
-  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); }
-  catch (err) { console.error(err); }
-})();
-
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isCommand()) return;
-  if (interaction.commandName === "ping") await interaction.reply("Pong!");
-  if (interaction.commandName === "welcome") await interaction.reply("This is how welcome messages will appear!");
 });
 
 // --- Login ---
@@ -151,6 +120,5 @@ client.login(process.env.TOKEN);
 
 // --- Express server ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => console.log(`Web server listening on port ${PORT}`));

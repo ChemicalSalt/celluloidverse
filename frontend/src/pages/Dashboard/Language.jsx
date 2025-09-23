@@ -14,8 +14,9 @@ const Language = () => {
     language: "japanese",
   });
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState(""); // For saved message
 
-  // Fetch available channels
+  // Fetch available channels and settings
   useEffect(() => {
     const fetchChannels = async () => {
       try {
@@ -64,10 +65,24 @@ const Language = () => {
           body: JSON.stringify(settings),
         }
       );
-      alert("Settings saved");
+
+      // Clear inputs
+      setSettings({
+        enabled: false,
+        channelId: "",
+        time: "10:00",
+        language: "japanese",
+      });
+
+      // Show simple saved message
+      setMessage("Saved successfully!");
+
+      // Hide message after 3 seconds
+      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       console.error(err);
-      alert("Error saving settings");
+      setMessage("Error saving settings");
+      setTimeout(() => setMessage(""), 3000);
     }
   };
 
@@ -80,8 +95,6 @@ const Language = () => {
       </h1>
 
       <div className="max-w-xl mx-auto flex flex-col gap-6">
-    
-
         {/* Channel Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
@@ -140,6 +153,13 @@ const Language = () => {
         >
           Save
         </button>
+
+        {/* Saved message */}
+        {message && (
+          <div className="mt-2 text-center text-green-600 dark:text-green-400">
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );
