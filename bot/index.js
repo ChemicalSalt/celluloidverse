@@ -9,27 +9,12 @@ const {
 } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
+const cron = require("node-cron");
+const { google } = require("googleapis");
+const path = require("path");
+
 const app = express();
 app.use(express.json());
-
-// --- Helper: Placeholder Parser ---
-function parsePlaceholders(template, member) {
-  if (!template) return "";
-  const guild = member.guild;
-
-  return template
-    .replace(/{usermention}/g, `<@${member.id}>`)
-    .replace(/{username}/g, member.user.username)
-    .replace(/{server}/g, guild.name)
-    .replace(/{role:(.*?)}/g, (_, roleName) => {
-      const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
-      return role ? `<@&${role.id}>` : roleName;
-    })
-    .replace(/{channel:(.*?)}/g, (_, channelName) => {
-      const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-      return channel ? `<#${channel.id}>` : channelName;
-    });
-}
 
 // --- Initialize Discord Client ---
 const client = new Client({ 
@@ -50,28 +35,52 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const statusRef = db.collection("botStatus").doc("main");
 
-// --- Slash command setup ---
-const commands = [
-  new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
-  new SlashCommandBuilder().setName("welcome").setDescription("Test welcome message")
-].map(cmd => cmd.toJSON());
+// --- Google Sheets Setup ---
+const sheetsAuth = new google.auth.GoogleAuth({
+  keyFile: path.join(__dirname, "serviceAccountKey.json"), // your service account file
+  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+});
+const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
+const SPREADSHEET_ID = "1nRaiJ3m0z7o9Wq_zNeUm07v5f_JbbX8oTUkNz085pzg";
+const RANGE = "Sheet1!A:A"; // Column with words
 
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-(async () => {
-  try {
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-    console.log("Slash commands registered");
-  } catch (err) {
-    console.error(err);
-  }
-})();
+async function getRandomWord() {
+  const clientSheets = await sheetsAuth.getClient();
+  const res = await sheets.spreadsheets.values.get({
+    auth: clientSheets,
+    spreadsheetId: SPREADSHEET_ID,
+    range: RANGE
+  });
+  const words = res.data.values?.flat() || [];
+  if (words.length === 0) return "No word found";
+  return words[Math.floor(Math.random() * words.length)];
+}
+
+// --- Helper: Placeholder Parser ---
+function parsePlaceholders(template, member) {
+  if (!template) return "";
+  const guild = member.guild;
+
+  return template
+    .replace(/{usermention}/g, `<@${member.id}>`)
+    .replace(/{username}/g, member.user.username)
+    .replace(/{server}/g, guild.name)
+    .replace(/{role:(.*?)}/g, (_, roleName) => {
+      const role = guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+      return role ? `<@&${role.id}>` : roleName;
+    })
+    .replace(/{channel:(.*?)}/g, (_, channelName) => {
+      const channel = guild.channels.cache.find(c => c.name.toLowerCase() === channelName.toLowerCase());
+      return channel ? `<#${channel.id}>` : channelName;
+    });
+}
 
 // --- Bot Ready ---
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
   for (const guild of client.guilds.cache.values()) {
-    await guild.members.fetch(); // ensures memberRemove is reliable
+    await guild.members.fetch();
   }
 
   setInterval(async () => {
@@ -86,93 +95,60 @@ client.once("ready", async () => {
       });
     } catch (err) { console.error("Failed to update status:", err); }
   }, 5000);
-});
 
-// --- Welcome ---
-client.on("guildMemberAdd", async member => {
-  try {
-    const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const welcome = doc.data()?.plugins?.welcome;
-    if (!welcome) return;
+  // --- Language Plugin: Schedule per-server cron ---
+  const snapshot = await db.collection("guilds").get();
+  snapshot.docs.forEach(doc => {
+    const guildId = doc.id;
+    const lang = doc.data()?.plugins?.language;
+    if (!lang || !lang.channelId || !lang.time) return;
 
-    // SERVER MESSAGE
-    if (welcome.enabled && welcome.serverMessage && welcome.channelId) {
-      const channel = member.guild.channels.cache.get(welcome.channelId);
-      if (channel) {
-        const msg = parsePlaceholders(welcome.serverMessage, member);
-        await channel.send(msg).catch(console.error);
+    const [hour, minute] = lang.time.split(":");
+
+    cron.schedule(`${minute} ${hour} * * *`, async () => {
+      try {
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return;
+
+        const channel = guild.channels.cache.get(lang.channelId);
+        if (!channel) return;
+
+        const word = await getRandomWord();
+        await channel.send(`📖 Today's word: **${word}**`);
+      } catch (err) {
+        console.error(`Language plugin error for guild ${guildId}:`, err);
       }
-    }
-
-    // DM MESSAGE
-    if (welcome.dmEnabled && welcome.dmMessage) {
-      const msg = parsePlaceholders(welcome.dmMessage, member);
-      await member.send(msg).catch(() => {}); // ignore if DMs blocked
-    }
-  } catch (err) {
-    console.error("Welcome plugin error:", err);
-  }
+    });
+  });
 });
 
-// --- Farewell ---
-client.on("guildMemberRemove", async member => {
-  try {
-    if (member.partial) await member.fetch();
-    const doc = await db.collection("guilds").doc(member.guild.id).get();
-    const farewell = doc.data()?.plugins?.farewell;
-    if (!farewell) return;
+// --- Existing welcome/farewell events (keep as-is) ---
+// client.on("guildMemberAdd", ...)
+// client.on("guildMemberRemove", ...)
 
-    // SERVER MESSAGE
-    if (farewell.enabled && farewell.serverMessage && farewell.channelId) {
-      const channel = member.guild.channels.cache.get(farewell.channelId);
-      if (channel) {
-        const msg = parsePlaceholders(farewell.serverMessage, member);
-        await channel.send(msg).catch(console.error);
-      }
-    }
+// --- Slash commands ---
+const commands = [
+  new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
+  new SlashCommandBuilder().setName("welcome").setDescription("Test welcome message")
+].map(cmd => cmd.toJSON());
 
-    // DM MESSAGE
-    if (farewell.dmEnabled && farewell.dmMessage) {
-      const msg = parsePlaceholders(farewell.dmMessage, member);
-      await member.send(msg).catch(() => {});
-    }
-  } catch (err) {
-    console.error("Farewell plugin error:", err);
-  }
-});
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+(async () => {
+  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); }
+  catch (err) { console.error(err); }
+})();
 
-
-// --- Slash command handling ---
 client.on("interactionCreate", async interaction => {
   if (!interaction.isCommand()) return;
   if (interaction.commandName === "ping") await interaction.reply("Pong!");
-  if (interaction.commandName === "welcome") {
-    await interaction.reply("This is how welcome messages will appear when a member joins!");
-  }
+  if (interaction.commandName === "welcome") await interaction.reply("This is how welcome messages will appear!");
 });
 
 // --- Login ---
 client.login(process.env.TOKEN);
 
-// --- Express Server ---
+// --- Express server ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
 
 const PORT = process.env.PORT || 3000;
-
-app.post("/api/guilds/:guildId/settings", async (req, res) => {
-  try {
-    const { guildId } = req.params;
-    const { welcome, farewell } = req.body;
-
-    await db.collection("guilds").doc(guildId).set({
-      plugins: { welcome, farewell }
-    }, { merge: true });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Failed to update settings:", err);
-    res.status(500).json({ success: false, error: "Internal server error" });
-  }
-});
-
 app.listen(PORT, "0.0.0.0", () => console.log(`Web server listening on port ${PORT}`));

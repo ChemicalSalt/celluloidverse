@@ -14,7 +14,7 @@ import AddBot from "./pages/Dashboard/AddBot";
 import PluginsOverview from "./pages/Dashboard/PluginsOverview";
 import Welcome from "./pages/Dashboard/Welcome";
 import Farewell from "./pages/Dashboard/Farewell";
-
+import Language from "./pages/dashboard/Language";
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-300">
@@ -34,6 +34,7 @@ function App() {
           <Route path="/dashboard/:serverId/plugins/overview" element={<PluginsOverview />} />
           <Route path="/dashboard/:serverId/plugins/welcome" element={<Welcome />} />
           <Route path="/dashboard/:serverId/plugins/farewell" element={<Farewell />} />
+          <Route path="/dashboard/:serverId/plugins/language" element={<Language />} />
         </Routes>
       </main>
       <Footer />
