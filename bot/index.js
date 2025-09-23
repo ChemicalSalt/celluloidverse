@@ -50,8 +50,10 @@ async function getRandomWord() {
   const rows = res.data.values || [];
   if (rows.length === 0) return null;
 
-  // Pick random row
-  const row = rows[Math.floor(Math.random() * rows.length)];
+  // Skip header row if present
+  const dataRows = rows.filter(row => row[0] && row[1]);
+  const row = dataRows[Math.floor(Math.random() * dataRows.length)];
+
   return {
     kanji: row[0] || "",
     hiragana: row[1] || "",
@@ -80,10 +82,8 @@ client.once("ready", async () => {
     const lang = doc.data()?.plugins?.language;
     if (!lang || !lang.channelId || !lang.time || !lang.enabled) return;
 
-    // Extract hour & minute from saved "HH:MM"
     const [hour, minute] = lang.time.split(":");
 
-    // Cron schedule
     cron.schedule(`${minute} ${hour} * * *`, async () => {
       try {
         const guild = client.guilds.cache.get(guildId);

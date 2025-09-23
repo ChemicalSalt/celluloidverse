@@ -10,8 +10,8 @@ const Language = () => {
   const [settings, setSettings] = useState({
     enabled: false,
     channelId: "",
-    time: "10:00",
-    language: "japanese",
+    time: "",
+    language: "",
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(""); // For saved message
@@ -70,8 +70,8 @@ const Language = () => {
       setSettings({
         enabled: false,
         channelId: "",
-        time: "10:00",
-        language: "japanese",
+        time: "",
+        language: "",
       });
 
       // Show simple saved message
@@ -119,7 +119,7 @@ const Language = () => {
         {/* Time Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Time (HH:MM)
+            Time (24-hour HH:MM)
           </label>
           <input
             type="time"
@@ -127,6 +127,7 @@ const Language = () => {
             onChange={(e) =>
               setSettings({ ...settings, time: e.target.value })
             }
+            placeholder="22:00"
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           />
         </div>
@@ -134,7 +135,7 @@ const Language = () => {
         {/* Language Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Language
+            Select Language
           </label>
           <select
             value={settings.language}
@@ -143,6 +144,7 @@ const Language = () => {
             }
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
+            <option value="">-- Select a language --</option>
             <option value="japanese">Japanese</option>
           </select>
         </div>
