@@ -37,7 +37,7 @@ const statusRef = db.collection("botStatus").doc("main");
 
 // --- Google Sheets Setup ---
 const sheetsAuth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, "serviceAccountKey.json"), // your service account file
+  keyFile: path.join(__dirname, "serviceAccountKey.json"),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 });
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
@@ -96,15 +96,18 @@ client.once("ready", async () => {
     } catch (err) { console.error("Failed to update status:", err); }
   }, 5000);
 
-  // --- Language Plugin: Schedule per-server cron ---
+  // --- Language Plugin: Schedule per-server cron (24h format) ---
   const snapshot = await db.collection("guilds").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
     const lang = doc.data()?.plugins?.language;
+
     if (!lang || !lang.channelId || !lang.time) return;
 
-    const [hour, minute] = lang.time.split(":");
+    // Clear any previous cron jobs for safety
+    cron.getTasks().forEach(task => task.stop());
 
+    const [hour, minute] = lang.time.split(":");
     cron.schedule(`${minute} ${hour} * * *`, async () => {
       try {
         const guild = client.guilds.cache.get(guildId);
@@ -114,17 +117,16 @@ client.once("ready", async () => {
         if (!channel) return;
 
         const word = await getRandomWord();
-        await channel.send(`📖 Today's word: **${word}**`);
+        await channel.send(`📖 Word of the Day: **${word}**`);
+        console.log(`Sent word "${word}" to guild ${guildId}`);
       } catch (err) {
-        console.error(`Language plugin error for guild ${guildId}:`, err);
+        console.error(`Error sending word for guild ${guildId}:`, err);
       }
     });
+
+    console.log(`Scheduled daily word for guild ${guildId} at ${lang.time} in channel ${lang.channelId}`);
   });
 });
-
-// --- Existing welcome/farewell events (keep as-is) ---
-// client.on("guildMemberAdd", ...)
-// client.on("guildMemberRemove", ...)
 
 // --- Slash commands ---
 const commands = [
