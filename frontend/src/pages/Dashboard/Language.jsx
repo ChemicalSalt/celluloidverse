@@ -16,7 +16,7 @@ const Language = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(""); // For saved message
 
-  // Fetch available channels and settings
+  // Fetch available channels
   useEffect(() => {
     const fetchChannels = async () => {
       try {
@@ -28,28 +28,12 @@ const Language = () => {
         setChannels(data);
       } catch (err) {
         console.error(err);
-      }
-    };
-
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setSettings((prev) => ({ ...prev, ...data }));
-        }
-      } catch (err) {
-        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
     fetchChannels();
-    fetchSettings();
   }, [serverId, token]);
 
   const handleSave = async () => {
@@ -66,7 +50,7 @@ const Language = () => {
         }
       );
 
-      // Clear inputs
+      // Clear inputs after saving
       setSettings({
         enabled: false,
         channelId: "",
@@ -74,10 +58,8 @@ const Language = () => {
         language: "",
       });
 
-      // Show simple saved message
+      // Show saved message
       setMessage("Saved successfully!");
-
-      // Hide message after 3 seconds
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       console.error(err);
@@ -98,7 +80,7 @@ const Language = () => {
         {/* Channel Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Select Channel
+            Select a channel
           </label>
           <select
             value={settings.channelId}
@@ -119,15 +101,15 @@ const Language = () => {
         {/* Time Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Time (24-hour HH:MM)
+            Time (HH:MM)
           </label>
           <input
             type="time"
+            placeholder="22:00"
             value={settings.time}
             onChange={(e) =>
               setSettings({ ...settings, time: e.target.value })
             }
-            placeholder="22:00"
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           />
         </div>
@@ -135,7 +117,7 @@ const Language = () => {
         {/* Language Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Select Language
+            Select language
           </label>
           <select
             value={settings.language}

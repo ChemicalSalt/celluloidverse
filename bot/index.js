@@ -3,6 +3,9 @@ const {
   Client, 
   GatewayIntentBits, 
   Partials, 
+  REST, 
+  Routes, 
+  SlashCommandBuilder 
 } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
@@ -50,7 +53,6 @@ async function getRandomWord() {
   const rows = res.data.values || [];
   if (rows.length === 0) return null;
 
-  // Skip header row if present
   const dataRows = rows.filter(row => row[0] && row[1]);
   const row = dataRows[Math.floor(Math.random() * dataRows.length)];
 
@@ -70,12 +72,27 @@ async function getRandomWord() {
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 
-  // Pre-fetch members for all guilds
   for (const guild of client.guilds.cache.values()) {
     await guild.members.fetch();
   }
 
-  // --- Schedule language plugin per guild based on Firestore ---
+  // --- Update bot status in Firestore ---
+  setInterval(async () => {
+    try {
+      const totalUsers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
+      await db.collection("botStatus").doc("main").set({
+        online: true,
+        ping: client.ws.ping,
+        servers: client.guilds.cache.size,
+        users: totalUsers,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  }, 5000);
+
+  // --- Schedule Word-of-the-Day per guild ---
   const snapshot = await db.collection("guilds").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
@@ -115,10 +132,47 @@ client.once("ready", async () => {
   });
 });
 
+// --- Welcome & Farewell ---
+client.on("guildMemberAdd", async (member) => {
+  const doc = await db.collection("guilds").doc(member.guild.id).get();
+  const welcome = doc.data()?.plugins?.welcome;
+  if (welcome?.enabled && welcome?.channelId) {
+    const channel = member.guild.channels.cache.get(welcome.channelId);
+    if (channel) channel.send(`Welcome ${member.user.username} to ${member.guild.name}!`);
+  }
+});
+
+client.on("guildMemberRemove", async (member) => {
+  const doc = await db.collection("guilds").doc(member.guild.id).get();
+  const farewell = doc.data()?.plugins?.farewell;
+  if (farewell?.enabled && farewell?.channelId) {
+    const channel = member.guild.channels.cache.get(farewell.channelId);
+    if (channel) channel.send(`${member.user.username} has left the server.`);
+  }
+});
+
+// --- Slash Commands ---
+const commands = [
+  new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
+  new SlashCommandBuilder().setName("welcome").setDescription("Test welcome message")
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+(async () => {
+  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); }
+  catch (err) { console.error(err); }
+})();
+
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isCommand()) return;
+  if (interaction.commandName === "ping") await interaction.reply("Pong!");
+  if (interaction.commandName === "welcome") await interaction.reply("This is how welcome messages will appear!");
+});
+
 // --- Login ---
 client.login(process.env.TOKEN);
 
-// --- Express server ---
+// --- Express Server ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => console.log(`Web server listening on port ${PORT}`));
