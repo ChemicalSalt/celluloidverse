@@ -98,21 +98,21 @@ const Language = () => {
           </select>
         </div>
 
-        {/* Time Selector */}
-        <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Time (HH:MM)
-          </label>
-          <input
-            type="time"
-            placeholder="22:00"
-            value={settings.time}
-            onChange={(e) =>
-              setSettings({ ...settings, time: e.target.value })
-            }
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
-          />
-        </div>
+      {/* Time Selector */}
+<div>
+  <label className="block mb-2 text-black dark:text-white">
+    Time (HH:MM)
+  </label>
+  <input
+    type="time"
+    value={settings.time || ""}   // empty string = shows only --:--
+    onChange={(e) =>
+      setSettings({ ...settings, time: e.target.value })
+    }
+    className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+  />
+</div>
+
 
         {/* Language Selector */}
         <div>
