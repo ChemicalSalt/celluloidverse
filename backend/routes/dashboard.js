@@ -86,9 +86,20 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
+
+  console.log("Saving plugin payload:", payload);
+
   try {
     const docRef = db.collection("guilds").doc(id);
-    await docRef.set({ plugins: { [plugin]: payload } }, { merge: true });
+
+    // Safe merge to avoid overwriting other plugins
+    await docRef.set({
+      plugins: {
+        ...(await docRef.get()).data()?.plugins,
+        [plugin]: payload
+      }
+    }, { merge: true });
+
     console.log(`Saved ${plugin} config for server ${id}`);
     res.json({ success: true });
   } catch (err) {
@@ -121,9 +132,11 @@ router.get("/servers/:id", async (req, res) => {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     if (!guildRes.ok) return res.status(guildRes.status).json({ error: "Failed to fetch guild info" });
+
     const guildData = await guildRes.json();
     const doc = await db.collection("guilds").doc(id).get();
     const plugins = doc.exists ? doc.data().plugins || {} : {};
+
     res.json({ id: guildData.id, name: guildData.name, icon: guildData.icon, plugins });
   } catch (err) {
     console.error("Failed to fetch server info:", err);
