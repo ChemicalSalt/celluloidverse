@@ -16,6 +16,29 @@ const Language = () => {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(""); // For saved message
 
+  // Fetch existing plugin settings from backend/Firestore
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        setSettings({
+          enabled: data.enabled || false,
+          channelId: data.channelId || "",
+          time: data.time || "",
+          language: data.language || "",
+        });
+      } catch (err) {
+        console.error("Failed to fetch plugin settings", err);
+      }
+    };
+
+    if (serverId && token) fetchSettings();
+  }, [serverId, token]);
+
   // Fetch available channels
   useEffect(() => {
     const fetchChannels = async () => {
@@ -33,7 +56,7 @@ const Language = () => {
       }
     };
 
-    fetchChannels();
+    if (serverId && token) fetchChannels();
   }, [serverId, token]);
 
   const handleSave = async () => {
@@ -49,13 +72,6 @@ const Language = () => {
           body: JSON.stringify(settings),
         }
       );
-
-      setSettings({
-        enabled: false,
-        channelId: "",
-        time: "",
-        language: "",
-      });
 
       setMessage("Saved successfully!");
       setTimeout(() => setMessage(""), 3000);
@@ -103,7 +119,7 @@ const Language = () => {
           </label>
           <input
             type="time"
-            value={settings.time}  // shows only --:-- if empty
+            value={settings.time}
             onChange={(e) =>
               setSettings({ ...settings, time: e.target.value })
             }

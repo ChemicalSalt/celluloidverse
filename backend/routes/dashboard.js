@@ -87,23 +87,22 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
-  console.log("Saving plugin payload:", payload);
+  console.log("Received plugin payload to save:", payload);
 
   try {
     const docRef = db.collection("guilds").doc(id);
+    const existingDoc = await docRef.get();
+    const existingPlugins = existingDoc.exists ? existingDoc.data()?.plugins || {} : {};
 
-    // Safe merge to avoid overwriting other plugins
-    await docRef.set({
-      plugins: {
-        ...(await docRef.get()).data()?.plugins,
-        [plugin]: payload
-      }
-    }, { merge: true });
+    await docRef.set(
+      { plugins: { ...existingPlugins, [plugin]: payload } },
+      { merge: true }
+    );
 
-    console.log(`Saved ${plugin} config for server ${id}`);
+    console.log(`✅ Successfully saved "${plugin}" for server ${id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("Failed to save plugin:", err);
+    console.error("❌ Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
