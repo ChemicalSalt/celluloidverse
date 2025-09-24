@@ -99,10 +99,10 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
       { merge: true }
     );
 
-    console.log(`✅ Successfully saved "${plugin}" for server ${id}`);
+    console.log(`Successfully saved "${plugin}" for server ${id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Failed to save plugin:", err);
+    console.error("Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
