@@ -60,8 +60,10 @@ const Language = () => {
   }, [serverId, token]);
 
   const handleSave = async () => {
+    console.log("🔹 handleSave triggered", settings);
+
     try {
-      await fetch(
+      const res = await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
         {
           method: "POST",
@@ -73,10 +75,14 @@ const Language = () => {
         }
       );
 
+      console.log("🔹 Response status:", res.status);
+      const data = await res.json();
+      console.log("🔹 Response JSON:", data);
+
       setMessage("Saved successfully!");
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
-      console.error(err);
+      console.error("🔹 Error saving settings:", err);
       setMessage("Error saving settings");
       setTimeout(() => setMessage(""), 3000);
     }

@@ -21,10 +21,14 @@ router.get("/login", async (req, res) => {
   if (userId) {
     const userDoc = await db.collection("users").doc(userId).get();
     if (userDoc.exists && userDoc.data().access_token) {
-      return res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${userDoc.data().access_token}`);
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/dashboard?token=${userDoc.data().access_token}`
+      );
     }
   }
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
+    REDIRECT_URI
+  )}`;
   res.redirect(url);
 });
 
@@ -54,13 +58,16 @@ router.get("/callback", async (req, res) => {
     });
     const userData = await userRes.json();
 
-    await db.collection("users").doc(userData.id).set({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_in: data.expires_in,
-      token_type: data.token_type,
-      user: userData,
-    }, { merge: true });
+    await db.collection("users").doc(userData.id).set(
+      {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+        token_type: data.token_type,
+        user: userData,
+      },
+      { merge: true }
+    );
 
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
   } catch (err) {
@@ -81,19 +88,22 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch plugin" });
   }
 });
+
+// ---- Save a plugin config ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
   console.log("✅ POST hit backend");
   console.log("Params:", req.params);
-  console.log("Body:", req.body);
+  console.log("Body:", payload);
 
   try {
     const docRef = db.collection("guilds").doc(id);
     const existingDoc = await docRef.get();
     const existingPlugins = existingDoc.exists ? existingDoc.data()?.plugins || {} : {};
 
+    // Merge plugin config safely
     await docRef.set(
       { plugins: { ...existingPlugins, [plugin]: payload } },
       { merge: true }
@@ -106,7 +116,6 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
-
 
 // ---- Fetch channels for a guild ----
 router.get("/servers/:guildId/channels", async (req, res) => {
