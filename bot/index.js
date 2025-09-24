@@ -68,6 +68,51 @@ async function getRandomWord() {
   };
 }
 
+// --- Cron job map for dynamic scheduling ---
+const scheduledJobs = new Map();
+
+async function scheduleWordOfTheDay(guildId, pluginSettings) {
+  if (!pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
+
+  const [hour, minute] = pluginSettings.time.split(":");
+
+  // Cancel previous job if exists
+  if (scheduledJobs.has(guildId)) {
+    scheduledJobs.get(guildId).stop();
+  }
+
+  const job = cron.schedule(`${minute} ${hour} * * *`, async () => {
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) return;
+
+      const channel = guild.channels.cache.get(pluginSettings.channelId);
+      if (!channel) return;
+
+      const word = await getRandomWord();
+      if (!word) return;
+
+      const message = `📖 **Japanese Word of the Day**  
+**Kanji:** ${word.kanji}  
+**Hiragana/Katakana:** ${word.hiragana}  
+**Romaji:** ${word.romaji}  
+**Meaning:** ${word.meaning}  
+
+📌 **Example Sentence**  
+**JP:** ${word.sentenceJP}  
+**Hiragana/Katakana:** ${word.sentenceHiragana}  
+**Romaji:** ${word.sentenceRomaji}  
+**English:** ${word.sentenceMeaning}`;
+
+      await channel.send(message);
+    } catch (err) {
+      console.error(`Error sending word for guild ${guildId}:`, err);
+    }
+  });
+
+  scheduledJobs.set(guildId, job);
+}
+
 // --- Bot Ready ---
 client.once("ready", async () => {
   console.log(`Bot logged in as ${client.user.tag}`);
@@ -96,40 +141,19 @@ client.once("ready", async () => {
   const snapshot = await db.collection("guilds").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
-    const lang = doc.data()?.plugins?.language;
-    if (!lang || !lang.channelId || !lang.time || !lang.enabled) return;
-
-    const [hour, minute] = lang.time.split(":");
-
-    cron.schedule(`${minute} ${hour} * * *`, async () => {
-      try {
-        const guild = client.guilds.cache.get(guildId);
-        if (!guild) return;
-
-        const channel = guild.channels.cache.get(lang.channelId);
-        if (!channel) return;
-
-        const word = await getRandomWord();
-        if (!word) return;
-
-        const message = `📖 **Japanese Word of the Day**  
-**Kanji:** ${word.kanji}  
-**Hiragana/Katakana:** ${word.hiragana}  
-**Romaji:** ${word.romaji}  
-**Meaning:** ${word.meaning}  
-
-📌 **Example Sentence**  
-**JP:** ${word.sentenceJP}  
-**Hiragana/Katakana:** ${word.sentenceHiragana}  
-**Romaji:** ${word.sentenceRomaji}  
-**English:** ${word.sentenceMeaning}`;
-
-        await channel.send(message);
-      } catch (err) {
-        console.error(`Error sending word for guild ${guildId}:`, err);
-      }
-    });
+    const plugin = doc.data()?.plugins?.language;
+    scheduleWordOfTheDay(guildId, plugin);
   });
+
+  // --- Periodically check for updates (dynamic) ---
+  setInterval(async () => {
+    const snapshot = await db.collection("guilds").get();
+    snapshot.docs.forEach(doc => {
+      const guildId = doc.id;
+      const plugin = doc.data()?.plugins?.language;
+      scheduleWordOfTheDay(guildId, plugin);
+    });
+  }, 600000); // every 10 minutes
 });
 
 // --- Welcome & Farewell ---
