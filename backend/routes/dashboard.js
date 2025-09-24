@@ -17,20 +17,14 @@ const db = admin.firestore();
 
 // ---- OAuth Login ----
 router.get("/login", async (req, res) => {
-  const userId = req.query.userId; // optional if you want pre-check
-  // Check if user token already exists in Firestore
+  const userId = req.query.userId;
   if (userId) {
     const userDoc = await db.collection("users").doc(userId).get();
     if (userDoc.exists && userDoc.data().access_token) {
-      // Token exists, redirect straight to dashboard
       return res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${userDoc.data().access_token}`);
     }
   }
-
-  // If not, proceed with OAuth
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}`;
+  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
   res.redirect(url);
 });
 
@@ -38,7 +32,6 @@ router.get("/login", async (req, res) => {
 router.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
-
   try {
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
@@ -48,33 +41,26 @@ router.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
-
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
-
     const data = await tokenRes.json();
     if (data.error) return res.status(400).send("OAuth error: " + data.error);
 
-    // Fetch user info
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
     const userData = await userRes.json();
 
-    // Save token in Firestore keyed by user id
-    await db.collection("users").doc(userData.id).set(
-      {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        expires_in: data.expires_in,
-        token_type: data.token_type,
-        user: userData,
-      },
-      { merge: true }
-    );
+    await db.collection("users").doc(userData.id).set({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+      token_type: data.token_type,
+      user: userData,
+    }, { merge: true });
 
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${data.access_token}`);
   } catch (err) {
@@ -83,49 +69,9 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-// ---- Fetch user's servers & bot presence ----
-router.get("/servers", async (req, res) => {
-  let accessToken = req.headers.authorization?.split(" ")[1];
-  if (!accessToken) return res.status(401).json({ error: "No token provided" });
-
-  try {
-    // Optionally, you can fetch token from Firestore by user ID
-    // const userDoc = await db.collection("users").doc(userId).get();
-    // accessToken = userDoc.data().access_token || accessToken;
-
-    const userGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const userGuilds = await userGuildRes.json();
-
-    const botGuildRes = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bot ${TOKEN}` },
-    });
-    const botGuilds = await botGuildRes.json();
-    const botGuildIds = botGuilds.map(g => g.id);
-
-    const manageableGuilds = userGuilds.filter(g => (g.permissions & 0x20) === 0x20);
-
-    const guildsWithInfo = manageableGuilds.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      hasBot: botGuildIds.includes(g.id),
-      canManage: (g.permissions & 0x20) === 0x20,
-      invite_link: `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${g.id}&permissions=8`,
-    }));
-
-    res.json(guildsWithInfo);
-  } catch (err) {
-    console.error("Failed to fetch guilds:", err);
-    res.status(500).json({ error: "Failed to fetch guilds" });
-  }
-});
-
 // ---- Fetch plugin config ----
 router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
-
   try {
     const doc = await db.collection("guilds").doc(id).get();
     const data = doc.exists ? doc.data().plugins?.[plugin] || {} : {};
@@ -140,7 +86,6 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
-
   try {
     const docRef = db.collection("guilds").doc(id);
     await docRef.set({ plugins: { [plugin]: payload } }, { merge: true });
@@ -155,17 +100,12 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
 // ---- Fetch channels for a guild ----
 router.get("/servers/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
-
   try {
     const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     const channels = await response.json();
-
-    const textChannels = channels
-      .filter(c => c.type === 0)
-      .map(c => ({ id: c.id, name: c.name }));
-
+    const textChannels = channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name }));
     res.json(textChannels);
   } catch (err) {
     console.error("Failed to fetch channels:", err);
@@ -176,23 +116,15 @@ router.get("/servers/:guildId/channels", async (req, res) => {
 // ---- Fetch server info + all plugins ----
 router.get("/servers/:id", async (req, res) => {
   const { id } = req.params;
-
   try {
     const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     if (!guildRes.ok) return res.status(guildRes.status).json({ error: "Failed to fetch guild info" });
-
     const guildData = await guildRes.json();
     const doc = await db.collection("guilds").doc(id).get();
     const plugins = doc.exists ? doc.data().plugins || {} : {};
-
-    res.json({
-      id: guildData.id,
-      name: guildData.name,
-      icon: guildData.icon,
-      plugins,
-    });
+    res.json({ id: guildData.id, name: guildData.name, icon: guildData.icon, plugins });
   } catch (err) {
     console.error("Failed to fetch server info:", err);
     res.status(500).json({ error: "Failed to fetch server info" });
