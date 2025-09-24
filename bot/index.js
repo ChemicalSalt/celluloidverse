@@ -72,7 +72,7 @@ async function getRandomWord() {
 const scheduledJobs = new Map();
 
 async function scheduleWordOfTheDay(guildId, pluginSettings) {
-  if (!pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
+  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
 
   const [hour, minute] = pluginSettings.time.split(":");
 
