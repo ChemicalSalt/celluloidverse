@@ -81,13 +81,13 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch plugin" });
   }
 });
-
-// ---- Save a plugin config ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
-  console.log("Received plugin payload to save:", payload);
+  console.log("✅ POST hit backend");
+  console.log("Params:", req.params);
+  console.log("Body:", req.body);
 
   try {
     const docRef = db.collection("guilds").doc(id);
@@ -99,13 +99,14 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
       { merge: true }
     );
 
-    console.log(`Successfully saved "${plugin}" for server ${id}`);
+    console.log(`✅ Successfully saved "${plugin}" for server ${id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("Failed to save plugin:", err);
+    console.error("❌ Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
+
 
 // ---- Fetch channels for a guild ----
 router.get("/servers/:guildId/channels", async (req, res) => {
