@@ -16,7 +16,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ---- OAuth Login ----
-router.get("/api/dashboard/login", async (req, res) => {
+router.get("/login", async (req, res) => {
   const userId = req.query.userId;
   if (userId) {
     const userDoc = await db.collection("users").doc(userId).get();
@@ -26,6 +26,7 @@ router.get("/api/dashboard/login", async (req, res) => {
       );
     }
   }
+
   const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
   )}`;
@@ -33,7 +34,7 @@ router.get("/api/dashboard/login", async (req, res) => {
 });
 
 // ---- OAuth Callback ----
-router.get("/api/dashboard/callback", async (req, res) => {
+router.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
   try {
@@ -45,6 +46,7 @@ router.get("/api/dashboard/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
+
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
@@ -77,7 +79,7 @@ router.get("/api/dashboard/callback", async (req, res) => {
 });
 
 // ---- Fetch plugin config ----
-router.get("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
+router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   try {
     const doc = await db.collection("guilds").doc(id).get();
@@ -90,7 +92,7 @@ router.get("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
 });
 
 // ---- Save a plugin config ----
-router.post("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
+router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
@@ -118,7 +120,7 @@ router.post("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
 });
 
 // ---- Fetch channels for a guild ----
-router.get("/api/dashboard/servers/:guildId/channels", async (req, res) => {
+router.get("/servers/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
   try {
     const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
@@ -134,7 +136,7 @@ router.get("/api/dashboard/servers/:guildId/channels", async (req, res) => {
 });
 
 // ---- Fetch server info + all plugins ----
-router.get("/api/dashboard/servers/:id", async (req, res) => {
+router.get("/servers/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
@@ -152,7 +154,9 @@ router.get("/api/dashboard/servers/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch server info" });
   }
 });
-router.get("/api/dashboard/servers", async (_req, res) => {
+
+// ---- Fetch all servers ----
+router.get("/servers", async (_req, res) => {
   try {
     const snapshot = await db.collection("guilds").get();
     const firestoreGuilds = {};
@@ -160,19 +164,17 @@ router.get("/api/dashboard/servers", async (_req, res) => {
       firestoreGuilds[doc.id] = doc.data().plugins || {};
     });
 
-    // Fetch all guilds bot is in
     const response = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bot ${TOKEN}` },
     });
     const discordGuilds = await response.json();
 
-    // Merge Firestore plugins and set hasBot
     const merged = discordGuilds.map(g => ({
       id: g.id,
       name: g.name,
       icon: g.icon,
       plugins: firestoreGuilds[g.id] || {},
-      hasBot: true, // bot is already in this guild
+      hasBot: true,
     }));
 
     res.json(merged);
