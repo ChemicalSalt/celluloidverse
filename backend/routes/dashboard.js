@@ -16,7 +16,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ---- OAuth Login ----
-router.get("/dashboard/login", async (req, res) => {
+router.get("/api/dashboard/login", async (req, res) => {
   const userId = req.query.userId;
   if (userId) {
     const userDoc = await db.collection("users").doc(userId).get();
@@ -33,7 +33,7 @@ router.get("/dashboard/login", async (req, res) => {
 });
 
 // ---- OAuth Callback ----
-router.get("/dashboard/callback", async (req, res) => {
+router.get("/api/dashboard/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
   try {
@@ -77,7 +77,7 @@ router.get("/dashboard/callback", async (req, res) => {
 });
 
 // ---- Fetch plugin config ----
-router.get("/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
+router.get("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   try {
     const doc = await db.collection("guilds").doc(id).get();
@@ -90,7 +90,7 @@ router.get("/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
 });
 
 // ---- Save a plugin config ----
-router.post("/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
+router.post("/api/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
@@ -118,7 +118,7 @@ router.post("/dashboard/servers/:id/plugins/:plugin", async (req, res) => {
 });
 
 // ---- Fetch channels for a guild ----
-router.get("/dashboard/servers/:guildId/channels", async (req, res) => {
+router.get("/api/dashboard/servers/:guildId/channels", async (req, res) => {
   const guildId = req.params.guildId;
   try {
     const response = await fetch(`https://discord.com/api/v10/guilds/${guildId}/channels`, {
@@ -134,7 +134,7 @@ router.get("/dashboard/servers/:guildId/channels", async (req, res) => {
 });
 
 // ---- Fetch server info + all plugins ----
-router.get("/dashboard/servers/:id", async (req, res) => {
+router.get("/api/dashboard/servers/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const guildRes = await fetch(`https://discord.com/api/v10/guilds/${id}`, {
@@ -152,7 +152,7 @@ router.get("/dashboard/servers/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch server info" });
   }
 });
-router.get("/dashboard/servers", async (_req, res) => {
+router.get("/api/dashboard/servers", async (_req, res) => {
   try {
     const snapshot = await db.collection("guilds").get();
     const firestoreGuilds = {};
