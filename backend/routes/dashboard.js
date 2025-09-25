@@ -89,23 +89,12 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
-
 // ---- Save a plugin config ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
-  // --- 24-hour time validation for language plugin ---
-  if (plugin === "language" && payload.time) {
-    const isValidTime = /^([01]\d|2[0-3]):([0-5]\d)$/.test(payload.time);
-    if (!isValidTime) {
-      return res.status(400).json({ 
-        error: "Invalid time format. Use HH:MM (24-hour format)" 
-      });
-    }
-  }
-
-  console.log("POST hit backend");
+  console.log("✅ POST hit backend");
   console.log("Params:", req.params);
   console.log("Body:", payload);
 
@@ -120,10 +109,10 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
       { merge: true }
     );
 
-    console.log(`Successfully saved "${plugin}" for server ${id}`);
+    console.log(`✅ Successfully saved "${plugin}" for server ${id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("Failed to save plugin:", err);
+    console.error("❌ Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
@@ -161,22 +150,6 @@ router.get("/servers/:id", async (req, res) => {
   } catch (err) {
     console.error("Failed to fetch server info:", err);
     res.status(500).json({ error: "Failed to fetch server info" });
-  }
-});
-router.get("/servers", async (_req, res) => {
-  try {
-    const snapshot = await db.collection("guilds").get();
-    const guilds = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        plugins: data.plugins || {}
-      };
-    });
-    res.json(guilds);
-  } catch (err) {
-    console.error("Failed to fetch guilds:", err);
-    res.status(500).json({ error: "Failed to fetch guilds" });
   }
 });
 

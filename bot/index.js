@@ -74,15 +74,13 @@ const scheduledJobs = new Map();
 async function scheduleWordOfTheDay(guildId, pluginSettings) {
   if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
 
-  // Split HH:MM directly from Firestore
-  const [hour, minute] = pluginSettings.time.split(":").map(Number);
+  const [hour, minute] = pluginSettings.time.split(":");
 
   // Cancel previous job if exists
   if (scheduledJobs.has(guildId)) {
     scheduledJobs.get(guildId).stop();
   }
 
-  // Schedule using cron (24-hour)
   const job = cron.schedule(`${minute} ${hour} * * *`, async () => {
     try {
       const guild = client.guilds.cache.get(guildId);
@@ -114,7 +112,6 @@ async function scheduleWordOfTheDay(guildId, pluginSettings) {
 
   scheduledJobs.set(guildId, job);
 }
-
 
 // --- Bot Ready ---
 client.once("ready", async () => {
