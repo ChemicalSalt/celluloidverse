@@ -76,6 +76,41 @@ router.get("/callback", async (req, res) => {
   }
 });
 
+// ---- Fetch all servers for a user ----
+router.get("/servers", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "No token provided" });
+
+  const token = authHeader.split(" ")[1]; // Bearer <token>
+  try {
+    // Fetch user guilds
+    const guildRes = await fetch("https://discord.com/api/users/@me/guilds", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const userGuilds = await guildRes.json();
+
+    // Fetch bot's guilds to check which ones it is already in
+    const botRes = await fetch("https://discord.com/api/users/@me/guilds", {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    const botGuilds = await botRes.json();
+    const botGuildIds = botGuilds.map(g => g.id);
+
+    // Merge info: add hasBot flag
+    const servers = userGuilds.map(g => ({
+      id: g.id,
+      name: g.name,
+      icon: g.icon,
+      hasBot: botGuildIds.includes(g.id),
+    }));
+
+    res.json(servers);
+  } catch (err) {
+    console.error("Failed to fetch user servers:", err);
+    res.status(500).json({ error: "Failed to fetch user servers" });
+  }
+});
+
 // ---- Fetch plugin config ----
 router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
@@ -94,25 +129,19 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
-  console.log("✅ POST hit backend");
-  console.log("Params:", req.params);
-  console.log("Body:", payload);
-
   try {
     const docRef = db.collection("guilds").doc(id);
     const existingDoc = await docRef.get();
     const existingPlugins = existingDoc.exists ? existingDoc.data()?.plugins || {} : {};
 
-    // Merge plugin config safely
     await docRef.set(
       { plugins: { ...existingPlugins, [plugin]: payload } },
       { merge: true }
     );
 
-    console.log(`✅ Successfully saved "${plugin}" for server ${id}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Failed to save plugin:", err);
+    console.error("Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
   }
 });
