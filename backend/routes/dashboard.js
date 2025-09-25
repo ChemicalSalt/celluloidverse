@@ -152,5 +152,33 @@ router.get("/servers/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch server info" });
   }
 });
+router.get("/servers", async (_req, res) => {
+  try {
+    const snapshot = await db.collection("guilds").get();
+    const firestoreGuilds = {};
+    snapshot.docs.forEach(doc => {
+      firestoreGuilds[doc.id] = doc.data().plugins || {};
+    });
+
+    // Fetch all guilds bot is in
+    const response = await fetch("https://discord.com/api/users/@me/guilds", {
+      headers: { Authorization: `Bot ${TOKEN}` },
+    });
+    const discordGuilds = await response.json();
+
+    // Merge Firestore plugins
+    const merged = discordGuilds.map(g => ({
+      id: g.id,
+      name: g.name,
+      icon: g.icon,
+      plugins: firestoreGuilds[g.id] || {},
+    }));
+
+    res.json(merged);
+  } catch (err) {
+    console.error("Failed to fetch servers:", err);
+    res.status(500).json({ error: "Failed to fetch servers" });
+  }
+});
 
 module.exports = router;
