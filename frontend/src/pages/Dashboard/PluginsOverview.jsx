@@ -8,7 +8,6 @@ const PluginsOverview = () => {
   const navigate = useNavigate();
 
   const [server, setServer] = useState(null);
-  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!token || !serverId) return;
@@ -16,7 +15,7 @@ const PluginsOverview = () => {
     const fetchServer = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/servers/${serverId}`,
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -37,63 +36,19 @@ const PluginsOverview = () => {
     {
       name: "Welcome",
       path: "welcome",
-      enabled: server.plugins?.welcome?.enabled || false,
+      enabled: server.plugins?.welcome?.enabled,
     },
     {
       name: "Farewell",
       path: "farewell",
-      enabled: server.plugins?.farewell?.enabled || false,
+      enabled: server.plugins?.farewell?.enabled,
     },
     {
       name: "Language",
       path: "language",
-      enabled: server.plugins?.language?.enabled || false,
+      enabled: server.plugins?.language?.enabled,
     },
   ];
-
-  const handleToggle = async (plugin) => {
-    const newStatus = !plugin.enabled;
-
-    setUpdating(true);
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/servers/${serverId}/plugins/${plugin.path}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            ...server.plugins?.[plugin.path],
-            enabled: newStatus,
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to update plugin");
-
-      const data = await res.json();
-      console.log("Plugin updated:", data);
-
-      // Update local state
-      setServer((prev) => ({
-        ...prev,
-        plugins: {
-          ...prev.plugins,
-          [plugin.path]: {
-            ...prev.plugins?.[plugin.path],
-            enabled: newStatus,
-          },
-        },
-      }));
-    } catch (err) {
-      console.error("Error updating plugin:", err);
-      alert("Failed to update plugin. Check logs.");
-    } finally {
-      setUpdating(false);
-    }
-  };
 
   return (
     <div className="min-h-screen px-6 py-8 bg-white dark:bg-black">
@@ -122,30 +77,16 @@ const PluginsOverview = () => {
               </p>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2">
-              <button
-                className={`px-4 py-2 rounded-xl ${
-                  plugin.enabled
-                    ? "bg-red-600 text-white dark:bg-red-400 dark:text-black"
-                    : "bg-green-600 text-white dark:bg-green-400 dark:text-black"
-                } hover:opacity-90 transition`}
-                disabled={updating}
-                onClick={() => handleToggle(plugin)}
-              >
-                {plugin.enabled ? "Disable" : "Enable"} {plugin.name}
-              </button>
-
-              <button
-                className="px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
-                onClick={() =>
-                  navigate(
-                    `/dashboard/${serverId}/plugins/${plugin.path}?token=${token}`
-                  )
-                }
-              >
-                Configure {plugin.name}
-              </button>
-            </div>
+            <button
+              className="mt-4 px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
+              onClick={() =>
+                navigate(
+                  `/dashboard/${serverId}/plugins/${plugin.path}?token=${token}`
+                )
+              }
+            >
+              Configure {plugin.name}
+            </button>
           </div>
         ))}
       </div>

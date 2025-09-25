@@ -26,7 +26,6 @@ router.get("/login", async (req, res) => {
       );
     }
   }
-
   const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
   )}`;
@@ -46,7 +45,6 @@ router.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
-
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
@@ -152,35 +150,6 @@ router.get("/servers/:id", async (req, res) => {
   } catch (err) {
     console.error("Failed to fetch server info:", err);
     res.status(500).json({ error: "Failed to fetch server info" });
-  }
-});
-
-// ---- Fetch all servers ----
-router.get("/servers", async (_req, res) => {
-  try {
-    const snapshot = await db.collection("guilds").get();
-    const firestoreGuilds = {};
-    snapshot.docs.forEach(doc => {
-      firestoreGuilds[doc.id] = doc.data().plugins || {};
-    });
-
-    const response = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bot ${TOKEN}` },
-    });
-    const discordGuilds = await response.json();
-
-    const merged = discordGuilds.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      plugins: firestoreGuilds[g.id] || {},
-      hasBot: true,
-    }));
-
-    res.json(merged);
-  } catch (err) {
-    console.error("Failed to fetch servers:", err);
-    res.status(500).json({ error: "Failed to fetch servers" });
   }
 });
 
