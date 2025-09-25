@@ -14,7 +14,7 @@ import AddBot from "./pages/Dashboard/AddBot";
 import PluginsOverview from "./pages/Dashboard/PluginsOverview";
 import Welcome from "./pages/Dashboard/Welcome";
 import Farewell from "./pages/Dashboard/Farewell";
-import Language from "./pages/dashboard/Language";
+import Language from "./pages/Dashboard/Language";
 function App() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-300">
