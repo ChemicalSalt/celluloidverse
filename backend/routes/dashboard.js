@@ -166,12 +166,13 @@ router.get("/servers", async (_req, res) => {
     });
     const discordGuilds = await response.json();
 
-    // Merge Firestore plugins
+    // Merge Firestore plugins and set hasBot
     const merged = discordGuilds.map(g => ({
       id: g.id,
       name: g.name,
       icon: g.icon,
       plugins: firestoreGuilds[g.id] || {},
+      hasBot: true, // bot is already in this guild
     }));
 
     res.json(merged);

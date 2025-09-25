@@ -17,7 +17,7 @@ const AddBot = () => {
   const fetchGuilds = async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/servers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
