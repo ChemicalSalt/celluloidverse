@@ -21,7 +21,7 @@ const Language = () => {
     const fetchSettings = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/servers/${serverId}/plugins/language`,
+          `${import.meta.env.VITE_API_URL}/api/servers/${serverId}/plugins/language`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json();
@@ -44,7 +44,7 @@ const Language = () => {
     const fetchChannels = async () => {
       try {
         const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
+          `${import.meta.env.VITE_API_URL}/api/servers/${serverId}/channels`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json();
@@ -64,7 +64,7 @@ const Language = () => {
 
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
+        `${import.meta.env.VITE_API_URL}/api/servers/${serverId}/plugins/language`,
         {
           method: "POST",
           headers: {
