@@ -89,22 +89,20 @@ router.get("/servers", async (req, res) => {
     });
     const userGuilds = await guildRes.json();
 
-    // Fetch bot's guilds to check which ones it is already in
-    const botRes = await fetch("https://discord.com/api/users/@me/guilds", {
-      headers: { Authorization: `Bot ${TOKEN}` },
-    });
-    const botGuilds = await botRes.json();
-    const botGuildIds = botGuilds.map(g => g.id);
+    // Mark which servers already have the bot
+    const enrichedGuilds = await Promise.all(
+      userGuilds.map(async (g) => {
+        const doc = await db.collection("guilds").doc(g.id).get();
+        return {
+          id: g.id,
+          name: g.name,
+          icon: g.icon,
+          hasBot: doc.exists,
+        };
+      })
+    );
 
-    // Merge info: add hasBot flag
-    const servers = userGuilds.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      hasBot: botGuildIds.includes(g.id),
-    }));
-
-    res.json(servers);
+    res.json(enrichedGuilds);
   } catch (err) {
     console.error("Failed to fetch user servers:", err);
     res.status(500).json({ error: "Failed to fetch user servers" });
