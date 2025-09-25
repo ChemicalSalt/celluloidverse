@@ -72,43 +72,48 @@ async function getRandomWord() {
 const scheduledJobs = new Map();
 
 async function scheduleWordOfTheDay(guildId, pluginSettings) {
-  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
+  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) {
+    console.log(`⏭ Skipping guild ${guildId}, invalid settings:`, pluginSettings);
+    return;
+  }
 
   const [hour, minute] = pluginSettings.time.split(":");
 
-  // Cancel previous job if exists
+  // Cancel old job if exists
   if (scheduledJobs.has(guildId)) {
     scheduledJobs.get(guildId).stop();
   }
 
   const job = cron.schedule(`${minute} ${hour} * * *`, async () => {
     try {
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) return;
+      const guild = await client.guilds.fetch(guildId).catch(() => null);
+      if (!guild) return console.log(`Guild not found: ${guildId}`);
 
-      const channel = guild.channels.cache.get(pluginSettings.channelId);
-      if (!channel) return;
+      const channel = guild.channels.cache.get(pluginSettings.channelId)
+        || await guild.channels.fetch(pluginSettings.channelId).catch(() => null);
+      if (!channel) return console.log(`Channel not found: ${pluginSettings.channelId}`);
 
       const word = await getRandomWord();
-      if (!word) return;
+      if (!word) return console.log("No word returned from Google Sheets");
 
-      const message = `📖 **Japanese Word of the Day**  
+      const message = `**Japanese Word of the Day**  
 **Kanji:** ${word.kanji}  
 **Hiragana/Katakana:** ${word.hiragana}  
 **Romaji:** ${word.romaji}  
 **Meaning:** ${word.meaning}  
 
-📌 **Example Sentence**  
+**Example Sentence**  
 **JP:** ${word.sentenceJP}  
 **Hiragana/Katakana:** ${word.sentenceHiragana}  
 **Romaji:** ${word.sentenceRomaji}  
 **English:** ${word.sentenceMeaning}`;
 
       await channel.send(message);
+      console.log(`Word sent to guild ${guildId}, channel ${pluginSettings.channelId}`);
     } catch (err) {
-      console.error(`Error sending word for guild ${guildId}:`, err);
+      console.error(`Error in word job for guild ${guildId}:`, err);
     }
-  });
+  }, { timezone: "UTC" }); // Always UTC
 
   scheduledJobs.set(guildId, job);
 }

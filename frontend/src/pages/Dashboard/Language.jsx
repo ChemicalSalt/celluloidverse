@@ -124,13 +124,14 @@ const Language = () => {
             Time (HH:MM)
           </label>
           <input
-            type="time"
-            value={settings.time}
-            onChange={(e) =>
-              setSettings({ ...settings, time: e.target.value })
-            }
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
-          />
+  type="time"
+  value={settings.time}
+  onChange={(e) =>
+    setSettings({ ...settings, time: e.target.value })
+  }
+  className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+/>
+
         </div>
 
         {/* Language Selector */}
