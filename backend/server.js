@@ -21,6 +21,10 @@ app.use("/api/dashboard", dashboardRoute);
 
 // Root route
 app.get("/", (_req, res) => res.send("Backend is running!"));
+// Root API route
+app.get("/api", (_req, res) => {
+  res.json({ success: true, message: "API is working" });
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
