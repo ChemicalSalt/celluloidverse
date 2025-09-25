@@ -163,5 +163,21 @@ router.get("/servers/:id", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch server info" });
   }
 });
+router.get("/servers", async (_req, res) => {
+  try {
+    const snapshot = await db.collection("guilds").get();
+    const guilds = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        plugins: data.plugins || {}
+      };
+    });
+    res.json(guilds);
+  } catch (err) {
+    console.error("Failed to fetch guilds:", err);
+    res.status(500).json({ error: "Failed to fetch guilds" });
+  }
+});
 
 module.exports = router;
