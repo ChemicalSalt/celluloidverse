@@ -95,15 +95,20 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
 
+  // --- 24-hour time validation for language plugin ---
+  if (plugin === "language" && payload.time) {
+    const isValidTime = /^([01]\d|2[0-3]):([0-5]\d)$/.test(payload.time);
+    if (!isValidTime) {
+      return res.status(400).json({ 
+        error: "Invalid time format. Use HH:MM (24-hour format)" 
+      });
+    }
+  }
+
   console.log("POST hit backend");
   console.log("Params:", req.params);
   console.log("Body:", payload);
-if (plugin === "language" && payload.time) {
-  const isValidTime = /^([01]\d|2[0-3]):([0-5]\d)$/.test(payload.time);
-  if (!isValidTime) {
-    return res.status(400).json({ error: "Invalid time format. Use HH:MM (24h)" });
-  }
-}
+
   try {
     const docRef = db.collection("guilds").doc(id);
     const existingDoc = await docRef.get();

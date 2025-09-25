@@ -14,32 +14,40 @@ const Language = () => {
     language: "",
   });
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(""); // For saved message
+  const [message, setMessage] = useState("");
 
-  // Fetch existing plugin settings from backend/Firestore
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setSettings({
-          enabled: data.enabled || false,
-          channelId: data.channelId || "",
-          time: data.time || "",
-          language: data.language || "",
-        });
-      } catch (err) {
-        console.error("Failed to fetch plugin settings", err);
-      }
-    };
+  // --- Existing fetchSettings effect ---
+useEffect(() => {
+  let interval;
 
-    if (serverId && token) fetchSettings();
-  }, [serverId, token]);
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      setSettings({
+        enabled: data.enabled || false,
+        channelId: data.channelId || "",
+        time: data.time || "",
+        language: data.language || "",
+      });
+    } catch (err) {
+      console.error("Failed to fetch plugin settings", err);
+    }
+  };
 
-  // Fetch available channels
+  if (serverId && token) {
+    fetchSettings();
+    // Poll every 10 seconds to get latest Firestore updates
+    interval = setInterval(fetchSettings, 10000);
+  }
+
+  return () => clearInterval(interval);
+}, [serverId, token]);
+
+  // --- Fetch available channels ---
   useEffect(() => {
     const fetchChannels = async () => {
       try {
@@ -55,13 +63,34 @@ const Language = () => {
         setLoading(false);
       }
     };
-
     if (serverId && token) fetchChannels();
   }, [serverId, token]);
 
+  // --- Handle 24-hour time input ---
+  const handleTimeChange = (e) => {
+    const raw = e.target.value;
+
+    // Already in HH:MM 24h
+    if (/^\d{2}:\d{2}$/.test(raw)) {
+      setSettings({ ...settings, time: raw });
+      return;
+    }
+
+    // Convert 12h AM/PM to 24h
+    const match = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      let [_, h, m, ampm] = match;
+      h = parseInt(h, 10);
+      if (ampm.toUpperCase() === "PM" && h < 12) h += 12;
+      if (ampm.toUpperCase() === "AM" && h === 12) h = 0;
+      const hh = String(h).padStart(2, "0");
+      setSettings({ ...settings, time: `${hh}:${m}` });
+    }
+  };
+
+  // --- Save settings ---
   const handleSave = async () => {
     console.log("🔹 handleSave triggered", settings);
-
     try {
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
@@ -74,7 +103,6 @@ const Language = () => {
           body: JSON.stringify(settings),
         }
       );
-
       console.log("🔹 Response status:", res.status);
       const data = await res.json();
       console.log("🔹 Response JSON:", data);
@@ -117,22 +145,20 @@ const Language = () => {
             ))}
           </select>
         </div>
+{/* Time Selector */}
+<div>
+  <label className="block mb-2 text-black dark:text-white">
+    Time (HH:MM)
+  </label>
+  <input
+    type="time"
+    value={settings.time}
+    onChange={(e) => setSettings({ ...settings, time: e.target.value })}
+    step="60" // allow minutes only, no seconds
+    className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+  />
+</div>
 
-        {/* Time Selector */}
-        <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Time (HH:MM)
-          </label>
-          <input
-  type="time"
-  value={settings.time}
-  onChange={(e) =>
-    setSettings({ ...settings, time: e.target.value })
-  }
-  className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
-/>
-
-        </div>
 
         {/* Language Selector */}
         <div>
@@ -158,7 +184,6 @@ const Language = () => {
           Save
         </button>
 
-        {/* Saved message */}
         {message && (
           <div className="mt-2 text-center text-green-600 dark:text-green-400">
             {message}
