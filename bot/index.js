@@ -144,19 +144,19 @@ client.once("ready", async () => {
   }, 5000);
 
   // --- Schedule Word-of-the-Day per guild ---
-  const snapshot = await db.collection("guilds").get();
+  const snapshot = await db.collection("servers").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
-    const plugin = doc.data()?.plugins?.word; // 🔑 aligned with backend
+    const plugin = doc.data()?.plugins?.language; // ✅ FIXED: match backend
     scheduleWordOfTheDay(guildId, plugin);
   });
 
   // --- Periodically check for updates (dynamic) ---
   setInterval(async () => {
-    const snapshot = await db.collection("guilds").get();
+    const snapshot = await db.collection("servers").get();
     snapshot.docs.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data()?.plugins?.word; // 🔑 aligned with backend
+      const plugin = doc.data()?.plugins?.language; // ✅ FIXED
       scheduleWordOfTheDay(guildId, plugin);
     });
   }, 600000); // every 10 minutes
@@ -164,7 +164,7 @@ client.once("ready", async () => {
 
 // --- Welcome & Farewell ---
 client.on("guildMemberAdd", async (member) => {
-  const doc = await db.collection("guilds").doc(member.guild.id).get();
+  const doc = await db.collection("servers").doc(member.guild.id).get();
   const welcome = doc.data()?.plugins?.welcome;
   if (welcome?.enabled && welcome?.channelId) {
     const channel = member.guild.channels.cache.get(welcome.channelId);
@@ -173,7 +173,7 @@ client.on("guildMemberAdd", async (member) => {
 });
 
 client.on("guildMemberRemove", async (member) => {
-  const doc = await db.collection("guilds").doc(member.guild.id).get();
+  const doc = await db.collection("servers").doc(member.guild.id).get();
   const farewell = doc.data()?.plugins?.farewell;
   if (farewell?.enabled && farewell?.channelId) {
     const channel = member.guild.channels.cache.get(farewell.channelId);
