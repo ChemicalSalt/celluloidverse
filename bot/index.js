@@ -72,7 +72,13 @@ async function getRandomWord() {
 const scheduledJobs = new Map();
 
 async function scheduleWordOfTheDay(guildId, pluginSettings) {
-  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) return;
+  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) {
+    if (scheduledJobs.has(guildId)) {
+      scheduledJobs.get(guildId).stop();
+      scheduledJobs.delete(guildId);
+    }
+    return;
+  }
 
   const [hour, minute] = pluginSettings.time.split(":");
 
@@ -141,7 +147,7 @@ client.once("ready", async () => {
   const snapshot = await db.collection("guilds").get();
   snapshot.docs.forEach(doc => {
     const guildId = doc.id;
-    const plugin = doc.data()?.plugins?.language;
+    const plugin = doc.data()?.plugins?.word; // 🔑 aligned with backend
     scheduleWordOfTheDay(guildId, plugin);
   });
 
@@ -150,7 +156,7 @@ client.once("ready", async () => {
     const snapshot = await db.collection("guilds").get();
     snapshot.docs.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data()?.plugins?.language;
+      const plugin = doc.data()?.plugins?.word; // 🔑 aligned with backend
       scheduleWordOfTheDay(guildId, plugin);
     });
   }, 600000); // every 10 minutes
@@ -183,8 +189,11 @@ const commands = [
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 (async () => {
-  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); }
-  catch (err) { console.error(err); }
+  try { 
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); 
+  } catch (err) { 
+    console.error(err); 
+  }
 })();
 
 client.on("interactionCreate", async interaction => {

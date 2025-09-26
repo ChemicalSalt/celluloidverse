@@ -133,7 +133,15 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
     const existingPlugins = existingDoc.exists ? existingDoc.data()?.plugins || {} : {};
 
     await docRef.set(
-      { plugins: { ...existingPlugins, [plugin]: payload } },
+      {
+        plugins: {
+          ...existingPlugins,
+          [plugin]: {
+            ...payload,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      },
       { merge: true }
     );
 
@@ -141,6 +149,37 @@ router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   } catch (err) {
     console.error("Failed to save plugin:", err);
     res.status(500).json({ error: "Failed to save plugin" });
+  }
+});
+
+// ---- Enable / Disable plugin ----
+router.post("/servers/:id/plugins/:plugin/toggle", async (req, res) => {
+  const { id, plugin } = req.params;
+  const { enabled } = req.body;
+
+  try {
+    const docRef = db.collection("guilds").doc(id);
+    const doc = await docRef.get();
+    const existingPlugins = doc.exists ? doc.data()?.plugins || {} : {};
+
+    await docRef.set(
+      {
+        plugins: {
+          ...existingPlugins,
+          [plugin]: {
+            ...(existingPlugins[plugin] || {}),
+            enabled: !!enabled,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      },
+      { merge: true }
+    );
+
+    res.json({ success: true, enabled });
+  } catch (err) {
+    console.error("Failed to toggle plugin:", err);
+    res.status(500).json({ error: "Failed to toggle plugin" });
   }
 });
 

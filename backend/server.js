@@ -9,7 +9,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin:  "https://celluloidverse-7d324.web.app",
+  origin: "https://celluloidverse-7d324.web.app", // frontend
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
