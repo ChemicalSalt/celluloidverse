@@ -9,7 +9,7 @@ const { google } = require("googleapis");
 const app = express();
 app.use(express.json());
 
-// --- Initialize Discord Client ---
+// --- Discord Client ---
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -20,23 +20,21 @@ const client = new Client({
   partials: [Partials.GuildMember],
 });
 
-// --- Initialize Firebase ---
+// --- Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-if (!admin.apps.length) {
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-}
+if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
-// --- Google Sheets Setup ---
+// --- Google Sheets ---
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 });
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID; // Set in .env
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const RANGE = "Sheet1!A:H";
 
-// --- Fetch Random Word from Sheets ---
+// --- Get Random Word ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -47,10 +45,8 @@ async function getRandomWord() {
     });
     const rows = res.data.values || [];
     if (!rows.length) return null;
-
     const dataRows = rows.filter((row) => row[0] && row[1]);
     const row = dataRows[Math.floor(Math.random() * dataRows.length)];
-
     return {
       kanji: row[0] || "",
       hiragana: row[1] || "",
@@ -67,39 +63,36 @@ async function getRandomWord() {
   }
 }
 
-// --- Cron jobs map ---
+// --- Cron Jobs Map ---
 const scheduledJobs = new Map();
 
-// --- Send Word of the Day ---
+// --- Send WOTD ---
 async function sendWOTDNow(guildId, pluginSettings) {
   if (!pluginSettings?.enabled) return;
-
   try {
-    console.log("🚀 Triggered sendWOTDNow for:", guildId, pluginSettings);
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) return;
+    if (!guild) return console.error("❌ Guild not in cache:", guildId);
 
     let channel = guild.channels.cache.get(pluginSettings.channelId);
     if (!channel) {
       try { channel = await guild.channels.fetch(pluginSettings.channelId); } 
       catch (err) { console.error("❌ Failed to fetch channel:", err); return; }
     }
-
     const me = guild.members.me || (await guild.members.fetch(client.user.id));
-    if (!channel.permissionsFor(me)?.has("SendMessages")) return;
+    if (!channel.permissionsFor(me)?.has("SendMessages")) return console.error("❌ No permission in channel:", pluginSettings.channelId);
 
     const word = await getRandomWord();
-    if (!word) return;
+    if (!word) return console.error("❌ No word fetched for guild:", guildId);
 
     const message = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
-**Hiragana:** ${word.hiragana}
+**Hiragana/Katakana:** ${word.hiragana}
 **Romaji:** ${word.romaji}
 **Meaning:** ${word.meaning}
 
 📌 **Example Sentence**
 **JP:** ${word.sentenceJP}
-**Hiragana:** ${word.sentenceHiragana}
+**Hiragana/Katakana:** ${word.sentenceHiragana}
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
 
@@ -110,7 +103,7 @@ async function sendWOTDNow(guildId, pluginSettings) {
   }
 }
 
-// --- Schedule Word of the Day ---
+// --- Schedule WOTD ---
 function scheduleWordOfTheDay(guildId, pluginSettings) {
   if (!pluginSettings?.enabled || !pluginSettings.channelId || !pluginSettings.time) {
     if (scheduledJobs.has(guildId)) {
@@ -129,20 +122,21 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
     async () => await sendWOTDNow(guildId, pluginSettings),
     { timezone: process.env.CRON_TZ || "Asia/Kolkata" }
   );
-
   scheduledJobs.set(guildId, job);
 }
 
-
-// --- Bot Ready ---
+// --- Bot Ready & Firestore Listener ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
-  // Firestore listener: auto-reschedule on updates
   db.collection("guilds").onSnapshot((snapshot) => {
-    snapshot.docs.forEach((doc) => {
+    snapshot.docs.forEach(async (doc) => {
       const guildId = doc.id;
       const plugin = doc.data()?.plugins?.language;
+
+      console.log("📝 Firestore doc for guild:", guildId, plugin);
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) return;
 
       if (plugin?.enabled) scheduleWordOfTheDay(guildId, plugin);
       else if (scheduledJobs.has(guildId)) {
@@ -153,17 +147,17 @@ client.once("ready", async () => {
   });
 });
 
-// --- Backend API for plugin settings ---
+// --- Backend API for Plugin Settings ---
 app.post("/api/plugin-settings", async (req, res) => {
   try {
     const { guildId, channelId, time, language, enabled } = req.body;
     if (!guildId || !channelId || !time) return res.status(400).send({ success: false, message: "guildId, channelId, time required" });
 
     await db.collection("guilds").doc(guildId).set({
-      plugins: { language: { channelId, time, language, enabled } }
+      plugins: { language: { channelId, time, language, enabled, updatedAt: new Date() } }
     }, { merge: true });
 
-    // Schedule immediately
+    // Schedule WOTD according to new settings
     scheduleWordOfTheDay(guildId, { channelId, time, language, enabled });
 
     res.status(200).send({ success: true, message: "Settings saved and WOTD scheduled!" });
@@ -189,7 +183,7 @@ client.on("interactionCreate", async (interaction) => {
   if (interaction.commandName === "ping") await interaction.reply("Pong!");
 });
 
-// --- Express health check ---
+// --- Express Health Check ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server on ${PORT}`));
