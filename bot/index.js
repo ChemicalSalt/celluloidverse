@@ -1,3 +1,4 @@
+// index.js (final — replace your current bot entry with this)
 require("dotenv").config();
 const { 
   Client, 
@@ -54,6 +55,7 @@ async function getRandomWord() {
   if (rows.length === 0) return null;
 
   const dataRows = rows.filter(row => row[0] && row[1]);
+  if (!dataRows.length) return null;
   const row = dataRows[Math.floor(Math.random() * dataRows.length)];
 
   return {
@@ -71,36 +73,42 @@ async function getRandomWord() {
 // --- Cron job map ---
 const scheduledJobs = new Map();
 
-async function scheduleWordOfTheDay(guildId, pluginSettings) {
-  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) {
-    if (scheduledJobs.has(guildId)) {
-      scheduledJobs.get(guildId).stop();
-      scheduledJobs.delete(guildId);
+async function sendWOTDNow(guildId, pluginSettings) {
+  try {
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) {
+      console.warn(`❗ Bot is not in guild ${guildId}`);
+      return { ok: false, reason: "bot_not_in_guild" };
     }
-    return;
-  }
 
-  const [hour, minute] = pluginSettings.time.split(":");
+    // try cached channel, else fetch
+    let channel = guild.channels.cache.get(pluginSettings.channelId);
+    if (!channel) {
+      try {
+        channel = await guild.channels.fetch(pluginSettings.channelId);
+      } catch (e) {
+        // ignore, will be handled below
+      }
+    }
+    if (!channel) {
+      console.warn(`❗ Channel ${pluginSettings.channelId} not found in guild ${guildId}`);
+      return { ok: false, reason: "channel_not_found" };
+    }
 
-  // Cancel previous job if exists
-  if (scheduledJobs.has(guildId)) {
-    scheduledJobs.get(guildId).stop();
-  }
+    // permission check
+    const meMember = guild.members.me || await guild.members.fetch(client.user.id);
+    if (!channel.permissionsFor(meMember)?.has("SendMessages")) {
+      console.warn(`❗ Bot lacks SendMessages permission in channel ${pluginSettings.channelId} (guild ${guildId})`);
+      return { ok: false, reason: "no_send_permission" };
+    }
 
-  console.log(`⏰ Scheduling WOTD for guild ${guildId} at ${pluginSettings.time}`);
+    const word = await getRandomWord();
+    if (!word) {
+      console.warn(`❗ No word available in sheet`);
+      return { ok: false, reason: "no_word" };
+    }
 
-  const job = cron.schedule(`${minute} ${hour} * * *`, async () => {
-    try {
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) return;
-
-      const channel = guild.channels.cache.get(pluginSettings.channelId);
-      if (!channel) return;
-
-      const word = await getRandomWord();
-      if (!word) return;
-
-      const message = `📖 **Japanese Word of the Day**  
+    const message = `📖 **Japanese Word of the Day**  
 **Kanji:** ${word.kanji}  
 **Hiragana/Katakana:** ${word.hiragana}  
 **Romaji:** ${word.romaji}  
@@ -112,11 +120,50 @@ async function scheduleWordOfTheDay(guildId, pluginSettings) {
 **Romaji:** ${word.sentenceRomaji}  
 **English:** ${word.sentenceMeaning}`;
 
-      await channel.send(message);
-    } catch (err) {
-      console.error(`Error sending word for guild ${guildId}:`, err);
+    await channel.send(message);
+    console.log(`✅ Sent WOTD to guild ${guildId} channel ${pluginSettings.channelId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error(`Error sending WOTD for guild ${guildId}:`, err);
+    return { ok: false, reason: "exception", error: err };
+  }
+}
+
+async function scheduleWordOfTheDay(guildId, pluginSettings) {
+  // Stop existing job if plugin invalid/disabled
+  if (!pluginSettings || !pluginSettings.enabled || !pluginSettings.channelId || !pluginSettings.time) {
+    if (scheduledJobs.has(guildId)) {
+      scheduledJobs.get(guildId).stop();
+      scheduledJobs.delete(guildId);
+      console.log(`🛑 Cancelled WOTD job for guild ${guildId}`);
     }
-  });
+    return;
+  }
+
+  // parse HH:MM (frontend gives "HH:MM")
+  const parts = String(pluginSettings.time).split(":");
+  if (parts.length < 2) {
+    console.warn(`Invalid time for guild ${guildId}: ${pluginSettings.time}`);
+    return;
+  }
+  const hour = parts[0].padStart(2, "0");
+  const minute = parts[1].padStart(2, "0");
+
+  // Cancel previous job if exists
+  if (scheduledJobs.has(guildId)) {
+    scheduledJobs.get(guildId).stop();
+  }
+
+  console.log(`⏰ Scheduling WOTD for guild ${guildId} at ${pluginSettings.time} (channel ${pluginSettings.channelId})`);
+
+  // timezone option — default to Asia/Kolkata so dashboard times match user's local time
+  const timezone = process.env.CRON_TZ || "Asia/Kolkata";
+
+  const cronExp = `${minute} ${hour} * * *`;
+  const job = cron.schedule(cronExp, async () => {
+    console.log(`🔔 Trigger WOTD fired for ${guildId} (scheduled ${pluginSettings.time}) at ${new Date().toISOString()}`);
+    await sendWOTDNow(guildId, pluginSettings);
+  }, { timezone });
 
   scheduledJobs.set(guildId, job);
 }
@@ -125,14 +172,15 @@ async function scheduleWordOfTheDay(guildId, pluginSettings) {
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
+  // prefetch guild members for better caching (optional)
   for (const guild of client.guilds.cache.values()) {
-    await guild.members.fetch();
+    try { await guild.members.fetch(); } catch (e) { /* ignore fetch errors */ }
   }
 
-  // --- Bot status updater ---
+  // status updater
   setInterval(async () => {
     try {
-      const totalUsers = client.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0);
+      const totalUsers = client.guilds.cache.reduce((acc, g) => acc + (g.memberCount || 0), 0);
       await db.collection("botStatus").doc("main").set({
         online: true,
         ping: client.ws.ping,
@@ -145,36 +193,51 @@ client.once("ready", async () => {
     }
   }, 5000);
 
-  // --- Firestore realtime listener ---
+  // realtime listener on 'guilds' collection (keeps naming as you have)
   db.collection("guilds").onSnapshot(snapshot => {
+    console.log(`Firestore snapshot received: ${snapshot.size} guild docs`);
     snapshot.docs.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data()?.plugins?.language; // ✅ KEEP language
+      const plugin = doc.data()?.plugins?.language; // KEEP "language"
       scheduleWordOfTheDay(guildId, plugin);
     });
+  }, err => {
+    console.error("Firestore snapshot error:", err);
   });
 });
 
-// --- Welcome & Farewell ---
+// --- Welcome & Farewell (keeps same collection naming) ---
 client.on("guildMemberAdd", async (member) => {
-  const doc = await db.collection("guilds").doc(member.guild.id).get();
-  const welcome = doc.data()?.plugins?.welcome;
-  if (welcome?.enabled && welcome?.channelId) {
-    const channel = member.guild.channels.cache.get(welcome.channelId);
-    if (channel) channel.send(`Welcome ${member.user.username} to ${member.guild.name}!`);
+  try {
+    const doc = await db.collection("guilds").doc(member.guild.id).get();
+    const welcome = doc.data()?.plugins?.welcome;
+    if (welcome?.enabled && welcome?.channelId) {
+      const channel = member.guild.channels.cache.get(welcome.channelId) || await member.guild.channels.fetch(welcome.channelId);
+      if (channel && channel.permissionsFor(member.guild.members.me || await member.guild.members.fetch(client.user.id))?.has("SendMessages")) {
+        channel.send(`Welcome ${member.user.username} to ${member.guild.name}!`);
+      }
+    }
+  } catch (e) {
+    console.error("Welcome handler error:", e);
   }
 });
 
 client.on("guildMemberRemove", async (member) => {
-  const doc = await db.collection("guilds").doc(member.guild.id).get();
-  const farewell = doc.data()?.plugins?.farewell;
-  if (farewell?.enabled && farewell?.channelId) {
-    const channel = member.guild.channels.cache.get(farewell.channelId);
-    if (channel) channel.send(`${member.user.username} has left the server.`);
+  try {
+    const doc = await db.collection("guilds").doc(member.guild.id).get();
+    const farewell = doc.data()?.plugins?.farewell;
+    if (farewell?.enabled && farewell?.channelId) {
+      const channel = member.guild.channels.cache.get(farewell.channelId) || await member.guild.channels.fetch(farewell.channelId);
+      if (channel && channel.permissionsFor(member.guild.members.me || await member.guild.members.fetch(client.user.id))?.has("SendMessages")) {
+        channel.send(`${member.user.username} has left the server.`);
+      }
+    }
+  } catch (e) {
+    console.error("Farewell handler error:", e);
   }
 });
 
-// --- Slash Commands ---
+// --- Slash Commands (unchanged) ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check if bot is alive"),
   new SlashCommandBuilder().setName("welcome").setDescription("Test welcome message")
@@ -195,7 +258,29 @@ client.on("interactionCreate", async interaction => {
   if (interaction.commandName === "welcome") await interaction.reply("This is how welcome messages will appear!");
 });
 
-// --- Login ---
+// --- Manual debug endpoint (secure with DEBUG_TOKEN) ---
+// POST /debug/send-wotd/:guildId
+// Header: x-debug-token: <DEBUG_TOKEN>
+app.post("/debug/send-wotd/:guildId", async (req, res) => {
+  try {
+    const token = req.headers["x-debug-token"];
+    if (!process.env.DEBUG_TOKEN) return res.status(500).json({ error: "DEBUG_TOKEN not set in env" });
+    if (!token || token !== process.env.DEBUG_TOKEN) return res.status(403).json({ error: "forbidden" });
+
+    const guildId = req.params.guildId;
+    const doc = await db.collection("guilds").doc(guildId).get();
+    const plugin = doc.exists ? doc.data()?.plugins?.language : null;
+    if (!plugin) return res.status(400).json({ error: "no plugin config found" });
+
+    const result = await sendWOTDNow(guildId, plugin);
+    return res.json(result);
+  } catch (err) {
+    console.error("Debug send error:", err);
+    return res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// --- Login & server start ---
 client.login(process.env.TOKEN);
 
 // --- Express Server ---
