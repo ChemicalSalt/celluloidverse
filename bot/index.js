@@ -34,7 +34,7 @@ const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const RANGE = "Sheet1!A:H";
 
-// --- Get Random Word (Language) ---
+// --- Get Random Word ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -63,7 +63,7 @@ async function getRandomWord() {
   }
 }
 
-// --- Cron Jobs Map for Language ---
+// --- Cron Jobs Map ---
 const scheduledJobs = new Map();
 
 // --- Send WOTD ---
@@ -125,28 +125,21 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
   scheduledJobs.set(guildId, job);
 }
 
-// --- Send Welcome Message ---
-async function sendWelcomeMessage(member, pluginSettings) {
-  if (!pluginSettings?.enabled) return;
-  try {
-    const channel = member.guild.channels.cache.get(pluginSettings.channelId);
-    if (!channel) return;
-    await channel.send(pluginSettings.message || `Welcome ${member.user.username}!`);
-  } catch (err) {
-    console.error("🔥 Error sending welcome:", err);
-  }
-}
-
-// --- Send Farewell Message ---
-async function sendFarewellMessage(member, pluginSettings) {
-  if (!pluginSettings?.enabled) return;
-  try {
-    const channel = member.guild.channels.cache.get(pluginSettings.channelId);
-    if (!channel) return;
-    await channel.send(pluginSettings.message || `${member.user.username} has left. Goodbye!`);
-  } catch (err) {
-    console.error("🔥 Error sending farewell:", err);
-  }
+// --- Replace placeholders ---
+function formatMessage(message, member, guild) {
+  if (!message) return "";
+  return message
+    .replaceAll("{username}", member.user.username)
+    .replaceAll("{usermention}", `<@${member.id}>`)
+    .replaceAll("{server}", guild.name)
+    .replace(/\{role:([^\}]+)\}/g, (_, roleName) => {
+      const role = guild.roles.cache.find(r => r.name === roleName);
+      return role ? role.name : roleName;
+    })
+    .replace(/\{channel:([^\}]+)\}/g, (_, channelName) => {
+      const channel = guild.channels.cache.find(c => c.name === channelName);
+      return channel ? `#${channel.name}` : channelName;
+    });
 }
 
 // --- Bot Ready & Firestore Listener ---
@@ -156,18 +149,12 @@ client.once("ready", async () => {
   db.collection("guilds").onSnapshot((snapshot) => {
     snapshot.docs.forEach(async (doc) => {
       const guildId = doc.id;
-      const data = doc.data()?.plugins || {};
-      const language = data.language;
-      const welcome = data.welcome;
-      const farewell = data.farewell;
-
-      console.log("📝 Firestore doc for guild:", guildId, data);
-
+      const plugins = doc.data()?.plugins;
       const guild = client.guilds.cache.get(guildId);
       if (!guild) return;
 
-      // Schedule Language WOTD
-      if (language?.enabled) scheduleWordOfTheDay(guildId, language);
+      // Schedule WOTD
+      if (plugins?.language?.enabled) scheduleWordOfTheDay(guildId, plugins.language);
       else if (scheduledJobs.has(guildId)) {
         scheduledJobs.get(guildId).stop();
         scheduledJobs.delete(guildId);
@@ -176,11 +163,25 @@ client.once("ready", async () => {
   });
 });
 
-// --- Event Listeners for Welcome & Farewell ---
+// --- Member Join & Leave ---
 client.on("guildMemberAdd", async (member) => {
   try {
-    const plugin = (await db.collection("guilds").doc(member.guild.id).get()).data()?.plugins?.welcome;
-    if (plugin) await sendWelcomeMessage(member, plugin);
+    const doc = await db.collection("guilds").doc(member.guild.id).get();
+    const welcome = doc.data()?.plugins?.welcome;
+    if (!welcome?.enabled) return;
+
+    const guild = member.guild;
+    const message = formatMessage(welcome.serverMessage, member, guild);
+    if (welcome.channelId) {
+      const channel = guild.channels.cache.get(welcome.channelId) || await guild.channels.fetch(welcome.channelId);
+      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) {
+        await channel.send(message);
+      }
+    }
+
+    if (welcome.dmEnabled && welcome.dmMessage) {
+      await member.send(formatMessage(welcome.dmMessage, member, guild));
+    }
   } catch (err) {
     console.error("🔥 Error in guildMemberAdd:", err);
   }
@@ -188,14 +189,28 @@ client.on("guildMemberAdd", async (member) => {
 
 client.on("guildMemberRemove", async (member) => {
   try {
-    const plugin = (await db.collection("guilds").doc(member.guild.id).get()).data()?.plugins?.farewell;
-    if (plugin) await sendFarewellMessage(member, plugin);
+    const doc = await db.collection("guilds").doc(member.guild.id).get();
+    const farewell = doc.data()?.plugins?.farewell;
+    if (!farewell?.enabled) return;
+
+    const guild = member.guild;
+    const message = formatMessage(farewell.serverMessage, member, guild);
+    if (farewell.channelId) {
+      const channel = guild.channels.cache.get(farewell.channelId) || await guild.channels.fetch(farewell.channelId);
+      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) {
+        await channel.send(message);
+      }
+    }
+
+    if (farewell.dmEnabled && farewell.dmMessage) {
+      await member.send(formatMessage(farewell.dmMessage, member, guild));
+    }
   } catch (err) {
     console.error("🔥 Error in guildMemberRemove:", err);
   }
 });
 
-// --- Backend API for Language Plugin Settings ---
+// --- Backend API for Plugin Settings ---
 app.post("/api/plugin-settings", async (req, res) => {
   try {
     const { guildId, channelId, time, language, enabled } = req.body;
@@ -206,7 +221,6 @@ app.post("/api/plugin-settings", async (req, res) => {
     }, { merge: true });
 
     scheduleWordOfTheDay(guildId, { channelId, time, language, enabled });
-
     res.status(200).send({ success: true, message: "Settings saved and WOTD scheduled!" });
   } catch (err) {
     console.error("🔥 Error saving plugin settings:", err);
