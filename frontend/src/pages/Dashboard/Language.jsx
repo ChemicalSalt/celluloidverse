@@ -8,40 +8,18 @@ const Language = () => {
 
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
-    enabled: false,
     channelId: "",
     time: "",
     language: "",
+    enabled: true,
   });
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(""); // For saved message
+  const [saveMessage, setSaveMessage] = useState("");
 
-  // Fetch existing plugin settings from backend/Firestore
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setSettings({
-          enabled: data.enabled || false,
-          channelId: data.channelId || "",
-          time: data.time || "",
-          language: data.language || "",
-        });
-      } catch (err) {
-        console.error("Failed to fetch plugin settings", err);
-      }
-    };
-
-    if (serverId && token) fetchSettings();
-  }, [serverId, token]);
-
-  // Fetch available channels
+  // Fetch channels
   useEffect(() => {
     const fetchChannels = async () => {
+      if (!serverId || !token) return;
       try {
         const res = await fetch(
           `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
@@ -55,36 +33,43 @@ const Language = () => {
         setLoading(false);
       }
     };
-
-    if (serverId && token) fetchChannels();
+    fetchChannels();
   }, [serverId, token]);
 
+  // Save plugin settings
   const handleSave = async () => {
-    console.log("🔹 handleSave triggered", settings);
-
     try {
+      const payload = {
+        channelId: settings.channelId,
+        time: settings.time,
+        language: settings.language,
+        enabled: true,
+      };
+
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(settings),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
         }
       );
 
-      console.log("🔹 Response status:", res.status);
       const data = await res.json();
-      console.log("🔹 Response JSON:", data);
+      if (data.success) {
+        setSaveMessage("Saved successfully!");
+        setTimeout(() => setSaveMessage(""), 3000);
 
-      setMessage("Saved successfully!");
-      setTimeout(() => setMessage(""), 3000);
+        // Clear inputs after save
+        setSettings({ channelId: "", time: "", language: "", enabled: true });
+      } else {
+        setSaveMessage("Failed to save settings");
+        setTimeout(() => setSaveMessage(""), 3000);
+      }
     } catch (err) {
-      console.error("🔹 Error saving settings:", err);
-      setMessage("Error saving settings");
-      setTimeout(() => setMessage(""), 3000);
+      console.error(err);
+      setSaveMessage("Error saving settings");
+      setTimeout(() => setSaveMessage(""), 3000);
     }
   };
 
@@ -99,14 +84,10 @@ const Language = () => {
       <div className="max-w-xl mx-auto flex flex-col gap-6">
         {/* Channel Selector */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Select a channel
-          </label>
+          <label className="block mb-2 text-black dark:text-white">Select a channel</label>
           <select
             value={settings.channelId}
-            onChange={(e) =>
-              setSettings({ ...settings, channelId: e.target.value })
-            }
+            onChange={(e) => setSettings({ ...settings, channelId: e.target.value })}
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
             <option value="">-- Select a channel --</option>
@@ -120,29 +101,21 @@ const Language = () => {
 
         {/* Time Selector */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Time (HH:MM)
-          </label>
+          <label className="block mb-2 text-black dark:text-white">Time (HH:MM)</label>
           <input
             type="time"
             value={settings.time}
-            onChange={(e) =>
-              setSettings({ ...settings, time: e.target.value })
-            }
+            onChange={(e) => setSettings({ ...settings, time: e.target.value })}
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           />
         </div>
 
         {/* Language Selector */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Select language
-          </label>
+          <label className="block mb-2 text-black dark:text-white">Select language</label>
           <select
             value={settings.language}
-            onChange={(e) =>
-              setSettings({ ...settings, language: e.target.value })
-            }
+            onChange={(e) => setSettings({ ...settings, language: e.target.value })}
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
             <option value="">-- Select a language --</option>
@@ -150,6 +123,7 @@ const Language = () => {
           </select>
         </div>
 
+        {/* Save Button */}
         <button
           onClick={handleSave}
           className="px-6 py-3 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
@@ -157,11 +131,9 @@ const Language = () => {
           Save
         </button>
 
-        {/* Saved message */}
-        {message && (
-          <div className="mt-2 text-center text-green-600 dark:text-green-400">
-            {message}
-          </div>
+        {/* Status Message */}
+        {saveMessage && (
+          <div className="mt-2 text-center text-green-600 dark:text-green-400">{saveMessage}</div>
         )}
       </div>
     </div>
