@@ -36,8 +36,8 @@ const db = admin.firestore();
 
 // --- Google Sheets Setup ---
 const sheetsAuth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT), // ✅ use env var
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
+  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 });
 
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
