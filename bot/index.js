@@ -1,4 +1,4 @@
-// index.js (DEBUG + Immediate Send)
+// index.js (Final, complete)
 require("dotenv").config();
 const {
   Client,
@@ -37,7 +37,7 @@ const db = admin.firestore();
 // --- Google Sheets Setup ---
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
 
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
@@ -159,9 +159,34 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
 
   scheduledJobs.set(guildId, job);
 
-  // 🔥 Send immediately on save (for testing)
+  // 🔥 Send immediately on save (for testing/demo)
   sendWOTDNow(guildId, pluginSettings);
 }
+
+// --- Express route to save plugin settings from dashboard ---
+app.post("/api/plugin-settings", async (req, res) => {
+  try {
+    const { guildId, channelId, time, language, enabled } = req.body;
+
+    if (!guildId || !channelId || !time) {
+      return res.status(400).send({ success: false, message: "guildId, channelId, time are required" });
+    }
+
+    await db.collection("guilds").doc(guildId).set({
+      plugins: {
+        language: { channelId, time, language, enabled }
+      }
+    }, { merge: true });
+
+    // 🔥 Immediately trigger send for testing/demo
+    scheduleWordOfTheDay(guildId, { channelId, time, language, enabled });
+
+    res.status(200).send({ success: true, message: "Settings saved and WOTD scheduled!" });
+  } catch (err) {
+    console.error("🔥 Error saving plugin settings:", err);
+    res.status(500).send({ success: false, error: err.message });
+  }
+});
 
 // --- Bot Ready ---
 client.once("ready", async () => {
