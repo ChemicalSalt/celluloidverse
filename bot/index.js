@@ -36,9 +36,10 @@ const db = admin.firestore();
 
 // --- Google Sheets Setup ---
 const sheetsAuth = new google.auth.GoogleAuth({
-  keyFile: "serviceAccountKey.json", // <-- for Sheets only
+  credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT), // ✅ use env var
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
+
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = "1nRaiJ3m0z7o9Wq_zNeUm07v5f_JbbX8oTUkNz085pzg";
 const RANGE = "Sheet1!A:H";
