@@ -122,7 +122,7 @@ router.get("/servers/:id/plugins/:plugin", async (req, res) => {
   }
 });
 
-// ---- Save a plugin config ----
+// ---- Save a plugin config (generic, works for "language" too) ----
 router.post("/servers/:id/plugins/:plugin", async (req, res) => {
   const { id, plugin } = req.params;
   const payload = req.body;
