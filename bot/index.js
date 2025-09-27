@@ -126,6 +126,7 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
 }
 
 // --- Replace placeholders ---
+// --- Replace placeholders ---
 function formatMessage(message, member, guild) {
   if (!message) return "";
 
@@ -133,13 +134,15 @@ function formatMessage(message, member, guild) {
     .replaceAll("{username}", member.user.username)
     .replaceAll("{usermention}", `<@${member.id}>`)
     .replaceAll("{server}", guild.name)
+    // Role mentions
     .replace(/\{role:([^\}]+)\}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name === roleName);
-      return role ? `<@&${role.id}>` : roleName; // correct mention syntax
+      return role ? `<@&${role.id}>` : roleName; // clickable if role exists
     })
+    // Channel mentions
     .replace(/\{channel:([^\}]+)\}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name === channelName);
-      return channel ? `<#${channel.id}>` : channelName; // correct mention syntax
+      return channel ? `<#${channel.id}>` : channelName; // clickable if channel exists
     });
 }
 
