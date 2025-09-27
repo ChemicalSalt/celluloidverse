@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 const Welcome = () => {
   const { serverId } = useParams();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const token = localStorage.getItem("session");
 
   const [messages, setMessages] = useState({ serverMessage: "", dmMessage: "" });
   const [channels, setChannels] = useState([]);
@@ -18,14 +17,11 @@ const Welcome = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch channels
         const resChannels = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const dataChannels = await resChannels.json();
         setChannels(dataChannels);
-
-        // Skip fetching old messages to start fresh
       } catch (err) {
         console.error(err);
       }
@@ -53,7 +49,6 @@ const Welcome = () => {
       setSaveMessage("Saved successfully!");
       setTimeout(() => setSaveMessage(""), 3000);
 
-      // Clear inputs after save
       setMessages({ serverMessage: "", dmMessage: "" });
       setSelectedChannel("");
       setServerEnabled(true);

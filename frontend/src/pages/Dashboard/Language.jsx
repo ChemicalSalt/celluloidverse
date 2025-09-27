@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 const Language = () => {
   const { serverId } = useParams();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const token = localStorage.getItem("session");
 
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
@@ -16,15 +15,13 @@ const Language = () => {
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState("");
 
-  // Fetch channels
   useEffect(() => {
     const fetchChannels = async () => {
       if (!serverId || !token) return;
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         setChannels(data);
       } catch (err) {
@@ -36,7 +33,6 @@ const Language = () => {
     fetchChannels();
   }, [serverId, token]);
 
-  // Save plugin settings
   const handleSave = async () => {
     try {
       const payload = {
@@ -46,21 +42,16 @@ const Language = () => {
         enabled: true,
       };
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
       if (data.success) {
         setSaveMessage("Saved successfully!");
         setTimeout(() => setSaveMessage(""), 3000);
-
-        // Clear inputs after save
         setSettings({ channelId: "", time: "", language: "", enabled: true });
       } else {
         setSaveMessage("Failed to save settings");
@@ -82,7 +73,6 @@ const Language = () => {
       </h1>
 
       <div className="max-w-xl mx-auto flex flex-col gap-6">
-        {/* Channel Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">Select a channel</label>
           <select
@@ -99,7 +89,6 @@ const Language = () => {
           </select>
         </div>
 
-        {/* Time Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">Time (HH:MM)</label>
           <input
@@ -110,7 +99,6 @@ const Language = () => {
           />
         </div>
 
-        {/* Language Selector */}
         <div>
           <label className="block mb-2 text-black dark:text-white">Select language</label>
           <select
@@ -123,7 +111,6 @@ const Language = () => {
           </select>
         </div>
 
-        {/* Save Button */}
         <button
           onClick={handleSave}
           className="px-6 py-3 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
@@ -131,7 +118,6 @@ const Language = () => {
           Save
         </button>
 
-        {/* Status Message */}
         {saveMessage && (
           <div className="mt-2 text-center text-green-600 dark:text-green-400">{saveMessage}</div>
         )}

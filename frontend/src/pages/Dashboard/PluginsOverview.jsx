@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 const PluginsOverview = () => {
   const { serverId } = useParams();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const token = localStorage.getItem("session");
   const navigate = useNavigate();
 
   const [server, setServer] = useState(null);
@@ -15,12 +14,9 @@ const PluginsOverview = () => {
 
     const fetchServer = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         const data = await res.json();
         setServer(data);
       } catch (err) {
@@ -36,7 +32,7 @@ const PluginsOverview = () => {
   if (loading) return <div className="text-center mt-10">Loading...</div>;
   if (!server) return <div className="text-center mt-10">No server data</div>;
 
-  const plugins = [
+   const plugins = [
     {
       name: "Welcome",
       path: "welcome",
@@ -54,12 +50,10 @@ const PluginsOverview = () => {
     },
   ];
 
-  // Toggle plugin enabled/disabled
   const handleToggle = async (plugin) => {
     try {
       const newEnabled = !plugin.enabled;
 
-      // Optimistic UI update
       setServer((prev) => ({
         ...prev,
         plugins: {
@@ -71,7 +65,6 @@ const PluginsOverview = () => {
         },
       }));
 
-      // Send update to backend
       await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}`,
         {
@@ -107,7 +100,6 @@ const PluginsOverview = () => {
                 </h2>
               </div>
 
-              {/* Toggle Switch */}
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -123,9 +115,7 @@ const PluginsOverview = () => {
             <button
               className="mt-6 px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
               onClick={() =>
-                navigate(
-                  `/dashboard/${serverId}/plugins/${plugin.path}?token=${token}`
-                )
+                navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)
               }
             >
               Configure {plugin.name}
