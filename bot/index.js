@@ -134,13 +134,14 @@ function formatMessage(message, member, guild) {
     .replaceAll("{server}", guild.name)
     .replace(/\{role:([^\}]+)\}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name === roleName);
-      return role ? role.name : roleName;
+      return role ? `<@&${role.id}>` : roleName;
     })
     .replace(/\{channel:([^\}]+)\}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name === channelName);
-      return channel ? `#${channel.name}` : channelName;
+      return channel ? `<#${channel.id}>` : channelName;
     });
 }
+
 
 // --- Bot Ready & Firestore Listener ---
 client.once("ready", async () => {
