@@ -128,19 +128,21 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
 // --- Replace placeholders ---
 function formatMessage(message, member, guild) {
   if (!message) return "";
+
   return message
     .replaceAll("{username}", member.user.username)
     .replaceAll("{usermention}", `<@${member.id}>`)
     .replaceAll("{server}", guild.name)
     .replace(/\{role:([^\}]+)\}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name === roleName);
-      return role ? `<@&${role.id}>` : roleName;
+      return role ? `<@&${role.id}>` : roleName; // correct mention syntax
     })
     .replace(/\{channel:([^\}]+)\}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name === channelName);
-      return channel ? `<#${channel.id}>` : channelName;
+      return channel ? `<#${channel.id}>` : channelName; // correct mention syntax
     });
 }
+
 
 
 // --- Bot Ready & Firestore Listener ---
