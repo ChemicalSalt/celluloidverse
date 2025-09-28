@@ -247,8 +247,29 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
-  if (interaction.commandName === "ping") await interaction.reply("Pong!");
+
+  if (interaction.commandName === "ping") {
+    try {
+      const doc = await db.collection("botStatus").doc("main").get();
+      if (!doc.exists) return await interaction.reply("Bot status not found");
+
+      const status = doc.data();
+      const onlineText = status.online ? "🟢 Online" : "🔴 Offline";
+
+      await interaction.reply(
+        `**Bot Status:**\n` +
+        `Signal: ${onlineText}\n` +
+        `Ping: ${status.ping} ms\n` +
+        `Servers: ${status.servers}\n` +
+        `Last Update: ${new Date(status.timestamp).toLocaleString()}`
+      );
+    } catch (err) {
+      console.error("Error fetching bot status:", err);
+      await interaction.reply("❌ Failed to fetch bot status");
+    }
+  }
 });
+
 
 // --- Express Health Check ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
