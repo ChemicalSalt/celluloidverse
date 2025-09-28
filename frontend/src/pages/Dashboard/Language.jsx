@@ -34,29 +34,32 @@ const Language = () => {
   }, [serverId, token]);
 
   const handleSave = async () => {
-    try {
-      const payload = {
-        channelId: settings.channelId,
-        time: settings.time,
-        language: settings.language,
-        enabled: true,
-      };
+    if (!settings.channelId || !settings.time || !settings.language) {
+      setSaveMessage("Please select a channel, time, and language");
+      setTimeout(() => setSaveMessage(""), 3000);
+      return;
+    }
 
+    try {
+      const payload = { ...settings };
       const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-
       const data = await res.json();
       if (data.success) {
         setSaveMessage("Saved successfully!");
-        setTimeout(() => setSaveMessage(""), 3000);
-        setSettings({ channelId: "", time: "", language: "", enabled: true });
+        setSettings({
+          channelId: "",
+          time: "",
+          language: "",
+          enabled: true,
+        });
       } else {
         setSaveMessage("Failed to save settings");
-        setTimeout(() => setSaveMessage(""), 3000);
       }
+      setTimeout(() => setSaveMessage(""), 3000);
     } catch (err) {
       console.error(err);
       setSaveMessage("Error saving settings");
@@ -119,7 +122,15 @@ const Language = () => {
         </button>
 
         {saveMessage && (
-          <div className="mt-2 text-center text-green-600 dark:text-green-400">{saveMessage}</div>
+          <div
+            className={`mt-2 text-center ${
+              saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed")
+                ? "text-red-600 dark:text-red-400"
+                : "text-green-600 dark:text-green-400"
+            }`}
+          >
+            {saveMessage}
+          </div>
         )}
       </div>
     </div>

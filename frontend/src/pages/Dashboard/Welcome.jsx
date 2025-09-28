@@ -1,119 +1,144 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 const Welcome = () => {
   const { serverId } = useParams();
   const token = localStorage.getItem("session");
 
-  const [messages, setMessages] = useState({ serverMessage: "", dmMessage: "" });
   const [channels, setChannels] = useState([]);
-  const [selectedChannel, setSelectedChannel] = useState("");
-  const [serverEnabled, setServerEnabled] = useState(true);
-  const [dmEnabled, setDmEnabled] = useState(true);
+  const [settings, setSettings] = useState({
+    channelId: "",
+    serverMessage: "",
+    dmMessage: "",
+    enabled: true,
+    dmEnabled: true,
+  });
+  const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    if (!serverId || !token) return;
-
-    const fetchData = async () => {
+    const fetchChannels = async () => {
+      if (!serverId || !token) return;
       try {
-        const resChannels = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const dataChannels = await resChannels.json();
-        setChannels(dataChannels);
+        const data = await res.json();
+        setChannels(data);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
-
-    fetchData();
+    fetchChannels();
   }, [serverId, token]);
 
   const handleSave = async () => {
-    try {
-      const payload = {
-        enabled: serverEnabled,
-        channelId: selectedChannel,
-        serverMessage: messages.serverMessage,
-        dmEnabled,
-        dmMessage: messages.dmMessage,
-      };
+    if (!settings.channelId || (!settings.serverMessage && !settings.dmMessage)) {
+      setSaveMessage("Please select a channel and enter at least one message");
+      setTimeout(() => setSaveMessage(""), 3000);
+      return;
+    }
 
-      await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
+    try {
+      const payload = { ...settings };
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-
-      setSaveMessage("Saved successfully!");
+      const data = await res.json();
+      if (data.success) {
+        setSaveMessage("Saved successfully!");
+        setSettings({
+          channelId: "",
+          serverMessage: "",
+          dmMessage: "",
+          enabled: true,
+          dmEnabled: true,
+        });
+      } else {
+        setSaveMessage("Failed to save settings");
+      }
       setTimeout(() => setSaveMessage(""), 3000);
-
-      setMessages({ serverMessage: "", dmMessage: "" });
-      setSelectedChannel("");
-      setServerEnabled(true);
-      setDmEnabled(true);
     } catch (err) {
       console.error(err);
-      setSaveMessage("Failed to save messages");
+      setSaveMessage("Error saving settings");
+      setTimeout(() => setSaveMessage(""), 3000);
     }
   };
 
-  const handleChange = (field, value) => {
-    setMessages(prev => ({ ...prev, [field]: value }));
-  };
+  if (loading) return <div className="text-center mt-10">Loading...</div>;
 
   return (
-    <div className="min-h-screen px-6 py-8">
-      <h1 className="text-3xl font-bold mb-6">Configure Welcome Messages</h1>
-      <div className="flex flex-col gap-4">
-        <label>Server Welcome Channel</label>
-        <select
-          value={selectedChannel}
-          onChange={e => setSelectedChannel(e.target.value)}
-          className="p-2 border rounded bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select a channel</option>
-          {channels.map(c => (
-            <option key={c.id} value={c.id} className="bg-gray-800 text-white">{c.name}</option>
-          ))}
-        </select>
+    <div className="min-h-screen px-6 py-8 bg-white dark:bg-black">
+      <h1 className="text-3xl font-bold mb-6 text-black dark:text-white">Welcome Plugin</h1>
 
-        <label>Server Welcome</label>
-        <textarea
-          value={messages.serverMessage}
-          onChange={e => handleChange("serverMessage", e.target.value)}
-          className="p-2 border rounded resize-none"
-          rows={3}
-        />
-
-        <label>DM Welcome</label>
-        <textarea
-          value={messages.dmMessage}
-          onChange={e => handleChange("dmMessage", e.target.value)}
-          className="p-2 border rounded resize-none"
-          rows={3}
-        />
-
-        <div className="flex gap-2 mt-2">
-          <button
-            onClick={() => setServerEnabled(!serverEnabled)}
-            className={`px-3 py-1 rounded ${serverEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+      <div className="max-w-xl mx-auto flex flex-col gap-6">
+        <div>
+          <label className="block mb-2 text-black dark:text-white">Select a channel</label>
+          <select
+            value={settings.channelId}
+            onChange={(e) => setSettings({ ...settings, channelId: e.target.value })}
+            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
-            SERVER {serverEnabled ? "ON" : "OFF"}
+            <option value="">-- Select a channel --</option>
+            {channels.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                #{ch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block mb-2 text-black dark:text-white">Server Message</label>
+          <textarea
+            rows={3}
+            value={settings.serverMessage}
+            onChange={(e) => setSettings({ ...settings, serverMessage: e.target.value })}
+            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block mb-2 text-black dark:text-white">DM Message</label>
+          <textarea
+            rows={3}
+            value={settings.dmMessage}
+            onChange={(e) => setSettings({ ...settings, dmMessage: e.target.value })}
+            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white resize-none"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSettings({ ...settings, enabled: !settings.enabled })}
+            className={`px-3 py-1 rounded ${settings.enabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+          >
+            SERVER {settings.enabled ? "ON" : "OFF"}
           </button>
           <button
-            onClick={() => setDmEnabled(!dmEnabled)}
-            className={`px-3 py-1 rounded ${dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+            onClick={() => setSettings({ ...settings, dmEnabled: !settings.dmEnabled })}
+            className={`px-3 py-1 rounded ${settings.dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
           >
-            DM {dmEnabled ? "ON" : "OFF"}
+            DM {settings.dmEnabled ? "ON" : "OFF"}
           </button>
-          <button onClick={handleSave} className="px-4 py-1 bg-purple-600 text-white rounded">SAVE</button>
+          <button onClick={handleSave} className="px-6 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:opacity-90">
+            Save
+          </button>
         </div>
       </div>
 
       {saveMessage && (
-        <div className="fixed bottom-6 right-6 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+        <div
+          className={`mt-2 text-center ${
+            saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed")
+              ? "text-red-600 dark:text-red-400"
+              : "text-green-600 dark:text-green-400"
+          }`}
+        >
           {saveMessage}
         </div>
       )}
