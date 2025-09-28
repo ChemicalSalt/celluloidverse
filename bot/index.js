@@ -1,6 +1,5 @@
-// index.js
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
 const cron = require("node-cron");
@@ -78,6 +77,7 @@ async function sendWOTDNow(guildId, pluginSettings) {
       try { channel = await guild.channels.fetch(pluginSettings.channelId); } 
       catch (err) { console.error("❌ Failed to fetch channel:", err); return; }
     }
+
     const me = guild.members.me || (await guild.members.fetch(client.user.id));
     if (!channel.permissionsFor(me)?.has("SendMessages")) return console.error("❌ No permission in channel:", pluginSettings.channelId);
 
@@ -116,7 +116,6 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
   const [hour, minute] = pluginSettings.time.split(":");
   if (scheduledJobs.has(guildId)) scheduledJobs.get(guildId).stop();
 
-  console.log(`⏰ Scheduling WOTD for guild ${guildId} at ${pluginSettings.time}`);
   const job = cron.schedule(
     `${minute} ${hour} * * *`,
     async () => await sendWOTDNow(guildId, pluginSettings),
@@ -126,27 +125,21 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
 }
 
 // --- Replace placeholders ---
-// --- Replace placeholders ---
 function formatMessage(message, member, guild) {
   if (!message) return "";
-
   return message
     .replaceAll("{username}", member.user.username)
     .replaceAll("{usermention}", `<@${member.id}>`)
     .replaceAll("{server}", guild.name)
-    // Role mentions
     .replace(/\{role:([^\}]+)\}/g, (_, roleName) => {
       const role = guild.roles.cache.find(r => r.name === roleName);
-      return role ? `<@&${role.id}>` : roleName; // clickable if role exists
+      return role ? `<@&${role.id}>` : roleName;
     })
-    // Channel mentions
     .replace(/\{channel:([^\}]+)\}/g, (_, channelName) => {
       const channel = guild.channels.cache.find(c => c.name === channelName);
-      return channel ? `<#${channel.id}>` : channelName; // clickable if channel exists
+      return channel ? `<#${channel.id}>` : channelName;
     });
 }
-
-
 
 // --- Bot Ready & Firestore Listener ---
 client.once("ready", async () => {
@@ -159,7 +152,6 @@ client.once("ready", async () => {
       const guild = client.guilds.cache.get(guildId);
       if (!guild) return;
 
-      // Schedule WOTD
       if (plugins?.language?.enabled) scheduleWordOfTheDay(guildId, plugins.language);
       else if (scheduledJobs.has(guildId)) {
         scheduledJobs.get(guildId).stop();
@@ -184,13 +176,10 @@ client.on("guildMemberAdd", async (member) => {
         await channel.send(message);
       }
     }
-
     if (welcome.dmEnabled && welcome.dmMessage) {
       await member.send(formatMessage(welcome.dmMessage, member, guild));
     }
-  } catch (err) {
-    console.error("🔥 Error in guildMemberAdd:", err);
-  }
+  } catch (err) { console.error("🔥 Error in guildMemberAdd:", err); }
 });
 
 client.on("guildMemberRemove", async (member) => {
@@ -207,13 +196,10 @@ client.on("guildMemberRemove", async (member) => {
         await channel.send(message);
       }
     }
-
     if (farewell.dmEnabled && farewell.dmMessage) {
       await member.send(formatMessage(farewell.dmMessage, member, guild));
     }
-  } catch (err) {
-    console.error("🔥 Error in guildMemberRemove:", err);
-  }
+  } catch (err) { console.error("🔥 Error in guildMemberRemove:", err); }
 });
 
 // --- Backend API for Plugin Settings ---
@@ -234,22 +220,26 @@ app.post("/api/plugin-settings", async (req, res) => {
   }
 });
 
-// --- Slash Commands ---
+// --- Slash Commands Registration ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
+  new SlashCommandBuilder().setName("dashboard").setDescription("Open backend dashboard"),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 (async () => {
-  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); }
-  catch (err) { console.error(err); }
+  try {
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+    console.log("✅ Slash commands registered");
+  } catch (err) { console.error("❌ Failed to register slash commands:", err); }
 })();
 
+// --- Single Interaction Handler ---
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
 
-  if (interaction.commandName === "ping") {
-    try {
+  try {
+    if (interaction.commandName === "ping") {
       const doc = await db.collection("botStatus").doc("main").get();
       if (!doc.exists) return await interaction.reply("Bot status not found");
 
@@ -263,13 +253,22 @@ client.on("interactionCreate", async (interaction) => {
         `Servers: ${status.servers}\n` +
         `Last Update: ${new Date(status.timestamp).toLocaleString()}`
       );
-    } catch (err) {
-      console.error("Error fetching bot status:", err);
-      await interaction.reply("❌ Failed to fetch bot status");
     }
+
+    if (interaction.commandName === "dashboard") {
+      const dashboardURL = "https://celluloidverse-5c0i.onrender.com";
+      const embed = new EmbedBuilder()
+        .setTitle("➡ Open Dashboard")
+        .setDescription("Click the arrow to access the backend dashboard")
+        .setURL(dashboardURL)
+        .setColor(0x00FF00);
+      await interaction.reply({ embeds: [embed], ephemeral: false });
+    }
+  } catch (err) {
+    console.error("Error handling slash command:", err);
+    if (!interaction.replied) await interaction.reply("❌ Something went wrong");
   }
 });
-
 
 // --- Express Health Check ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
