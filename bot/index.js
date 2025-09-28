@@ -224,6 +224,9 @@ app.post("/api/plugin-settings", async (req, res) => {
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
   new SlashCommandBuilder().setName("dashboard").setDescription("Open backend dashboard"),
+  new SlashCommandBuilder().setName("sendwotd").setDescription("Send Word of the Day now"),
+  new SlashCommandBuilder().setName("sendwelcome").setDescription("Send Welcome message now"),
+  new SlashCommandBuilder().setName("sendfarewell").setDescription("Send Farewell message now"),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -234,16 +237,19 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   } catch (err) { console.error("❌ Failed to register slash commands:", err); }
 })();
 
-// --- Single Interaction Handler ---
+// --- Interaction Handler ---
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
 
   try {
-    if (interaction.commandName === "ping") {
-      const doc = await db.collection("botStatus").doc("main").get();
-      if (!doc.exists) return await interaction.reply("Bot status not found");
+    const guildId = interaction.guildId;
+    const doc = await db.collection("guilds").doc(guildId).get();
+    const plugins = doc.data()?.plugins || {};
 
-      const status = doc.data();
+    if (interaction.commandName === "ping") {
+      const statusDoc = await db.collection("botStatus").doc("main").get();
+      if (!statusDoc.exists) return await interaction.reply("Bot status not found");
+      const status = statusDoc.data();
       const onlineText = status.online ? "🟢 Online" : "🔴 Offline";
 
       await interaction.reply(
@@ -264,8 +270,35 @@ client.on("interactionCreate", async (interaction) => {
         .setColor(0x00FF00);
       await interaction.reply({ embeds: [embed], ephemeral: false });
     }
+
+    if (interaction.commandName === "sendwotd") {
+      if (!plugins.language?.enabled) return await interaction.reply("WOTD plugin not enabled in this server.");
+      await sendWOTDNow(guildId, plugins.language);
+      await interaction.reply("✅ Word of the Day sent!");
+    }
+
+    if (interaction.commandName === "sendwelcome") {
+      if (!plugins.welcome?.enabled) return await interaction.reply("Welcome plugin not enabled in this server.");
+      const member = interaction.member;
+      const guild = interaction.guild;
+      const message = formatMessage(plugins.welcome.serverMessage, member, guild);
+      const channel = guild.channels.cache.get(plugins.welcome.channelId) || await guild.channels.fetch(plugins.welcome.channelId);
+      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
+      await interaction.reply("✅ Welcome message sent!");
+    }
+
+    if (interaction.commandName === "sendfarewell") {
+      if (!plugins.farewell?.enabled) return await interaction.reply("Farewell plugin not enabled in this server.");
+      const member = interaction.member;
+      const guild = interaction.guild;
+      const message = formatMessage(plugins.farewell.serverMessage, member, guild);
+      const channel = guild.channels.cache.get(plugins.farewell.channelId) || await guild.channels.fetch(plugins.farewell.channelId);
+      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
+      await interaction.reply("✅ Farewell message sent!");
+    }
+
   } catch (err) {
-    console.error("Error handling slash command:", err);
+    console.error("🔥 Error handling slash command:", err);
     if (!interaction.replied) await interaction.reply("❌ Something went wrong");
   }
 });
