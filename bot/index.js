@@ -53,13 +53,20 @@ async function getRandomWord() {
 // --- Cron Jobs Map ---
 const scheduledJobs = new Map();
 
+// --- Helper: Clean channel ID ---
+function cleanChannelId(raw) {
+  if (!raw) return null;
+  return raw.replace(/[^0-9]/g, ""); // remove <#>
+}
+
 // --- Send WOTD ---
 async function sendWOTDNow(guildId, pluginSettings) {
   if (!pluginSettings?.enabled) return;
   try {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return;
-    const channel = guild.channels.cache.get(pluginSettings.channelId) || await guild.channels.fetch(pluginSettings.channelId);
+    const channelId = cleanChannelId(pluginSettings.channelId);
+    const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId);
     if (!channel) return;
     const me = guild.members.me || await guild.members.fetch(client.user.id);
     if (!channel.permissionsFor(me)?.has("SendMessages")) return;
@@ -91,7 +98,7 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
   if (isNaN(hour) || isNaN(minute)) return console.error("❌ Invalid WOTD time:", pluginSettings.time);
   if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
 
-  const tz = pluginSettings.timezone || "UTC"; // default fallback
+  const tz = pluginSettings.timezone || "UTC";
 
   try {
     const job = cron.schedule(
@@ -136,7 +143,11 @@ client.on("guildMemberAdd", async m => {
     const doc = await db.collection("guilds").doc(m.guild.id).get();
     const w = doc.data()?.plugins?.welcome; if (!w?.enabled) return;
     const msg = formatMessage(w.serverMessage, m, m.guild);
-    if (w.channelId) { const ch = m.guild.channels.cache.get(w.channelId) || await m.guild.channels.fetch(w.channelId); if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg); }
+    const chId = cleanChannelId(w.channelId);
+    if (chId) {
+      const ch = m.guild.channels.cache.get(chId) || await m.guild.channels.fetch(chId);
+      if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg);
+    }
     if (w.dmEnabled && w.dmMessage) await m.send(formatMessage(w.dmMessage, m, m.guild));
   } catch (err) { console.error(err); }
 });
@@ -145,7 +156,11 @@ client.on("guildMemberRemove", async m => {
     const doc = await db.collection("guilds").doc(m.guild.id).get();
     const f = doc.data()?.plugins?.farewell; if (!f?.enabled) return;
     const msg = formatMessage(f.serverMessage, m, m.guild);
-    if (f.channelId) { const ch = m.guild.channels.cache.get(f.channelId) || await m.guild.channels.fetch(f.channelId); if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg); }
+    const chId = cleanChannelId(f.channelId);
+    if (chId) {
+      const ch = m.guild.channels.cache.get(chId) || await m.guild.channels.fetch(chId);
+      if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg);
+    }
     if (f.dmEnabled && f.dmMessage) await m.send(formatMessage(f.dmMessage, m, m.guild));
   } catch (err) { console.error(err); }
 });
@@ -191,14 +206,14 @@ client.on("interactionCreate", async i => {
     }
 
     if (i.commandName === "sendwotd") {
-      const channelId = i.options.getString("channel"), time = i.options.getString("time"), tz = i.options.getString("timezone");
+      const channelId = cleanChannelId(i.options.getString("channel")), time = i.options.getString("time"), tz = i.options.getString("timezone");
       const p = { channelId, time, timezone: tz, enabled: true };
       await db.collection("guilds").doc(gid).set({ plugins: { language: p } }, { merge: true });
       scheduleWordOfTheDay(gid, p); await sendWOTDNow(gid, p); await i.reply("✅ Word of the Day sent and settings saved!");
     }
 
     if (i.commandName === "sendwelcome") {
-      const channelId = i.options.getString("channel");
+      const channelId = cleanChannelId(i.options.getString("channel"));
       const serverMsg = i.options.getString("servermessage") || plugins.welcome?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.welcome?.dmMessage;
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
@@ -211,7 +226,7 @@ client.on("interactionCreate", async i => {
     }
 
     if (i.commandName === "sendfarewell") {
-      const channelId = i.options.getString("channel");
+      const channelId = cleanChannelId(i.options.getString("channel"));
       const serverMsg = i.options.getString("servermessage") || plugins.farewell?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.farewell?.dmMessage;
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
@@ -232,4 +247,3 @@ app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server on ${PORT}`));
 
 // --- Login ---
 client.login(process.env.TOKEN);
- 
