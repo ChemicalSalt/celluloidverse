@@ -10,6 +10,7 @@ const {
 } = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
+const cron = require("node-cron");
 const { google } = require("googleapis");
 
 // --- Express ---
@@ -93,6 +94,57 @@ async function getRandomWord() {
   }
 }
 
+// --- Cron Jobs Map (keyed by "wotd:<guildId>") ---
+const scheduledJobs = new Map();
+
+// --- Schedule WOTD ---
+function scheduleWordOfTheDay(guildId, plugin) {
+  // plugin may come from dashboard or slash command; ensure it's valid
+  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
+    // stop and remove existing job if any
+    const key = `wotd:${guildId}`;
+    if (scheduledJobs.has(key)) {
+      scheduledJobs.get(key).stop();
+      scheduledJobs.delete(key);
+      console.log(`[WOTD] Stopped schedule for ${guildId}`);
+    }
+    return;
+  }
+
+  // parse time HH:MM
+  const parts = (plugin.time || "").split(":").map((s) => Number(s));
+  if (parts.length !== 2) {
+    return console.error(`[WOTD] Invalid time format for guild ${guildId}:`, plugin.time);
+  }
+  const [hour, minute] = parts;
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return console.error(`[WOTD] Invalid time numbers for guild ${guildId}:`, plugin.time);
+  }
+
+  const key = `wotd:${guildId}`;
+  if (scheduledJobs.has(key)) {
+    scheduledJobs.get(key).stop();
+    scheduledJobs.delete(key);
+  }
+
+  try {
+    // cron expression: minute hour day month day-of-week
+    const expr = `${minute} ${hour} * * *`; // runs daily at UTC hour:minute
+    const job = cron.schedule(
+      expr,
+      async () => {
+        console.log(`[WOTD] Triggering send for guild ${guildId} (${plugin.language || "japanese"}) at ${plugin.time} UTC`);
+        await sendWOTDNow(guildId, plugin).catch((e) => console.error("[WOTD] send error:", e));
+      },
+      { timezone: "UTC" }
+    );
+    scheduledJobs.set(key, job);
+    console.log(`[WOTD] Scheduled for guild ${guildId} at ${plugin.time} UTC (key=${key})`);
+  } catch (err) {
+    console.error("🔥 Failed to schedule WOTD:", err);
+  }
+}
+
 // --- Send WOTD Now ---
 async function sendWOTDNow(guildId, plugin) {
   if (!plugin?.enabled) return;
@@ -140,61 +192,6 @@ async function sendWOTDNow(guildId, plugin) {
     console.error("🔥 Error sending WOTD:", err);
   }
 }
-
-// --- Check & Send Loop ---
-// Runs every 60 seconds and posts WOTD when UTC HH:MM matches plugin.time.
-// Marks plugins.wotd.lastSentDate so we don't re-send within same UTC day.
-async function checkAndSendWOTDAll() {
-  try {
-    const now = new Date();
-    const hh = String(now.getUTCHours()).padStart(2, "0");
-    const mm = String(now.getUTCMinutes()).padStart(2, "0");
-    const timeNow = `${hh}:${mm}`;
-    const today = now.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
-
-    const snapshot = await db.collection("guilds").get();
-    for (const doc of snapshot.docs) {
-      const gid = doc.id;
-      const plugins = doc.data()?.plugins || {};
-      const wotd = plugins.wotd || plugins.language; // support both keys
-      if (!wotd || !wotd.enabled || !wotd.channelId || !wotd.time) continue;
-      // only trigger when time matches exactly UTC HH:MM
-      if ((wotd.time || "").trim() !== timeNow) continue;
-      // avoid duplicate sends during same day
-      if (wotd.lastSentDate === today) continue;
-
-      console.log(`[WOTD] Time match for guild ${gid} (${timeNow} UTC). Sending...`);
-      await sendWOTDNow(gid, wotd);
-
-      // update the lastSentDate under whichever key exists
-      const docRef = db.collection("guilds").doc(gid);
-      try {
-        if (plugins.wotd) {
-          await docRef.update({ "plugins.wotd.lastSentDate": today });
-        } else {
-          await docRef.update({ "plugins.language.lastSentDate": today });
-        }
-        console.log(`[WOTD] Updated lastSentDate for guild ${gid} -> ${today}`);
-      } catch (uErr) {
-        // fallback: try set with merge
-        try {
-          if (plugins.wotd) {
-            await docRef.set({ plugins: { wotd: { lastSentDate: today } } }, { merge: true });
-          } else {
-            await docRef.set({ plugins: { language: { lastSentDate: today } } }, { merge: true });
-          }
-        } catch (se) {
-          console.error(`[WOTD] Failed to persist lastSentDate for guild ${gid}:`, se);
-        }
-      }
-    }
-  } catch (err) {
-    console.error("[WOTD] check loop error:", err);
-  }
-}
-
-// start the minute loop (once ready)
-let wotdInterval = null;
 
 // --- Welcome/Farewell Handlers ---
 async function handleWelcome(member, plugin) {
@@ -252,26 +249,27 @@ client.on("guildMemberRemove", async (m) => {
   }
 });
 
-// --- Bot Ready & Start Loop ---
+// --- Bot Ready & Firestore Watch ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
-  // run initial check immediately on startup
-  await checkAndSendWOTDAll().catch((e) => console.error("[WOTD] initial check error:", e));
+  // On start, schedule any existing wotd configs (support both keys)
+  const snapshot = await db.collection("guilds").get();
+  snapshot.docs.forEach((doc) => {
+    const gid = doc.id;
+    const plugins = doc.data()?.plugins || {};
+    // prefer plugins.wotd, fallback to plugins.language (backwards compat)
+    const wotdPlugin = plugins.wotd || plugins.language;
+    if (wotdPlugin?.enabled) scheduleWordOfTheDay(gid, wotdPlugin);
+  });
 
-  // start interval (runs every 60 seconds)
-  if (wotdInterval) clearInterval(wotdInterval);
-  wotdInterval = setInterval(checkAndSendWOTDAll, 60 * 1000);
-
-  // watch for plugin changes and log (optional)
+  // Also listen for live changes and update schedules dynamically
   db.collection("guilds").onSnapshot((snap) => {
     snap.docChanges().forEach((change) => {
       const gid = change.doc.id;
       const plugins = change.doc.data()?.plugins || {};
-      const wotd = plugins.wotd || plugins.language;
-      if (wotd && wotd.enabled) {
-        console.log(`[WOTD] Config present for guild ${gid}: time=${wotd.time} channel=${wotd.channelId}`);
-      }
+      const wotdPlugin = plugins.wotd || plugins.language;
+      scheduleWordOfTheDay(gid, wotdPlugin);
     });
   });
 });
@@ -401,8 +399,9 @@ client.on("interactionCreate", async (i) => {
       // Save under plugins.wotd (preferred)
       await db.collection("guilds").doc(gid).set({ plugins: { wotd: p } }, { merge: true });
 
-      await i.reply({ content: "✅ WOTD settings saved (Japanese). It will run at the UTC time you provided.", ephemeral: true });
-      console.log(`[WOTD] Saved WOTD config for guild ${gid}:`, p);
+      // schedule immediately
+      scheduleWordOfTheDay(gid, p);
+      await i.reply({ content: "✅ WOTD settings saved (Japanese). Runs at the UTC time you provided.", ephemeral: true });
     }
 
     if (i.commandName === "sendwelcome") {
