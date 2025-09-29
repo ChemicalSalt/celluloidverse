@@ -65,7 +65,7 @@ function formatMessage(msg, member, guild) {
     });
 }
 
-// --- Get Random Word (Japanese sheet only) ---
+// --- Get Random Word (Japanese only) ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -112,7 +112,7 @@ function scheduleWordOfTheDay(guildId, plugin) {
 
   const parts = (plugin.time || "").split(":").map((s) => Number(s));
   if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
-    return console.error(`[WOTD] ⚠ Invalid time format for guild ${guildId}:`, plugin.time);
+    return console.error(`[WOTD] ⚠ Invalid time for guild ${guildId}:`, plugin.time);
   }
   const [hour, minute] = parts;
 
@@ -122,12 +122,14 @@ function scheduleWordOfTheDay(guildId, plugin) {
   }
 
   try {
-    const expr = `${minute} ${hour} * * *`; // daily UTC
+    const expr = `${minute} ${hour} * * *`; // UTC time
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[WOTD] ⚡ Triggering send for guild ${guildId} at ${plugin.time} UTC`);
-        await sendWOTDNow(guildId, plugin).catch((e) => console.error("[WOTD] send error:", e));
+        console.log(`[WOTD] ⚡ Triggering send for guild ${guildId}`);
+        await sendWOTDNow(guildId, plugin).catch((e) =>
+          console.error("[WOTD] send error:", e)
+        );
       },
       { timezone: "UTC" }
     );
@@ -143,7 +145,7 @@ async function sendWOTDNow(guildId, plugin) {
   if (!plugin?.enabled) return;
   try {
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) return console.warn(`[WOTD] Guild not in cache: ${guildId}`);
+    if (!guild) return console.warn(`[WOTD] Guild not found in cache: ${guildId}`);
 
     const channel =
       guild.channels.cache.get(plugin.channelId) ||
@@ -180,7 +182,6 @@ async function sendWOTDNow(guildId, plugin) {
 // --- Welcome/Farewell Handlers ---
 async function handleWelcome(member, plugin) {
   if (!plugin?.enabled) return;
-
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
     const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch =
@@ -190,7 +191,6 @@ async function handleWelcome(member, plugin) {
       await ch.send(msg).catch((e) => console.error("Welcome send error:", e));
     }
   }
-
   if (plugin.sendInDM && plugin.dmMessage) {
     await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
   }
@@ -198,7 +198,6 @@ async function handleWelcome(member, plugin) {
 
 async function handleFarewell(member, plugin) {
   if (!plugin?.enabled) return;
-
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
     const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch =
@@ -208,7 +207,6 @@ async function handleFarewell(member, plugin) {
       await ch.send(msg).catch((e) => console.error("Farewell send error:", e));
     }
   }
-
   if (plugin.sendInDM && plugin.dmMessage) {
     await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
   }
@@ -216,24 +214,15 @@ async function handleFarewell(member, plugin) {
 
 // --- Events ---
 client.on("guildMemberAdd", async (m) => {
-  try {
-    const doc = await db.collection("guilds").doc(m.guild.id).get();
-    await handleWelcome(m, doc.data()?.plugins?.welcome);
-  } catch (err) {
-    console.error(err);
-  }
+  const doc = await db.collection("guilds").doc(m.guild.id).get();
+  await handleWelcome(m, doc.data()?.plugins?.welcome);
 });
-
 client.on("guildMemberRemove", async (m) => {
-  try {
-    const doc = await db.collection("guilds").doc(m.guild.id).get();
-    await handleFarewell(m, doc.data()?.plugins?.farewell);
-  } catch (err) {
-    console.error(err);
-  }
+  const doc = await db.collection("guilds").doc(m.guild.id).get();
+  await handleFarewell(m, doc.data()?.plugins?.farewell);
 });
 
-// --- Bot Ready & Firestore Watch ---
+// --- Bot Ready ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
@@ -256,17 +245,15 @@ client.once("ready", async () => {
 // --- Slash Commands ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
-
   new SlashCommandBuilder().setName("dashboard").setDescription("Open dashboard"),
-
   new SlashCommandBuilder()
     .setName("sendwotd")
-    .setDescription("Setup Word of the Day (Japanese only, UTC time)")
+    .setDescription("Setup Word of the Day")
     .addStringOption((o) =>
       o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true)
+      o.setName("time").setDescription("HH:MM 24h UTC").setRequired(true)
     )
     .addStringOption((o) =>
       o
@@ -275,7 +262,6 @@ const commands = [
         .setRequired(true)
         .addChoices({ name: "Japanese", value: "japanese" })
     ),
-
   new SlashCommandBuilder()
     .setName("sendwelcome")
     .setDescription("Setup Welcome message")
@@ -286,15 +272,14 @@ const commands = [
       o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
     )
     .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+      o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message (use placeholders)").setRequired(false)
+      o.setName("servermessage").setDescription("Server message").setRequired(false)
     )
     .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message (use placeholders)").setRequired(false)
+      o.setName("dmmessage").setDescription("DM message").setRequired(false)
     ),
-
   new SlashCommandBuilder()
     .setName("sendfarewell")
     .setDescription("Setup Farewell message")
@@ -305,13 +290,13 @@ const commands = [
       o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
     )
     .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+      o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message (use placeholders)").setRequired(false)
+      o.setName("servermessage").setDescription("Server message").setRequired(false)
     )
     .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message (use placeholders)").setRequired(false)
+      o.setName("dmmessage").setDescription("DM message").setRequired(false)
     ),
 ].map((c) => c.toJSON());
 
@@ -325,7 +310,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   }
 })();
 
-// --- Slash Interaction ---
+// --- Slash Interactions ---
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
   const gid = i.guildId;
@@ -356,7 +341,11 @@ client.on("interactionCreate", async (i) => {
       const language = i.options.getString("language") || "japanese";
 
       const p = { channelId, time, language, enabled: true };
-      await db.collection("guilds").doc(gid).set({ plugins: { language: p } }, { merge: true });
+
+      await db.collection("guilds").doc(gid).set(
+        { plugins: { ...plugins, language: p } },
+        { merge: true }
+      );
 
       scheduleWordOfTheDay(gid, p);
       await i.reply({
@@ -373,7 +362,12 @@ client.on("interactionCreate", async (i) => {
       const sendInDM = i.options.getBoolean("send_in_dm");
 
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
-      await db.collection("guilds").doc(gid).set({ plugins: { welcome: p } }, { merge: true });
+
+      await db.collection("guilds").doc(gid).set(
+        { plugins: { ...plugins, welcome: p } },
+        { merge: true }
+      );
+
       await i.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
     }
 
@@ -385,7 +379,12 @@ client.on("interactionCreate", async (i) => {
       const sendInDM = i.options.getBoolean("send_in_dm");
 
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
-      await db.collection("guilds").doc(gid).set({ plugins: { farewell: p } }, { merge: true });
+
+      await db.collection("guilds").doc(gid).set(
+        { plugins: { ...plugins, farewell: p } },
+        { merge: true }
+      );
+
       await i.reply({ content: "✅ Farewell settings saved!", ephemeral: true });
     }
   } catch (err) {
