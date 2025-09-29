@@ -65,7 +65,7 @@ function formatMessage(msg, member, guild) {
     });
 }
 
-// --- Get Random Word ---
+// --- Get Random Word (Japanese sheet) ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -94,55 +94,85 @@ async function getRandomWord() {
   }
 }
 
-// --- Cron Jobs Map ---
+// --- Cron Jobs Map (keyed by "wotd:<guildId>") ---
 const scheduledJobs = new Map();
 
 // --- Schedule WOTD ---
 function scheduleWordOfTheDay(guildId, plugin) {
-  if (!plugin?.enabled || !plugin.channelId || !plugin.time) {
-    if (scheduledJobs.has(guildId)) {
-      scheduledJobs.get(guildId).stop();
-      scheduledJobs.delete(guildId);
+  // plugin may come from dashboard or slash command; ensure it's valid
+  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
+    // stop and remove existing job if any
+    const key = `wotd:${guildId}`;
+    if (scheduledJobs.has(key)) {
+      scheduledJobs.get(key).stop();
+      scheduledJobs.delete(key);
+      console.log(`[WOTD] Stopped schedule for ${guildId}`);
     }
     return;
   }
 
-  const [hour, minute] = plugin.time.split(":").map(Number);
-  if (isNaN(hour) || isNaN(minute))
-    return console.error("❌ Invalid time:", plugin.time);
+  // parse time HH:MM
+  const parts = (plugin.time || "").split(":").map((s) => Number(s));
+  if (parts.length !== 2) {
+    return console.error(`[WOTD] Invalid time format for guild ${guildId}:`, plugin.time);
+  }
+  const [hour, minute] = parts;
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return console.error(`[WOTD] Invalid time numbers for guild ${guildId}:`, plugin.time);
+  }
 
-  if (scheduledJobs.has(guildId)) {
-    scheduledJobs.get(guildId).stop();
-    scheduledJobs.delete(guildId);
+  const key = `wotd:${guildId}`;
+  if (scheduledJobs.has(key)) {
+    scheduledJobs.get(key).stop();
+    scheduledJobs.delete(key);
   }
 
   try {
+    // cron expression: minute hour day month day-of-week
+    const expr = `${minute} ${hour} * * *`; // runs daily at UTC hour:minute
     const job = cron.schedule(
-      `${minute} ${hour} * * *`,
-      async () => await sendWOTDNow(guildId, plugin),
-      { timezone: "UTC" } // always UTC
+      expr,
+      async () => {
+        console.log(`[WOTD] Triggering send for guild ${guildId} (${plugin.language || "japanese"}) at ${plugin.time} UTC`);
+        await sendWOTDNow(guildId, plugin).catch((e) => console.error("[WOTD] send error:", e));
+      },
+      { timezone: "UTC" }
     );
-    scheduledJobs.set(guildId, job);
+    scheduledJobs.set(key, job);
+    console.log(`[WOTD] Scheduled for guild ${guildId} at ${plugin.time} UTC (key=${key})`);
   } catch (err) {
     console.error("🔥 Failed to schedule WOTD:", err);
   }
 }
 
-// --- Send WOTD ---
+// --- Send WOTD Now ---
 async function sendWOTDNow(guildId, plugin) {
   if (!plugin?.enabled) return;
   try {
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) return;
+    if (!guild) {
+      console.warn(`[WOTD] Guild not in cache: ${guildId}`);
+      return;
+    }
     const channel =
       guild.channels.cache.get(plugin.channelId) ||
-      (await guild.channels.fetch(plugin.channelId));
-    if (!channel) return;
-    const me = guild.members.me || (await guild.members.fetch(client.user.id));
-    if (!channel.permissionsFor(me)?.has("SendMessages")) return;
+      (await guild.channels.fetch(plugin.channelId).catch(() => null));
+    if (!channel) {
+      console.warn(`[WOTD] Channel not found for guild ${guildId}: ${plugin.channelId}`);
+      return;
+    }
+    const me = guild.members.me || (await guild.members.fetch(client.user.id).catch(() => null));
+    if (!me || !channel.permissionsFor(me)?.has("SendMessages")) {
+      console.warn(`[WOTD] Missing send permission in ${plugin.channelId} for guild ${guildId}`);
+      return;
+    }
 
+    // Only Japanese for now
     const word = await getRandomWord();
-    if (!word) return;
+    if (!word) {
+      console.warn(`[WOTD] No word available for guild ${guildId}`);
+      return;
+    }
 
     const message = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
@@ -157,6 +187,7 @@ async function sendWOTDNow(guildId, plugin) {
 **English:** ${word.sentenceMeaning}`;
 
     await channel.send(message);
+    console.log(`[WOTD] Sent to guild ${guildId} channel ${plugin.channelId}`);
   } catch (err) {
     console.error("🔥 Error sending WOTD:", err);
   }
@@ -170,15 +201,14 @@ async function handleWelcome(member, plugin) {
     const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch =
       member.guild.channels.cache.get(plugin.channelId) ||
-      (await member.guild.channels.fetch(plugin.channelId));
-    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages"))
-      await ch.send(msg);
+      (await member.guild.channels.fetch(plugin.channelId).catch(() => null));
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
+      await ch.send(msg).catch((e) => console.error("Welcome send error:", e));
+    }
   }
 
   if (plugin.sendInDM && plugin.dmMessage) {
-    await member
-      .send(formatMessage(plugin.dmMessage, member, member.guild))
-      .catch(() => {});
+    await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
   }
 }
 
@@ -189,15 +219,14 @@ async function handleFarewell(member, plugin) {
     const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch =
       member.guild.channels.cache.get(plugin.channelId) ||
-      (await member.guild.channels.fetch(plugin.channelId));
-    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages"))
-      await ch.send(msg);
+      (await member.guild.channels.fetch(plugin.channelId).catch(() => null));
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
+      await ch.send(msg).catch((e) => console.error("Farewell send error:", e));
+    }
   }
 
   if (plugin.sendInDM && plugin.dmMessage) {
-    await member
-      .send(formatMessage(plugin.dmMessage, member, member.guild))
-      .catch(() => {});
+    await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
   }
 }
 
@@ -223,15 +252,24 @@ client.on("guildMemberRemove", async (m) => {
 // --- Bot Ready & Firestore Watch ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
-  db.collection("guilds").onSnapshot((snapshot) => {
-    snapshot.docs.forEach((doc) => {
-      const gid = doc.id;
-      const plugins = doc.data()?.plugins || {};
-      if (plugins.wotd?.enabled) scheduleWordOfTheDay(gid, plugins.wotd);
-      else if (scheduledJobs.has(gid)) {
-        scheduledJobs.get(gid).stop();
-        scheduledJobs.delete(gid);
-      }
+
+  // On start, schedule any existing wotd configs (support both keys)
+  const snapshot = await db.collection("guilds").get();
+  snapshot.docs.forEach((doc) => {
+    const gid = doc.id;
+    const plugins = doc.data()?.plugins || {};
+    // prefer plugins.wotd, fallback to plugins.language (backwards compat)
+    const wotdPlugin = plugins.wotd || plugins.language;
+    if (wotdPlugin?.enabled) scheduleWordOfTheDay(gid, wotdPlugin);
+  });
+
+  // Also listen for live changes and update schedules dynamically
+  db.collection("guilds").onSnapshot((snap) => {
+    snap.docChanges().forEach((change) => {
+      const gid = change.doc.id;
+      const plugins = change.doc.data()?.plugins || {};
+      const wotdPlugin = plugins.wotd || plugins.language;
+      scheduleWordOfTheDay(gid, wotdPlugin);
     });
   });
 });
@@ -246,7 +284,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("sendwotd")
-    .setDescription("Setup Word of the Day")
+    .setDescription("Setup Word of the Day (Japanese only, time is UTC)")
     .addStringOption((o) =>
       o.setName("channel")
         .setDescription("Channel ID or #channel")
@@ -355,13 +393,15 @@ client.on("interactionCreate", async (i) => {
     if (i.commandName === "sendwotd") {
       const channelId = cleanChannelId(i.options.getString("channel"));
       const time = i.options.getString("time");
-      const language = i.options.getString("language");
+      const language = i.options.getString("language") || "japanese";
 
       const p = { channelId, time, language, enabled: true };
+      // Save under plugins.wotd (preferred)
       await db.collection("guilds").doc(gid).set({ plugins: { wotd: p } }, { merge: true });
 
+      // schedule immediately
       scheduleWordOfTheDay(gid, p);
-      await i.reply({ content: "✅ WOTD settings saved!", ephemeral: true });
+      await i.reply({ content: "✅ WOTD settings saved (Japanese). Runs at the UTC time you provided.", ephemeral: true });
     }
 
     if (i.commandName === "sendwelcome") {
@@ -403,8 +443,7 @@ client.on("interactionCreate", async (i) => {
     }
   } catch (err) {
     console.error(err);
-    if (!i.replied)
-      await i.reply({ content: "❌ Something went wrong", ephemeral: true });
+    if (!i.replied) await i.reply({ content: "❌ Something went wrong", ephemeral: true });
   }
 });
 
