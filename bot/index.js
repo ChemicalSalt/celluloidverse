@@ -33,7 +33,7 @@ const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const RANGE = "Sheet1!A:H";
 
-// --- Get Random Word ---
+// --- Get Random Word from Sheet ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -68,21 +68,19 @@ const scheduledJobs = new Map();
 // --- Send WOTD ---
 async function sendWOTDNow(guildId, pluginSettings) {
   if (!pluginSettings?.enabled) return;
+
   try {
     const guild = client.guilds.cache.get(guildId);
-    if (!guild) return console.error("❌ Guild not in cache:", guildId);
+    if (!guild) return;
 
-    let channel = guild.channels.cache.get(pluginSettings.channelId);
-    if (!channel) {
-      try { channel = await guild.channels.fetch(pluginSettings.channelId); }
-      catch (err) { console.error("❌ Failed to fetch channel:", err); return; }
-    }
+    const channel = guild.channels.cache.get(pluginSettings.channelId) || await guild.channels.fetch(pluginSettings.channelId);
+    if (!channel) return;
 
-    const me = guild.members.me || (await guild.members.fetch(client.user.id));
-    if (!channel.permissionsFor(me)?.has("SendMessages")) return console.error("❌ No permission in channel:", pluginSettings.channelId);
+    const me = guild.members.me || await guild.members.fetch(client.user.id);
+    if (!channel.permissionsFor(me)?.has("SendMessages")) return;
 
     const word = await getRandomWord();
-    if (!word) return console.error("❌ No word fetched for guild:", guildId);
+    if (!word) return;
 
     const message = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
@@ -97,7 +95,6 @@ async function sendWOTDNow(guildId, pluginSettings) {
 **English:** ${word.sentenceMeaning}`;
 
     await channel.send(message);
-    console.log(`✅ Sent WOTD to guild ${guildId} in channel ${pluginSettings.channelId}`);
   } catch (err) {
     console.error("🔥 Error in sendWOTDNow:", err);
   }
@@ -119,12 +116,12 @@ function scheduleWordOfTheDay(guildId, pluginSettings) {
   const job = cron.schedule(
     `${minute} ${hour} * * *`,
     async () => await sendWOTDNow(guildId, pluginSettings),
-    { timezone: process.env.CRON_TZ || "Asia/Kolkata" }
+    { timezone: pluginSettings.timezone || "Asia/Kolkata" }
   );
   scheduledJobs.set(guildId, job);
 }
 
-// --- Replace placeholders ---
+// --- Placeholder Replacement ---
 function formatMessage(message, member, guild) {
   if (!message) return "";
   return message
@@ -149,10 +146,9 @@ client.once("ready", async () => {
     snapshot.docs.forEach(doc => {
       const guildId = doc.id;
       const plugins = doc.data()?.plugins;
-      const guild = client.guilds.cache.get(guildId);
-      if (!guild) return;
+      if (!plugins) return;
 
-      if (plugins?.language?.enabled) scheduleWordOfTheDay(guildId, plugins.language);
+      if (plugins.language?.enabled) scheduleWordOfTheDay(guildId, plugins.language);
       else if (scheduledJobs.has(guildId)) {
         scheduledJobs.get(guildId).stop();
         scheduledJobs.delete(guildId);
@@ -161,7 +157,7 @@ client.once("ready", async () => {
   });
 });
 
-// --- Member Join & Leave ---
+// --- Member Join/Leave ---
 client.on("guildMemberAdd", async (member) => {
   try {
     const doc = await db.collection("guilds").doc(member.guild.id).get();
@@ -175,7 +171,7 @@ client.on("guildMemberAdd", async (member) => {
       if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
     }
     if (welcome.dmEnabled && welcome.dmMessage) await member.send(formatMessage(welcome.dmMessage, member, guild));
-  } catch (err) { console.error("🔥 Error in guildMemberAdd:", err); }
+  } catch (err) { console.error(err); }
 });
 
 client.on("guildMemberRemove", async (member) => {
@@ -191,10 +187,10 @@ client.on("guildMemberRemove", async (member) => {
       if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
     }
     if (farewell.dmEnabled && farewell.dmMessage) await member.send(formatMessage(farewell.dmMessage, member, guild));
-  } catch (err) { console.error("🔥 Error in guildMemberRemove:", err); }
+  } catch (err) { console.error(err); }
 });
 
-// --- Slash Commands Registration ---
+// --- Slash Commands ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
   new SlashCommandBuilder().setName("dashboard").setDescription("Open backend dashboard"),
@@ -202,86 +198,95 @@ const commands = [
     .setName("sendwotd")
     .setDescription("Send Word of the Day now")
     .addStringOption(opt => opt.setName("channel").setDescription("Channel ID").setRequired(true))
-    .addStringOption(opt => opt.setName("time").setDescription("HH:MM format").setRequired(false)),
+    .addStringOption(opt => opt.setName("time").setDescription("HH:MM format").setRequired(false))
+    .addStringOption(opt => opt.setName("timezone").setDescription("IANA timezone").setRequired(false)),
   new SlashCommandBuilder()
     .setName("sendwelcome")
     .setDescription("Send Welcome message now")
-    .addStringOption(opt => opt.setName("channel").setDescription("Channel ID").setRequired(true)),
+    .addStringOption(opt => opt.setName("channel").setDescription("Channel ID").setRequired(true))
+    .addStringOption(opt => opt.setName("servermessage").setDescription("Server message").setRequired(false))
+    .addStringOption(opt => opt.setName("dmmessage").setDescription("DM message").setRequired(false)),
   new SlashCommandBuilder()
     .setName("sendfarewell")
     .setDescription("Send Farewell message now")
-    .addStringOption(opt => opt.setName("channel").setDescription("Channel ID").setRequired(true)),
+    .addStringOption(opt => opt.setName("channel").setDescription("Channel ID").setRequired(true))
+    .addStringOption(opt => opt.setName("servermessage").setDescription("Server message").setRequired(false))
+    .addStringOption(opt => opt.setName("dmmessage").setDescription("DM message").setRequired(false)),
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 (async () => {
-  try {
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
-    console.log("✅ Slash commands registered");
-  } catch (err) { console.error("❌ Failed to register slash commands:", err); }
+  try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); console.log("✅ Slash commands registered"); }
+  catch (err) { console.error(err); }
 })();
 
-// --- Interaction Handler ---
+// --- Slash Interaction ---
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isCommand()) return;
-  try {
-    const guildId = interaction.guildId;
-    const doc = await db.collection("guilds").doc(guildId).get();
-    const plugins = doc.data()?.plugins || {};
 
+  const guildId = interaction.guildId;
+  const doc = await db.collection("guilds").doc(guildId).get();
+  const plugins = doc.data()?.plugins || {};
+
+  try {
     if (interaction.commandName === "ping") {
       const statusDoc = await db.collection("botStatus").doc("main").get();
-      if (!statusDoc.exists) return await interaction.reply("Bot status not found");
       const status = statusDoc.data();
       const onlineText = status.online ? "🟢 Online" : "🔴 Offline";
-      await interaction.reply(`**Bot Status:**\nSignal: ${onlineText}\nPing: ${status.ping} ms\nServers: ${status.servers}\nLast Update: ${new Date(status.timestamp).toLocaleString()}`);
+      await interaction.reply(`**Bot Status:** ${onlineText}\nPing: ${status.ping}ms\nServers: ${status.servers}\nLast Update: ${new Date(status.timestamp).toLocaleString()}`);
     }
 
     if (interaction.commandName === "dashboard") {
-      const dashboardURL = "https://celluloidverse-5c0i.onrender.com";
-      const embed = new EmbedBuilder().setTitle("➡ Open Dashboard").setDescription("Click the arrow to access the backend dashboard").setURL(dashboardURL).setColor(0x00FF00);
+      const embed = new EmbedBuilder()
+        .setTitle("➡ Open Dashboard")
+        .setDescription("Click to access backend dashboard")
+        .setURL(process.env.DASHBOARD_URL)
+        .setColor(0x00FF00);
       await interaction.reply({ embeds: [embed], ephemeral: false });
     }
 
-    // --- Send WOTD via Slash and Save Firestore ---
     if (interaction.commandName === "sendwotd") {
       const channelId = interaction.options.getString("channel");
-      const time = interaction.options.getString("time") || "09:00";
-      const pluginSettings = { channelId, time, enabled: true };
+      const time = interaction.options.getString("time");
+      const timezone = interaction.options.getString("timezone");
+      const pluginSettings = { channelId, time, timezone, enabled: true };
       await db.collection("guilds").doc(guildId).set({ plugins: { language: pluginSettings } }, { merge: true });
       scheduleWordOfTheDay(guildId, pluginSettings);
       await sendWOTDNow(guildId, pluginSettings);
       await interaction.reply("✅ Word of the Day sent and settings saved!");
     }
 
-    // --- Send Welcome via Slash ---
     if (interaction.commandName === "sendwelcome") {
       const channelId = interaction.options.getString("channel");
-      const pluginSettings = { channelId, enabled: true, serverMessage: plugins.welcome?.serverMessage || "Welcome {usermention}!" };
+      const serverMessage = interaction.options.getString("servermessage") || plugins.welcome?.serverMessage;
+      const dmMessage = interaction.options.getString("dmmessage") || plugins.welcome?.dmMessage;
+      const pluginSettings = { channelId, serverMessage, dmMessage, enabled: true, dmEnabled: !!dmMessage };
       await db.collection("guilds").doc(guildId).set({ plugins: { welcome: pluginSettings } }, { merge: true });
-      const member = interaction.member;
-      const guild = interaction.guild;
-      const message = formatMessage(pluginSettings.serverMessage, member, guild);
-      const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId);
-      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
+
+      const message = formatMessage(serverMessage, interaction.member, interaction.guild);
+      const channel = interaction.guild.channels.cache.get(channelId) || await interaction.guild.channels.fetch(channelId);
+      if (channel?.permissionsFor(interaction.guild.members.me)?.has("SendMessages")) await channel.send(message);
+      if (dmMessage) await interaction.member.send(formatMessage(dmMessage, interaction.member, interaction.guild));
+
       await interaction.reply("✅ Welcome message sent and settings saved!");
     }
 
-    // --- Send Farewell via Slash ---
     if (interaction.commandName === "sendfarewell") {
       const channelId = interaction.options.getString("channel");
-      const pluginSettings = { channelId, enabled: true, serverMessage: plugins.farewell?.serverMessage || "Goodbye {usermention}!" };
+      const serverMessage = interaction.options.getString("servermessage") || plugins.farewell?.serverMessage;
+      const dmMessage = interaction.options.getString("dmmessage") || plugins.farewell?.dmMessage;
+      const pluginSettings = { channelId, serverMessage, dmMessage, enabled: true, dmEnabled: !!dmMessage };
       await db.collection("guilds").doc(guildId).set({ plugins: { farewell: pluginSettings } }, { merge: true });
-      const member = interaction.member;
-      const guild = interaction.guild;
-      const message = formatMessage(pluginSettings.serverMessage, member, guild);
-      const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId);
-      if (channel?.permissionsFor(guild.members.me)?.has("SendMessages")) await channel.send(message);
+
+      const message = formatMessage(serverMessage, interaction.member, interaction.guild);
+      const channel = interaction.guild.channels.cache.get(channelId) || await interaction.guild.channels.fetch(channelId);
+      if (channel?.permissionsFor(interaction.guild.members.me)?.has("SendMessages")) await channel.send(message);
+      if (dmMessage) await interaction.member.send(formatMessage(dmMessage, interaction.member, interaction.guild));
+
       await interaction.reply("✅ Farewell message sent and settings saved!");
     }
-
   } catch (err) {
-    console.error("🔥 Error handling slash command:", err);
+    console.error(err);
     if (!interaction.replied) await interaction.reply("❌ Something went wrong");
   }
 });
