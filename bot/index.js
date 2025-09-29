@@ -1,10 +1,19 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} = require("discord.js");
 const admin = require("firebase-admin");
 const express = require("express");
 const cron = require("node-cron");
 const { google } = require("googleapis");
 
+// --- Express ---
 const app = express();
 app.use(express.json());
 
@@ -21,13 +30,14 @@ const client = new Client({
 
 // --- Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+if (!admin.apps.length)
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
-// --- Google Sheets ---
+// --- Google Sheets (WOTD) ---
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
-  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+  scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
@@ -36,7 +46,7 @@ const RANGE = "Sheet1!A:H";
 // --- Helpers ---
 function cleanChannelId(id) {
   if (!id) return null;
-  return id.replace(/[^0-9]/g, ""); // remove <#> if user added it
+  return id.replace(/[^0-9]/g, ""); // strip <#>
 }
 
 function formatMessage(msg, member, guild) {
@@ -45,25 +55,43 @@ function formatMessage(msg, member, guild) {
     .replaceAll("{username}", member.user.username)
     .replaceAll("{usermention}", `<@${member.id}>`)
     .replaceAll("{server}", guild.name)
-    .replace(/\{role:([^\}]+)\}/g, (_, r) => { const role = guild.roles.cache.find(x => x.name === r); return role ? `<@&${role.id}>` : r; })
-    .replace(/\{channel:([^\}]+)\}/g, (_, c) => { const ch = guild.channels.cache.find(x => x.name === c); return ch ? `<#${ch.id}>` : c; });
+    .replace(/\{role:([^\}]+)\}/g, (_, r) => {
+      const role = guild.roles.cache.find((x) => x.name === r);
+      return role ? `<@&${role.id}>` : r;
+    })
+    .replace(/\{channel:([^\}]+)\}/g, (_, c) => {
+      const ch = guild.channels.cache.find((x) => x.name === c);
+      return ch ? `<#${ch.id}>` : c;
+    });
 }
 
 // --- Get Random Word ---
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: RANGE, auth: clientSheets });
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: RANGE,
+      auth: clientSheets,
+    });
     const rows = res.data.values || [];
     if (!rows.length) return null;
-    const dataRows = rows.filter(r => r[0] && r[1]);
+    const dataRows = rows.filter((r) => r[0] && r[1]);
     const row = dataRows[Math.floor(Math.random() * dataRows.length)];
     return {
-      kanji: row[0] || "", hiragana: row[1] || "", romaji: row[2] || "",
-      meaning: row[3] || "", sentenceJP: row[4] || "", sentenceHiragana: row[5] || "",
-      sentenceRomaji: row[6] || "", sentenceMeaning: row[7] || ""
+      kanji: row[0] || "",
+      hiragana: row[1] || "",
+      romaji: row[2] || "",
+      meaning: row[3] || "",
+      sentenceJP: row[4] || "",
+      sentenceHiragana: row[5] || "",
+      sentenceRomaji: row[6] || "",
+      sentenceMeaning: row[7] || "",
     };
-  } catch (err) { console.error("🔥 Error fetching from Google Sheets:", err); return null; }
+  } catch (err) {
+    console.error("🔥 Error fetching from Google Sheets:", err);
+    return null;
+  }
 }
 
 // --- Cron Jobs Map ---
@@ -72,18 +100,29 @@ const scheduledJobs = new Map();
 // --- Schedule WOTD ---
 function scheduleWordOfTheDay(guildId, plugin) {
   if (!plugin?.enabled || !plugin.channelId || !plugin.time) {
-    if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
+    if (scheduledJobs.has(guildId)) {
+      scheduledJobs.get(guildId).stop();
+      scheduledJobs.delete(guildId);
+    }
     return;
   }
 
   const [hour, minute] = plugin.time.split(":").map(Number);
-  if (isNaN(hour) || isNaN(minute)) return console.error("❌ Invalid time:", plugin.time);
-  if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
+  if (isNaN(hour) || isNaN(minute))
+    return console.error("❌ Invalid time:", plugin.time);
+
+  if (scheduledJobs.has(guildId)) {
+    scheduledJobs.get(guildId).stop();
+    scheduledJobs.delete(guildId);
+  }
 
   const tz = plugin.timezone || "UTC";
-
   try {
-    const job = cron.schedule(`${minute} ${hour} * * *`, async () => await sendWOTDNow(guildId, plugin), { timezone: tz });
+    const job = cron.schedule(
+      `${minute} ${hour} * * *`,
+      async () => await sendWOTDNow(guildId, plugin),
+      { timezone: tz }
+    );
     scheduledJobs.set(guildId, job);
   } catch (err) {
     console.error("🔥 Failed to schedule WOTD:", err);
@@ -96,12 +135,16 @@ async function sendWOTDNow(guildId, plugin) {
   try {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return;
-    const channel = guild.channels.cache.get(plugin.channelId) || await guild.channels.fetch(plugin.channelId);
+    const channel =
+      guild.channels.cache.get(plugin.channelId) ||
+      (await guild.channels.fetch(plugin.channelId));
     if (!channel) return;
-    const me = guild.members.me || await guild.members.fetch(client.user.id);
+    const me = guild.members.me || (await guild.members.fetch(client.user.id));
     if (!channel.permissionsFor(me)?.has("SendMessages")) return;
+
     const word = await getRandomWord();
     if (!word) return;
+
     const message = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
@@ -113,54 +156,83 @@ async function sendWOTDNow(guildId, plugin) {
 **Hiragana/Katakana:** ${word.sentenceHiragana}
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
+
     await channel.send(message);
-  } catch (err) { console.error("🔥 Error sending WOTD:", err); }
+  } catch (err) {
+    console.error("🔥 Error sending WOTD:", err);
+  }
 }
 
-// --- Member Join/Leave ---
+// --- Welcome/Farewell Handlers ---
 async function handleWelcome(member, plugin) {
   if (!plugin?.enabled) return;
-  const msg = formatMessage(plugin.serverMessage, member, member.guild);
-  if (plugin.channelId) {
-    const ch = member.guild.channels.cache.get(plugin.channelId) || await member.guild.channels.fetch(plugin.channelId);
-    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) await ch.send(msg);
+
+  if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
+    const msg = formatMessage(plugin.serverMessage, member, member.guild);
+    const ch =
+      member.guild.channels.cache.get(plugin.channelId) ||
+      (await member.guild.channels.fetch(plugin.channelId));
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages"))
+      await ch.send(msg);
   }
-  if (plugin.dmEnabled && plugin.dmMessage) await member.send(formatMessage(plugin.dmMessage, member, member.guild));
+
+  if (plugin.sendInDM && plugin.dmMessage) {
+    await member
+      .send(formatMessage(plugin.dmMessage, member, member.guild))
+      .catch(() => {});
+  }
 }
 
 async function handleFarewell(member, plugin) {
   if (!plugin?.enabled) return;
-  const msg = formatMessage(plugin.serverMessage, member, member.guild);
-  if (plugin.channelId) {
-    const ch = member.guild.channels.cache.get(plugin.channelId) || await member.guild.channels.fetch(plugin.channelId);
-    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) await ch.send(msg);
+
+  if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
+    const msg = formatMessage(plugin.serverMessage, member, member.guild);
+    const ch =
+      member.guild.channels.cache.get(plugin.channelId) ||
+      (await member.guild.channels.fetch(plugin.channelId));
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages"))
+      await ch.send(msg);
   }
-  if (plugin.dmEnabled && plugin.dmMessage) await member.send(formatMessage(plugin.dmMessage, member, member.guild));
+
+  if (plugin.sendInDM && plugin.dmMessage) {
+    await member
+      .send(formatMessage(plugin.dmMessage, member, member.guild))
+      .catch(() => {});
+  }
 }
 
-client.on("guildMemberAdd", async m => {
+// --- Events ---
+client.on("guildMemberAdd", async (m) => {
   try {
     const doc = await db.collection("guilds").doc(m.guild.id).get();
     await handleWelcome(m, doc.data()?.plugins?.welcome);
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 });
 
-client.on("guildMemberRemove", async m => {
+client.on("guildMemberRemove", async (m) => {
   try {
     const doc = await db.collection("guilds").doc(m.guild.id).get();
     await handleFarewell(m, doc.data()?.plugins?.farewell);
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 // --- Bot Ready & Firestore Watch ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
-  db.collection("guilds").onSnapshot(snapshot => {
-    snapshot.docs.forEach(doc => {
+  db.collection("guilds").onSnapshot((snapshot) => {
+    snapshot.docs.forEach((doc) => {
       const gid = doc.id;
       const plugins = doc.data()?.plugins || {};
       if (plugins.language?.enabled) scheduleWordOfTheDay(gid, plugins.language);
-      else if (scheduledJobs.has(gid)) { scheduledJobs.get(gid).stop(); scheduledJobs.delete(gid); }
+      else if (scheduledJobs.has(gid)) {
+        scheduledJobs.get(gid).stop();
+        scheduledJobs.delete(gid);
+      }
     });
   });
 });
@@ -168,29 +240,77 @@ client.once("ready", async () => {
 // --- Slash Commands ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
-  new SlashCommandBuilder().setName("dashboard").setDescription("Open dashboard"),
+
   new SlashCommandBuilder()
-    .setName("sendwotd").setDescription("Setup Word of the Day")
-    .addStringOption(o => o.setName("channel").setDescription("Channel for WOTD").setRequired(true))
-    .addStringOption(o => o.setName("time").setDescription("HH:MM 24h format").setRequired(true))
-    .addStringOption(o => o.setName("timezone").setDescription("IANA Timezone").setRequired(false)),
+    .setName("dashboard")
+    .setDescription("Open dashboard"),
+
   new SlashCommandBuilder()
-    .setName("sendwelcome").setDescription("Setup Welcome message")
-    .addStringOption(o => o.setName("channel").setDescription("Channel for welcome").setRequired(false))
-    .addStringOption(o => o.setName("servermessage").setDescription("Server message").setRequired(false))
-    .addStringOption(o => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
+    .setName("sendwotd")
+    .setDescription("Setup Word of the Day")
+    .addStringOption((o) =>
+      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("time").setDescription("HH:MM 24h format").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("timezone").setDescription("IANA Timezone").setRequired(false)
+    ),
+
   new SlashCommandBuilder()
-    .setName("sendfarewell").setDescription("Setup Farewell message")
-    .addStringOption(o => o.setName("channel").setDescription("Channel for farewell").setRequired(false))
-    .addStringOption(o => o.setName("servermessage").setDescription("Server message").setRequired(false))
-    .addStringOption(o => o.setName("dmmessage").setDescription("DM message").setRequired(false))
-].map(c => c.toJSON());
+    .setName("sendwelcome")
+    .setDescription("Setup Welcome message")
+    .addStringOption((o) =>
+      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("servermessage").setDescription("Server message").setRequired(false)
+    )
+    .addStringOption((o) =>
+      o.setName("dmmessage").setDescription("DM message").setRequired(false)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+    ),
+
+  new SlashCommandBuilder()
+    .setName("sendfarewell")
+    .setDescription("Setup Farewell message")
+    .addStringOption((o) =>
+      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("servermessage").setDescription("Server message").setRequired(false)
+    )
+    .addStringOption((o) =>
+      o.setName("dmmessage").setDescription("DM message").setRequired(false)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+    ),
+].map((c) => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-(async () => { try { await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands }); console.log("✅ Slash commands registered"); } catch (err) { console.error(err); } })();
+(async () => {
+  try {
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: commands,
+    });
+    console.log("✅ Slash commands registered");
+  } catch (err) {
+    console.error(err);
+  }
+})();
 
 // --- Slash Interaction ---
-client.on("interactionCreate", async i => {
+client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
   const gid = i.guildId;
   const doc = await db.collection("guilds").doc(gid).get();
@@ -198,12 +318,20 @@ client.on("interactionCreate", async i => {
 
   try {
     if (i.commandName === "ping") {
-      const s = (await db.collection("botStatus").doc("main").get()).data();
-      await i.reply(`**Bot Status:** ${s.online ? "🟢 Online" : "🔴 Offline"}\nPing: ${s.ping}ms\nServers: ${s.servers}\nLast Update: ${new Date(s.timestamp).toLocaleString()}`);
+      await i.reply("🏓 Pong!");
     }
 
     if (i.commandName === "dashboard") {
-      await i.reply({ embeds: [new EmbedBuilder().setTitle("➡ Open Dashboard").setDescription("Click to access backend dashboard").setURL(process.env.DASHBOARD_URL).setColor(0x00FF00)], ephemeral: true });
+      await i.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("➡ Open Dashboard")
+            .setDescription("Click to access backend dashboard")
+            .setURL(process.env.DASHBOARD_URL)
+            .setColor(0x00ff00),
+        ],
+        ephemeral: true,
+      });
     }
 
     if (i.commandName === "sendwotd") {
@@ -218,26 +346,46 @@ client.on("interactionCreate", async i => {
     }
 
     if (i.commandName === "sendwelcome") {
-      const channelId = cleanChannelId(i.options.getString("channel")) || plugins.welcome?.channelId;
+      const channelId = cleanChannelId(i.options.getString("channel"));
       const serverMsg = i.options.getString("servermessage") || plugins.welcome?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.welcome?.dmMessage;
-      const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
+      const sendInServer = i.options.getBoolean("send_in_server");
+      const sendInDM = i.options.getBoolean("send_in_dm");
+
+      const p = {
+        channelId,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
       await db.collection("guilds").doc(gid).set({ plugins: { welcome: p } }, { merge: true });
       await i.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
     }
 
     if (i.commandName === "sendfarewell") {
-      const channelId = cleanChannelId(i.options.getString("channel")) || plugins.farewell?.channelId;
+      const channelId = cleanChannelId(i.options.getString("channel"));
       const serverMsg = i.options.getString("servermessage") || plugins.farewell?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.farewell?.dmMessage;
-      const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
+      const sendInServer = i.options.getBoolean("send_in_server");
+      const sendInDM = i.options.getBoolean("send_in_dm");
+
+      const p = {
+        channelId,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
       await db.collection("guilds").doc(gid).set({ plugins: { farewell: p } }, { merge: true });
       await i.reply({ content: "✅ Farewell settings saved!", ephemeral: true });
     }
-
   } catch (err) {
     console.error(err);
-    if (!i.replied) await i.reply({ content: "❌ Something went wrong", ephemeral: true });
+    if (!i.replied)
+      await i.reply({ content: "❌ Something went wrong", ephemeral: true });
   }
 });
 
