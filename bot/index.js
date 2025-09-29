@@ -116,12 +116,11 @@ function scheduleWordOfTheDay(guildId, plugin) {
     scheduledJobs.delete(guildId);
   }
 
-  const tz = plugin.timezone || "UTC";
   try {
     const job = cron.schedule(
       `${minute} ${hour} * * *`,
       async () => await sendWOTDNow(guildId, plugin),
-      { timezone: tz }
+      { timezone: "UTC" } // always UTC
     );
     scheduledJobs.set(guildId, job);
   } catch (err) {
@@ -228,7 +227,7 @@ client.once("ready", async () => {
     snapshot.docs.forEach((doc) => {
       const gid = doc.id;
       const plugins = doc.data()?.plugins || {};
-      if (plugins.language?.enabled) scheduleWordOfTheDay(gid, plugins.language);
+      if (plugins.wotd?.enabled) scheduleWordOfTheDay(gid, plugins.wotd);
       else if (scheduledJobs.has(gid)) {
         scheduledJobs.get(gid).stop();
         scheduledJobs.delete(gid);
@@ -249,72 +248,71 @@ const commands = [
     .setName("sendwotd")
     .setDescription("Setup Word of the Day")
     .addStringOption((o) =>
-      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+      o.setName("channel")
+        .setDescription("Channel ID or #channel")
+        .setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("time").setDescription("HH:MM 24h format").setRequired(true)
+      o.setName("time")
+        .setDescription("HH:MM 24h format (UTC)")
+        .setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("timezone").setDescription("IANA Timezone").setRequired(false)
+      o.setName("language")
+        .setDescription("Pick language for Word of the Day")
+        .setRequired(true)
+        .addChoices({ name: "Japanese", value: "japanese" })
     ),
-new SlashCommandBuilder()
-  .setName("sendwelcome")
-  .setDescription("Setup Welcome message")
-  .addStringOption((o) =>
-    o.setName("channel")
-     .setDescription("Channel ID or #channel")
-     .setRequired(true)
-  )
-  .addBooleanOption((o) =>
-    o.setName("send_in_server")
-     .setDescription("Send in server?")
-     .setRequired(true)
-  )
-  .addBooleanOption((o) =>
-    o.setName("send_in_dm")
-     .setDescription("Send in DMs?")
-     .setRequired(true)
-  )
-  .addStringOption((o) =>
-    o.setName("servermessage")
-     .setDescription("Server message (use {username}, {usermention}, {server}, {role:Name}, {channel:Name})")
-     .setRequired(false)
-  )
-  .addStringOption((o) =>
-    o.setName("dmmessage")
-     .setDescription("DM message (same placeholders allowed)")
-     .setRequired(false)
-  ),
 
-new SlashCommandBuilder()
-  .setName("sendfarewell")
-  .setDescription("Setup Farewell message")
-  .addStringOption((o) =>
-    o.setName("channel")
-     .setDescription("Channel ID or #channel")
-     .setRequired(true)
-  )
-  .addBooleanOption((o) =>
-    o.setName("send_in_server")
-     .setDescription("Send in server?")
-     .setRequired(true)
-  )
-  .addBooleanOption((o) =>
-    o.setName("send_in_dm")
-     .setDescription("Send in DMs?")
-     .setRequired(true)
-  )
-  .addStringOption((o) =>
-    o.setName("servermessage")
-     .setDescription("Server message (use {username}, {usermention}, {server}, {role:Name}, {channel:Name})")
-     .setRequired(false)
-  )
-  .addStringOption((o) =>
-    o.setName("dmmessage")
-     .setDescription("DM message (same placeholders allowed)")
-     .setRequired(false)
-  ),
+  new SlashCommandBuilder()
+    .setName("sendwelcome")
+    .setDescription("Setup Welcome message")
+    .addStringOption((o) =>
+      o.setName("channel")
+        .setDescription("Channel ID or #channel")
+        .setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("servermessage")
+        .setDescription("Server message (use placeholders)")
+        .setRequired(false)
+    )
+    .addStringOption((o) =>
+      o.setName("dmmessage")
+        .setDescription("DM message (use placeholders)")
+        .setRequired(false)
+    ),
 
+  new SlashCommandBuilder()
+    .setName("sendfarewell")
+    .setDescription("Setup Farewell message")
+    .addStringOption((o) =>
+      o.setName("channel")
+        .setDescription("Channel ID or #channel")
+        .setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
+    )
+    .addBooleanOption((o) =>
+      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("servermessage")
+        .setDescription("Server message (use placeholders)")
+        .setRequired(false)
+    )
+    .addStringOption((o) =>
+      o.setName("dmmessage")
+        .setDescription("DM message (use placeholders)")
+        .setRequired(false)
+    ),
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -357,12 +355,13 @@ client.on("interactionCreate", async (i) => {
     if (i.commandName === "sendwotd") {
       const channelId = cleanChannelId(i.options.getString("channel"));
       const time = i.options.getString("time");
-      const tz = i.options.getString("timezone") || "UTC";
-      const p = { channelId, time, timezone: tz, enabled: true };
-      await db.collection("guilds").doc(gid).set({ plugins: { language: p } }, { merge: true });
+      const language = i.options.getString("language");
+
+      const p = { channelId, time, language, enabled: true };
+      await db.collection("guilds").doc(gid).set({ plugins: { wotd: p } }, { merge: true });
+
       scheduleWordOfTheDay(gid, p);
       await i.reply({ content: "✅ WOTD settings saved!", ephemeral: true });
-      await sendWOTDNow(gid, p);
     }
 
     if (i.commandName === "sendwelcome") {
