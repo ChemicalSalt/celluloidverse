@@ -39,6 +39,16 @@ function cleanChannelId(id) {
   return id.replace(/[^0-9]/g, ""); // remove <#> if user added it
 }
 
+function formatMessage(msg, member, guild) {
+  if (!msg) return "";
+  return msg
+    .replaceAll("{username}", member.user.username)
+    .replaceAll("{usermention}", `<@${member.id}>`)
+    .replaceAll("{server}", guild.name)
+    .replace(/\{role:([^\}]+)\}/g, (_, r) => { const role = guild.roles.cache.find(x => x.name === r); return role ? `<@&${role.id}>` : r; })
+    .replace(/\{channel:([^\}]+)\}/g, (_, c) => { const ch = guild.channels.cache.find(x => x.name === c); return ch ? `<#${ch.id}>` : c; });
+}
+
 // --- Get Random Word ---
 async function getRandomWord() {
   try {
@@ -59,13 +69,34 @@ async function getRandomWord() {
 // --- Cron Jobs Map ---
 const scheduledJobs = new Map();
 
+// --- Schedule WOTD ---
+function scheduleWordOfTheDay(guildId, plugin) {
+  if (!plugin?.enabled || !plugin.channelId || !plugin.time) {
+    if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
+    return;
+  }
+
+  const [hour, minute] = plugin.time.split(":").map(Number);
+  if (isNaN(hour) || isNaN(minute)) return console.error("❌ Invalid time:", plugin.time);
+  if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
+
+  const tz = plugin.timezone || "UTC";
+
+  try {
+    const job = cron.schedule(`${minute} ${hour} * * *`, async () => await sendWOTDNow(guildId, plugin), { timezone: tz });
+    scheduledJobs.set(guildId, job);
+  } catch (err) {
+    console.error("🔥 Failed to schedule WOTD:", err);
+  }
+}
+
 // --- Send WOTD ---
-async function sendWOTDNow(guildId, pluginSettings) {
-  if (!pluginSettings?.enabled) return;
+async function sendWOTDNow(guildId, plugin) {
+  if (!plugin?.enabled) return;
   try {
     const guild = client.guilds.cache.get(guildId);
     if (!guild) return;
-    const channel = guild.channels.cache.get(pluginSettings.channelId) || await guild.channels.fetch(pluginSettings.channelId);
+    const channel = guild.channels.cache.get(plugin.channelId) || await guild.channels.fetch(plugin.channelId);
     if (!channel) return;
     const me = guild.members.me || await guild.members.fetch(client.user.id);
     if (!channel.permissionsFor(me)?.has("SendMessages")) return;
@@ -83,96 +114,74 @@ async function sendWOTDNow(guildId, pluginSettings) {
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
     await channel.send(message);
-  } catch (err) { console.error("🔥 Error in sendWOTDNow:", err); }
+  } catch (err) { console.error("🔥 Error sending WOTD:", err); }
 }
 
-// --- Schedule WOTD ---
-function scheduleWordOfTheDay(guildId, pluginSettings) {
-  if (!pluginSettings?.enabled || !pluginSettings.channelId || !pluginSettings.time) {
-    if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
-    return;
+// --- Member Join/Leave ---
+async function handleWelcome(member, plugin) {
+  if (!plugin?.enabled) return;
+  const msg = formatMessage(plugin.serverMessage, member, member.guild);
+  if (plugin.channelId) {
+    const ch = member.guild.channels.cache.get(plugin.channelId) || await member.guild.channels.fetch(plugin.channelId);
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) await ch.send(msg);
   }
+  if (plugin.dmEnabled && plugin.dmMessage) await member.send(formatMessage(plugin.dmMessage, member, member.guild));
+}
 
-  const [hour, minute] = pluginSettings.time.split(":").map(Number);
-  if (isNaN(hour) || isNaN(minute)) return console.error("❌ Invalid WOTD time:", pluginSettings.time);
-  if (scheduledJobs.has(guildId)) { scheduledJobs.get(guildId).stop(); scheduledJobs.delete(guildId); }
+async function handleFarewell(member, plugin) {
+  if (!plugin?.enabled) return;
+  const msg = formatMessage(plugin.serverMessage, member, member.guild);
+  if (plugin.channelId) {
+    const ch = member.guild.channels.cache.get(plugin.channelId) || await member.guild.channels.fetch(plugin.channelId);
+    if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) await ch.send(msg);
+  }
+  if (plugin.dmEnabled && plugin.dmMessage) await member.send(formatMessage(plugin.dmMessage, member, member.guild));
+}
 
-  const tz = pluginSettings.timezone || "UTC"; // default fallback
-
+client.on("guildMemberAdd", async m => {
   try {
-    const job = cron.schedule(
-      `${minute} ${hour} * * *`,
-      async () => await sendWOTDNow(guildId, pluginSettings),
-      { timezone: tz }
-    );
-    scheduledJobs.set(guildId, job);
-  } catch (err) {
-    console.error("🔥 Failed to schedule WOTD:", err, "Timezone:", tz);
-  }
-}
+    const doc = await db.collection("guilds").doc(m.guild.id).get();
+    await handleWelcome(m, doc.data()?.plugins?.welcome);
+  } catch (err) { console.error(err); }
+});
 
-// --- Placeholder Replacement ---
-function formatMessage(msg, member, guild) {
-  if (!msg) return "";
-  return msg
-    .replaceAll("{username}", member.user.username)
-    .replaceAll("{usermention}", `<@${member.id}>`)
-    .replaceAll("{server}", guild.name)
-    .replace(/\{role:([^\}]+)\}/g, (_, r) => { const role = guild.roles.cache.find(x => x.name === r); return role ? `<@&${role.id}>` : r; })
-    .replace(/\{channel:([^\}]+)\}/g, (_, c) => { const ch = guild.channels.cache.find(x => x.name === c); return ch ? `<#${ch.id}>` : c; });
-}
+client.on("guildMemberRemove", async m => {
+  try {
+    const doc = await db.collection("guilds").doc(m.guild.id).get();
+    await handleFarewell(m, doc.data()?.plugins?.farewell);
+  } catch (err) { console.error(err); }
+});
 
-// --- Bot Ready & Firestore Listener ---
+// --- Bot Ready & Firestore Watch ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
   db.collection("guilds").onSnapshot(snapshot => {
     snapshot.docs.forEach(doc => {
       const gid = doc.id;
-      const plugins = doc.data()?.plugins;
-      if (!plugins) return;
+      const plugins = doc.data()?.plugins || {};
       if (plugins.language?.enabled) scheduleWordOfTheDay(gid, plugins.language);
       else if (scheduledJobs.has(gid)) { scheduledJobs.get(gid).stop(); scheduledJobs.delete(gid); }
     });
   });
 });
 
-// --- Member Join/Leave ---
-client.on("guildMemberAdd", async m => {
-  try {
-    const doc = await db.collection("guilds").doc(m.guild.id).get();
-    const w = doc.data()?.plugins?.welcome; if (!w?.enabled) return;
-    const msg = formatMessage(w.serverMessage, m, m.guild);
-    if (w.channelId) { const ch = m.guild.channels.cache.get(w.channelId) || await m.guild.channels.fetch(w.channelId); if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg); }
-    if (w.dmEnabled && w.dmMessage) await m.send(formatMessage(w.dmMessage, m, m.guild));
-  } catch (err) { console.error(err); }
-});
-client.on("guildMemberRemove", async m => {
-  try {
-    const doc = await db.collection("guilds").doc(m.guild.id).get();
-    const f = doc.data()?.plugins?.farewell; if (!f?.enabled) return;
-    const msg = formatMessage(f.serverMessage, m, m.guild);
-    if (f.channelId) { const ch = m.guild.channels.cache.get(f.channelId) || await m.guild.channels.fetch(f.channelId); if (ch?.permissionsFor(m.guild.members.me)?.has("SendMessages")) await ch.send(msg); }
-    if (f.dmEnabled && f.dmMessage) await m.send(formatMessage(f.dmMessage, m, m.guild));
-  } catch (err) { console.error(err); }
-});
-
 // --- Slash Commands ---
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
-  new SlashCommandBuilder().setName("dashboard").setDescription("Open backend dashboard"),
+  new SlashCommandBuilder().setName("dashboard").setDescription("Open dashboard"),
   new SlashCommandBuilder()
-    .setName("sendwotd").setDescription("Send Word of the Day now")
-    .addStringOption(o => o.setName("channel").setDescription("Channel ID").setRequired(true))
-    .addStringOption(o => o.setName("time").setDescription("HH:MM format").setRequired(false))
-    .addStringOption(o => o.setName("timezone").setDescription("IANA timezone").setRequired(false)),
+    .setName("sendwotd").setDescription("Setup Word of the Day")
+    .addStringOption(o => o.setName("channel").setDescription("Channel for WOTD").setRequired(true))
+    .addStringOption(o => o.setName("time").setDescription("HH:MM 24h format").setRequired(true))
+    .addStringOption(o => o.setName("timezone").setDescription("IANA Timezone").setRequired(false)),
   new SlashCommandBuilder()
-    .setName("sendwelcome").setDescription("Send Welcome message now")
-    .addStringOption(o => o.setName("channel").setDescription("Channel ID").setRequired(true))
+    .setName("sendwelcome").setDescription("Setup Welcome message")
+    .addStringOption(o => o.setName("channel").setDescription("Channel for welcome").setRequired(false))
     .addStringOption(o => o.setName("servermessage").setDescription("Server message").setRequired(false))
     .addStringOption(o => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
   new SlashCommandBuilder()
-    .setName("sendfarewell").setDescription("Send Farewell message now")
-    .addStringOption(o => o.setName("channel").setDescription("Channel ID").setRequired(true))
+    .setName("sendfarewell").setDescription("Setup Farewell message")
+    .addStringOption(o => o.setName("channel").setDescription("Channel for farewell").setRequired(false))
     .addStringOption(o => o.setName("servermessage").setDescription("Server message").setRequired(false))
     .addStringOption(o => o.setName("dmmessage").setDescription("DM message").setRequired(false))
 ].map(c => c.toJSON());
@@ -183,7 +192,7 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 // --- Slash Interaction ---
 client.on("interactionCreate", async i => {
   if (!i.isCommand()) return;
-  const gid = i.guildId; 
+  const gid = i.guildId;
   const doc = await db.collection("guilds").doc(gid).get();
   const plugins = doc.data()?.plugins || {};
 
@@ -194,56 +203,40 @@ client.on("interactionCreate", async i => {
     }
 
     if (i.commandName === "dashboard") {
-      await i.reply({ embeds: [new EmbedBuilder().setTitle("➡ Open Dashboard").setDescription("Click to access backend dashboard").setURL(process.env.DASHBOARD_URL).setColor(0x00FF00)], ephemeral: false });
+      await i.reply({ embeds: [new EmbedBuilder().setTitle("➡ Open Dashboard").setDescription("Click to access backend dashboard").setURL(process.env.DASHBOARD_URL).setColor(0x00FF00)], ephemeral: true });
     }
 
     if (i.commandName === "sendwotd") {
       const channelId = cleanChannelId(i.options.getString("channel"));
       const time = i.options.getString("time");
-      const tz = i.options.getString("timezone");
+      const tz = i.options.getString("timezone") || "UTC";
       const p = { channelId, time, timezone: tz, enabled: true };
       await db.collection("guilds").doc(gid).set({ plugins: { language: p } }, { merge: true });
       scheduleWordOfTheDay(gid, p);
-
-      // Reply first
-      await i.reply({ content: "✅ Word of the Day scheduled and settings saved!", ephemeral: true });
+      await i.reply({ content: "✅ WOTD settings saved!", ephemeral: true });
       await sendWOTDNow(gid, p);
     }
 
     if (i.commandName === "sendwelcome") {
-      const channelId = cleanChannelId(i.options.getString("channel"));
+      const channelId = cleanChannelId(i.options.getString("channel")) || plugins.welcome?.channelId;
       const serverMsg = i.options.getString("servermessage") || plugins.welcome?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.welcome?.dmMessage;
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
       await db.collection("guilds").doc(gid).set({ plugins: { welcome: p } }, { merge: true });
-
-      // Reply first
-      await i.reply({ content: "✅ Welcome message settings saved!", ephemeral: true });
-
-      const msg = formatMessage(serverMsg, i.member, i.guild);
-      const ch = i.guild.channels.cache.get(channelId) || await i.guild.channels.fetch(channelId);
-      if (ch?.permissionsFor(i.guild.members.me)?.has("SendMessages")) await ch.send(msg);
-      if (dmMsg) await i.member.send(formatMessage(dmMsg, i.member, i.guild));
+      await i.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
     }
 
     if (i.commandName === "sendfarewell") {
-      const channelId = cleanChannelId(i.options.getString("channel"));
+      const channelId = cleanChannelId(i.options.getString("channel")) || plugins.farewell?.channelId;
       const serverMsg = i.options.getString("servermessage") || plugins.farewell?.serverMessage;
       const dmMsg = i.options.getString("dmmessage") || plugins.farewell?.dmMessage;
       const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, dmEnabled: !!dmMsg };
       await db.collection("guilds").doc(gid).set({ plugins: { farewell: p } }, { merge: true });
-
-      // Reply first
-      await i.reply({ content: "✅ Farewell message settings saved!", ephemeral: true });
-
-      const msg = formatMessage(serverMsg, i.member, i.guild);
-      const ch = i.guild.channels.cache.get(channelId) || await i.guild.channels.fetch(channelId);
-      if (ch?.permissionsFor(i.guild.members.me)?.has("SendMessages")) await ch.send(msg);
-      if (dmMsg) await i.member.send(formatMessage(dmMsg, i.member, i.guild));
+      await i.reply({ content: "✅ Farewell settings saved!", ephemeral: true });
     }
 
-  } catch (err) { 
-    console.error(err); 
+  } catch (err) {
+    console.error(err);
     if (!i.replied) await i.reply({ content: "❌ Something went wrong", ephemeral: true });
   }
 });
