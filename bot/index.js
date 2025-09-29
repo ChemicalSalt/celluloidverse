@@ -257,44 +257,64 @@ const commands = [
     .addStringOption((o) =>
       o.setName("timezone").setDescription("IANA Timezone").setRequired(false)
     ),
+new SlashCommandBuilder()
+  .setName("sendwelcome")
+  .setDescription("Setup Welcome message")
+  .addStringOption((o) =>
+    o.setName("channel")
+     .setDescription("Channel ID or #channel")
+     .setRequired(true)
+  )
+  .addBooleanOption((o) =>
+    o.setName("send_in_server")
+     .setDescription("Send in server?")
+     .setRequired(true)
+  )
+  .addBooleanOption((o) =>
+    o.setName("send_in_dm")
+     .setDescription("Send in DMs?")
+     .setRequired(true)
+  )
+  .addStringOption((o) =>
+    o.setName("servermessage")
+     .setDescription("Server message (use {username}, {usermention}, {server}, {role:Name}, {channel:Name})")
+     .setRequired(false)
+  )
+  .addStringOption((o) =>
+    o.setName("dmmessage")
+     .setDescription("DM message (same placeholders allowed)")
+     .setRequired(false)
+  ),
 
-  new SlashCommandBuilder()
-    .setName("sendwelcome")
-    .setDescription("Setup Welcome message")
-    .addStringOption((o) =>
-      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message").setRequired(false)
-    )
-    .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message").setRequired(false)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
-    ),
+new SlashCommandBuilder()
+  .setName("sendfarewell")
+  .setDescription("Setup Farewell message")
+  .addStringOption((o) =>
+    o.setName("channel")
+     .setDescription("Channel ID or #channel")
+     .setRequired(true)
+  )
+  .addBooleanOption((o) =>
+    o.setName("send_in_server")
+     .setDescription("Send in server?")
+     .setRequired(true)
+  )
+  .addBooleanOption((o) =>
+    o.setName("send_in_dm")
+     .setDescription("Send in DMs?")
+     .setRequired(true)
+  )
+  .addStringOption((o) =>
+    o.setName("servermessage")
+     .setDescription("Server message (use {username}, {usermention}, {server}, {role:Name}, {channel:Name})")
+     .setRequired(false)
+  )
+  .addStringOption((o) =>
+    o.setName("dmmessage")
+     .setDescription("DM message (same placeholders allowed)")
+     .setRequired(false)
+  ),
 
-  new SlashCommandBuilder()
-    .setName("sendfarewell")
-    .setDescription("Setup Farewell message")
-    .addStringOption((o) =>
-      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message").setRequired(false)
-    )
-    .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message").setRequired(false)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DMs?").setRequired(true)
-    ),
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
