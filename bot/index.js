@@ -1,3 +1,4 @@
+// index.js (final)
 require("dotenv").config();
 const {
   Client,
@@ -28,13 +29,14 @@ const client = new Client({
   partials: [Partials.GuildMember],
 });
 
-// --- Firebase ---
+// --- Firebase (admin) ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-if (!admin.apps.length)
+if (!admin.apps.length) {
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+}
 const db = admin.firestore();
 
-// --- Google Sheets (WOTD) ---
+// --- Google Sheets (Japanese WOTD) ---
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
@@ -94,13 +96,14 @@ async function getRandomWord() {
   }
 }
 
-// --- Cron Jobs Map ---
+// --- Cron Jobs Map (key: wotd:<guildId>) ---
 const scheduledJobs = new Map();
 
 // --- Schedule WOTD ---
 function scheduleWordOfTheDay(guildId, plugin) {
   const key = `wotd:${guildId}`;
 
+  // plugin may be null/undefined
   if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
     if (scheduledJobs.has(key)) {
       scheduledJobs.get(key).stop();
@@ -110,31 +113,35 @@ function scheduleWordOfTheDay(guildId, plugin) {
     return;
   }
 
+  // parse time HH:MM
   const parts = (plugin.time || "").split(":").map((s) => Number(s));
   if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
     return console.error(`[WOTD] ⚠ Invalid time for guild ${guildId}:`, plugin.time);
   }
   const [hour, minute] = parts;
 
+  // remove old job
   if (scheduledJobs.has(key)) {
     scheduledJobs.get(key).stop();
     scheduledJobs.delete(key);
   }
 
   try {
-    const expr = `${minute} ${hour} * * *`; // UTC time
+    const expr = `${minute} ${hour} * * *`; // runs daily at UTC hour:minute
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[WOTD] ⚡ Triggering send for guild ${guildId}`);
-        await sendWOTDNow(guildId, plugin).catch((e) =>
-          console.error("[WOTD] send error:", e)
-        );
+        console.log(`[WOTD] ⚡ Triggering send for guild ${guildId} at ${plugin.time} UTC`);
+        try {
+          await sendWOTDNow(guildId, plugin);
+        } catch (e) {
+          console.error("[WOTD] send error:", e);
+        }
       },
       { timezone: "UTC" }
     );
     scheduledJobs.set(key, job);
-    console.log(`[WOTD] ✅ Scheduled for guild ${guildId} at ${plugin.time} UTC`);
+    console.log(`[WOTD] ✅ Scheduled for guild ${guildId} at ${plugin.time} UTC (key=${key})`);
   } catch (err) {
     console.error("🔥 Failed to schedule WOTD:", err);
   }
@@ -179,7 +186,7 @@ async function sendWOTDNow(guildId, plugin) {
   }
 }
 
-// --- Welcome/Farewell Handlers ---
+// --- Welcome / Farewell Handlers ---
 async function handleWelcome(member, plugin) {
   if (!plugin?.enabled) return;
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
@@ -212,32 +219,50 @@ async function handleFarewell(member, plugin) {
   }
 }
 
-// --- Events ---
+// --- Events: member join/leave ---
 client.on("guildMemberAdd", async (m) => {
-  const doc = await db.collection("guilds").doc(m.guild.id).get();
-  await handleWelcome(m, doc.data()?.plugins?.welcome);
-});
-client.on("guildMemberRemove", async (m) => {
-  const doc = await db.collection("guilds").doc(m.guild.id).get();
-  await handleFarewell(m, doc.data()?.plugins?.farewell);
+  try {
+    const doc = await db.collection("guilds").doc(m.guild.id).get();
+    await handleWelcome(m, doc.data()?.plugins?.welcome);
+  } catch (err) {
+    console.error(err);
+  }
 });
 
-// --- Bot Ready ---
+client.on("guildMemberRemove", async (m) => {
+  try {
+    const doc = await db.collection("guilds").doc(m.guild.id).get();
+    await handleFarewell(m, doc.data()?.plugins?.farewell);
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+// --- Bot ready: schedule existing language configs & watch for changes ---
 client.once("ready", async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
 
-  const snapshot = await db.collection("guilds").get();
-  snapshot.docs.forEach((doc) => {
-    const gid = doc.id;
-    const plugins = doc.data()?.plugins || {};
-    if (plugins.language?.enabled) scheduleWordOfTheDay(gid, plugins.language);
-  });
+  // On startup, schedule existing language configs
+  try {
+    const snapshot = await db.collection("guilds").get();
+    snapshot.docs.forEach((doc) => {
+      const gid = doc.id;
+      const plugins = doc.data()?.plugins || {};
+      // prefer plugins.language, fallback to plugins.wotd (backwards compat)
+      const lang = plugins.language || plugins.wotd;
+      if (lang?.enabled) scheduleWordOfTheDay(gid, lang);
+    });
+  } catch (err) {
+    console.error("🔥 Error loading guild configs on startup:", err);
+  }
 
+  // Live watcher: when guild docs change, reschedule
   db.collection("guilds").onSnapshot((snap) => {
     snap.docChanges().forEach((change) => {
       const gid = change.doc.id;
       const plugins = change.doc.data()?.plugins || {};
-      scheduleWordOfTheDay(gid, plugins.language);
+      const lang = plugins.language || plugins.wotd;
+      scheduleWordOfTheDay(gid, lang);
     });
   });
 });
@@ -246,58 +271,40 @@ client.once("ready", async () => {
 const commands = [
   new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
   new SlashCommandBuilder().setName("dashboard").setDescription("Open dashboard"),
+
   new SlashCommandBuilder()
     .setName("sendwotd")
-    .setDescription("Setup Word of the Day")
+    .setDescription("Setup Word of the Day (Japanese only, UTC time)")
     .addStringOption((o) =>
       o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
     )
     .addStringOption((o) =>
-      o.setName("time").setDescription("HH:MM 24h UTC").setRequired(true)
+      o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true)
     )
     .addStringOption((o) =>
-      o
-        .setName("language")
-        .setDescription("Pick language")
-        .setRequired(true)
-        .addChoices({ name: "Japanese", value: "japanese" })
+      o.setName("language").setDescription("Pick language").setRequired(true).addChoices({
+        name: "Japanese",
+        value: "japanese",
+      })
     ),
+
   new SlashCommandBuilder()
     .setName("sendwelcome")
     .setDescription("Setup Welcome message")
-    .addStringOption((o) =>
-      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message").setRequired(false)
-    )
-    .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message").setRequired(false)
-    ),
+    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
+    .addBooleanOption((o) => o.setName("send_in_server").setDescription("Send in server?").setRequired(true))
+    .addBooleanOption((o) => o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
+    .addStringOption((o) => o.setName("servermessage").setDescription("Server message").setRequired(false))
+    .addStringOption((o) => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
+
   new SlashCommandBuilder()
     .setName("sendfarewell")
     .setDescription("Setup Farewell message")
-    .addStringOption((o) =>
-      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_server").setDescription("Send in server?").setRequired(true)
-    )
-    .addBooleanOption((o) =>
-      o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true)
-    )
-    .addStringOption((o) =>
-      o.setName("servermessage").setDescription("Server message").setRequired(false)
-    )
-    .addStringOption((o) =>
-      o.setName("dmmessage").setDescription("DM message").setRequired(false)
-    ),
+    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
+    .addBooleanOption((o) => o.setName("send_in_server").setDescription("Send in server?").setRequired(true))
+    .addBooleanOption((o) => o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
+    .addStringOption((o) => o.setName("servermessage").setDescription("Server message").setRequired(false))
+    .addStringOption((o) => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -306,24 +313,26 @@ const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
     await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
     console.log("✅ Slash commands registered");
   } catch (err) {
-    console.error(err);
+    console.error("🔥 Slash registration error:", err);
   }
 })();
 
-// --- Slash Interactions ---
+// --- Slash Interaction Handler ---
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
   const gid = i.guildId;
-  const doc = await db.collection("guilds").doc(gid).get();
-  const plugins = doc.data()?.plugins || {};
+
+  // load the guild plugins (if any)
+  const docSnap = await db.collection("guilds").doc(gid).get();
+  const plugins = docSnap.exists ? (docSnap.data()?.plugins || {}) : {};
 
   try {
     if (i.commandName === "ping") {
-      await i.reply("🏓 Pong!");
+      return i.reply("🏓 Pong!");
     }
 
     if (i.commandName === "dashboard") {
-      await i.reply({
+      return i.reply({
         embeds: [
           new EmbedBuilder()
             .setTitle("➡ Open Dashboard")
@@ -342,16 +351,22 @@ client.on("interactionCreate", async (i) => {
 
       const p = { channelId, time, language, enabled: true };
 
+      // save under plugins.language (merge with existing plugins)
       await db.collection("guilds").doc(gid).set(
         { plugins: { ...plugins, language: p } },
         { merge: true }
       );
 
+      // schedule now and also attempt immediate send so user can verify
       scheduleWordOfTheDay(gid, p);
-      await i.reply({
-        content: `✅ WOTD saved. Runs daily at ${time} UTC.`,
-        ephemeral: true,
-      });
+      try {
+        await sendWOTDNow(gid, p);
+      } catch (err) {
+        // if immediate send fails, scheduling will handle future sends
+        console.warn("[WOTD] immediate send failed (will rely on scheduled job):", err);
+      }
+
+      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC. Sent a test now (if permitted).`, ephemeral: true });
     }
 
     if (i.commandName === "sendwelcome") {
@@ -368,7 +383,7 @@ client.on("interactionCreate", async (i) => {
         { merge: true }
       );
 
-      await i.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
+      return i.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
     }
 
     if (i.commandName === "sendfarewell") {
@@ -385,18 +400,17 @@ client.on("interactionCreate", async (i) => {
         { merge: true }
       );
 
-      await i.reply({ content: "✅ Farewell settings saved!", ephemeral: true });
+      return i.reply({ content: "✅ Farewell settings saved!", ephemeral: true });
     }
   } catch (err) {
-    console.error(err);
-    if (!i.replied) await i.reply({ content: "❌ Something went wrong", ephemeral: true });
+    console.error("🔥 Interaction handler error:", err);
+    if (!i.replied) return i.reply({ content: "❌ Something went wrong", ephemeral: true });
   }
 });
 
-// --- Express Health Check ---
+// --- Health check + login ---
 app.get("/", (_req, res) => res.send("Bot is alive"));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server on ${PORT}`));
 
-// --- Login ---
 client.login(process.env.TOKEN);
