@@ -359,14 +359,8 @@ client.on("interactionCreate", async (i) => {
 
       // schedule now and also attempt immediate send so user can verify
       scheduleWordOfTheDay(gid, p);
-      try {
-        await sendWOTDNow(gid, p);
-      } catch (err) {
-        // if immediate send fails, scheduling will handle future sends
-        console.warn("[WOTD] immediate send failed (will rely on scheduled job):", err);
-      }
-
-      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC. Sent a test now (if permitted).`, ephemeral: true });
+  
+      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, ephemeral: true });
     }
 
     if (i.commandName === "sendwelcome") {
