@@ -8,6 +8,8 @@ const dashboardRoute = require("./routes/dashboard");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 // Ensure a JWT secret exists
 if (!process.env.JWT_SECRET) {
   console.error("FATAL: JWT_SECRET not set");
