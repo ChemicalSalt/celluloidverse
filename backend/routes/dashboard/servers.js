@@ -12,6 +12,9 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
+// ------------------------------
+// Get all servers (guilds)
+// ------------------------------
 router.get("/", verifySession, async (req, res) => {
   const userId = req.session.userId;
   try {
@@ -21,6 +24,7 @@ router.get("/", verifySession, async (req, res) => {
 
     let { access_token, refresh_token, expires_at } = userDoc.data();
 
+    // refresh if expired
     if (!access_token || (expires_at && Date.now() > expires_at - 30_000)) {
       if (!refresh_token) return res.status(401).json({ error: "Re-authenticate" });
       const refreshed = await refreshDiscordToken(refresh_token);
@@ -30,6 +34,7 @@ router.get("/", verifySession, async (req, res) => {
       await userDocRef.set({ access_token, refresh_token, expires_at }, { merge: true });
     }
 
+    // get user guilds
     const guildRes = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
@@ -39,8 +44,9 @@ router.get("/", verifySession, async (req, res) => {
       userGuilds.map(async (g) => {
         let hasBot = false;
         const doc = await db.collection("guilds").doc(g.id).get();
-        if (doc.exists) hasBot = true;
-        else {
+        if (doc.exists) {
+          hasBot = true;
+        } else {
           const botCheck = await fetch(`https://discord.com/api/v10/guilds/${g.id}`, {
             headers: { Authorization: `Bot ${BOT_TOKEN}` },
           });
@@ -54,6 +60,25 @@ router.get("/", verifySession, async (req, res) => {
   } catch (err) {
     console.error("Fetch servers failed", err);
     return res.status(500).json({ error: "Failed to fetch servers" });
+  }
+});
+
+// ------------------------------
+// Get single server by ID
+// ------------------------------
+router.get("/:id", verifySession, async (req, res) => {
+  try {
+    const guildId = req.params.id;
+    const doc = await db.collection("guilds").doc(guildId).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Server not found" });
+    }
+
+    return res.json({ id: doc.id, ...doc.data() });
+  } catch (err) {
+    console.error("Fetch server by ID failed", err);
+    return res.status(500).json({ error: "Failed to fetch server details" });
   }
 });
 
