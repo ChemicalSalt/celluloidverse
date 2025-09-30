@@ -1,17 +1,47 @@
-const { db } = require("../utils/firestore");
-const { scheduleWordOfTheDay } = require("../plugins/wotd");
+// cron/scheduler.js
+const cron = require("node-cron");
+const { sendWOTDNow } = require("../plugins/wotd");
 
-function scheduleAll(client) {
-  db.collection("guilds").get().then(snapshot => {
-    snapshot.docs.forEach(doc => {
-      const gid = doc.id;
-      const plugins = doc.data()?.plugins || {};
-      const lang = plugins.language || plugins.wotd;
-      if (lang?.enabled) scheduleWordOfTheDay(client, gid, lang);
-    });
-  }).catch(err => {
-    console.error("🔥 Error scheduling all WOTD:", err);
-  });
+const scheduledJobs = new Map();
+
+/**
+ * Schedule a daily job for WOTD
+ * @param {Client} client Discord client
+ * @param {string} guildId Guild ID
+ * @param {object} plugin Plugin settings (channelId, time, enabled)
+ */
+function scheduleWordOfTheDay(client, guildId, plugin) {
+  const key = `wotd:${guildId}`;
+
+  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
+    if (scheduledJobs.has(key)) {
+      scheduledJobs.get(key).stop();
+      scheduledJobs.delete(key);
+      console.log(`[WOTD] ❌ Stopped schedule for guild ${guildId}`);
+    }
+    return;
+  }
+
+  const [hour, minute] = plugin.time.split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return;
+
+  if (scheduledJobs.has(key)) {
+    scheduledJobs.get(key).stop();
+    scheduledJobs.delete(key);
+  }
+
+  const expr = `${minute} ${hour} * * *`;
+  const job = cron.schedule(
+    expr,
+    async () => {
+      console.log(`[WOTD] ⚡ Triggering send for guild ${guildId} at ${plugin.time} UTC`);
+      await sendWOTDNow(client, guildId, plugin).catch(console.error);
+    },
+    { timezone: "UTC" }
+  );
+
+  scheduledJobs.set(key, job);
+  console.log(`[WOTD] ✅ Scheduled for guild ${guildId} at ${plugin.time} UTC`);
 }
 
-module.exports = { scheduleAll };
+module.exports = { scheduleWordOfTheDay };
