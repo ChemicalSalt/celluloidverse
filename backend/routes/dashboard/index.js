@@ -9,7 +9,7 @@ const statusRoutes = require("./status");
 const router = express.Router();
 
 // Mount all subroutes
-router.use("/oauth", oauthRoutes);
+router.use("/", oauthRoutes);
 router.use("/servers", serversRoutes);
 router.use("/plugins", pluginsRoutes);
 router.use("/guild", guildRoutes);
