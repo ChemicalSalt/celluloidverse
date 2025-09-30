@@ -1,33 +1,43 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { cleanChannelId } = require("../../utils/helpers");
 const { db } = require("../../utils/firestore");
-const { scheduleWordOfTheDay } = require("../../plugins/wotd");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwotd")
     .setDescription("Setup Word of the Day (Japanese only, UTC time)")
-    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
-    .addStringOption((o) => o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true))
-    .addStringOption((o) =>
-      o.setName("language").setDescription("Pick language").setRequired(true).addChoices({
-        name: "Japanese",
-        value: "japanese",
-      })
+    .addStringOption((option) =>
+      option.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addStringOption((option) =>
+      option.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("language")
+        .setDescription("Pick language")
+        .setRequired(true)
+        .addChoices({ name: "Japanese", value: "japanese" })
     ),
-  async execute(interaction, client) {
-    const gid = interaction.guildId;
-    const docSnap = await db.collection("guilds").doc(gid).get();
-    const plugins = docSnap.exists ? (docSnap.data()?.plugins || {}) : {};
-
-    const channelId = cleanChannelId(interaction.options.getString("channel"));
+  async execute(interaction) {
+    const guildId = interaction.guildId;
+    const channelId = interaction.options.getString("channel").replace(/[^0-9]/g, "");
     const time = interaction.options.getString("time");
     const language = interaction.options.getString("language") || "japanese";
 
-    const p = { channelId, time, language, enabled: true };
-    await db.collection("guilds").doc(gid).set({ plugins: { ...plugins, language: p } }, { merge: true });
+    const pluginData = { channelId, time, language, enabled: true };
 
-    scheduleWordOfTheDay(gid, p, client);
+    const docRef = db.collection("guilds").doc(guildId);
+    const doc = await docRef.get();
+    const plugins = doc.exists ? doc.data().plugins || {} : {};
+
+    await docRef.set(
+      { plugins: { ...plugins, language: pluginData } },
+      { merge: true }
+    );
+
+    // Schedule WOTD immediately after saving
+    const { scheduleWordOfTheDay } = require("../../plugins/wotd");
+    scheduleWordOfTheDay(interaction.client, guildId, pluginData);
 
     await interaction.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, ephemeral: true });
   },

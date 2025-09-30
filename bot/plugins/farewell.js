@@ -2,14 +2,12 @@ const { formatMessage } = require("../utils/helpers");
 
 async function handleFarewell(member, plugin) {
   if (!plugin?.enabled) return;
-
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
     const msg = formatMessage(plugin.serverMessage, member, member.guild);
-    const ch =
-      member.guild.channels.cache.get(plugin.channelId) ||
-      (await member.guild.channels.fetch(plugin.channelId).catch(() => null));
+    const ch = member.guild.channels.cache.get(plugin.channelId)
+      || await member.guild.channels.fetch(plugin.channelId).catch(() => null);
     if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
-      await ch.send(msg).catch(console.error);
+      await ch.send(msg).catch((e) => console.error("Farewell send error:", e));
     }
   }
   if (plugin.sendInDM && plugin.dmMessage) {

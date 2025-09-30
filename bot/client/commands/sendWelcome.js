@@ -1,29 +1,55 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { cleanChannelId } = require("../../utils/helpers");
 const { db } = require("../../utils/firestore");
+
+function cleanChannelId(id) {
+  if (!id) return null;
+  return id.replace(/[^0-9]/g, "");
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwelcome")
     .setDescription("Setup Welcome message")
-    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
-    .addBooleanOption((o) => o.setName("send_in_server").setDescription("Send in server?").setRequired(true))
-    .addBooleanOption((o) => o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
-    .addStringOption((o) => o.setName("servermessage").setDescription("Server message").setRequired(false))
-    .addStringOption((o) => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
+    .addStringOption((option) =>
+      option.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addBooleanOption((option) =>
+      option.setName("send_in_server").setDescription("Send in server?").setRequired(true)
+    )
+    .addBooleanOption((option) =>
+      option.setName("send_in_dm").setDescription("Send in DM?").setRequired(true)
+    )
+    .addStringOption((option) =>
+      option.setName("servermessage").setDescription("Server message").setRequired(false)
+    )
+    .addStringOption((option) =>
+      option.setName("dmmessage").setDescription("DM message").setRequired(false)
+    ),
   async execute(interaction) {
-    const gid = interaction.guildId;
-    const docSnap = await db.collection("guilds").doc(gid).get();
-    const plugins = docSnap.exists ? (docSnap.data()?.plugins || {}) : {};
-
+    const guildId = interaction.guildId;
     const channelId = cleanChannelId(interaction.options.getString("channel"));
-    const serverMsg = interaction.options.getString("servermessage") || plugins.welcome?.serverMessage;
-    const dmMsg = interaction.options.getString("dmmessage") || plugins.welcome?.dmMessage;
+    const serverMessage = interaction.options.getString("servermessage");
+    const dmMessage = interaction.options.getString("dmmessage");
     const sendInServer = interaction.options.getBoolean("send_in_server");
     const sendInDM = interaction.options.getBoolean("send_in_dm");
 
-    const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
-    await db.collection("guilds").doc(gid).set({ plugins: { ...plugins, welcome: p } }, { merge: true });
+    const docRef = db.collection("guilds").doc(guildId);
+    const doc = await docRef.get();
+    const plugins = doc.exists ? doc.data().plugins || {} : {};
+
+    const welcomeData = {
+      channelId,
+      serverMessage,
+      dmMessage,
+      enabled: true,
+      sendInServer,
+      sendInDM,
+    };
+
+    await docRef.set(
+      { plugins: { ...plugins, welcome: welcomeData } },
+      { merge: true }
+    );
 
     await interaction.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
   },

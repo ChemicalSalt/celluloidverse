@@ -1,5 +1,6 @@
 module.exports = {
-  TOKEN: process.env.TOKEN,
   CLIENT_ID: process.env.CLIENT_ID,
-  DASHBOARD_URL: process.env.DASHBOARD_URL
+  TOKEN: process.env.TOKEN,
+  DASHBOARD_URL: process.env.DASHBOARD_URL,
+  PORT: process.env.PORT || 3000,
 };
