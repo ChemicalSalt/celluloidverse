@@ -62,6 +62,28 @@ router.get("/", verifySession, async (req, res) => {
     return res.status(500).json({ error: "Failed to fetch servers" });
   }
 });
+// ------------------------------
+// Get all channels of a server
+// ------------------------------
+router.get("/:id/channels", verifySession, async (req, res) => {
+  const guildId = req.params.id;
+  try {
+    const channelsRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/channels`,
+      { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+    );
+
+    if (!channelsRes.ok) {
+      return res.status(channelsRes.status).json({ error: "Failed to fetch channels" });
+    }
+
+    const channels = await channelsRes.json();
+    return res.json(channels);
+  } catch (err) {
+    console.error("Fetch channels failed", err);
+    return res.status(500).json({ error: "Failed to fetch channels" });
+  }
+});
 
 // ------------------------------
 // Get single server by ID
