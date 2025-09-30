@@ -1,18 +1,21 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { db } = require("../utils/firestore"); // Firestore instance
+const { db } = require("../utils/firestore");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("ping")
-    .setDescription("Check bot alive and see status"),
-  
+    .setDescription("Check bot alive and see live status"),
+
   async execute(interaction) {
     try {
-      // Fetch live bot status from Firestore
+      // Defer the reply (acknowledge interaction immediately)
+      await interaction.deferReply({ ephemeral: true });
+
+      // Fetch live status from Firestore
       const doc = await db.collection("botStatus").doc("main").get();
       const status = doc.exists ? doc.data() : null;
 
-      // Build embed with bot status
+      // Build embed
       const embed = new EmbedBuilder()
         .setTitle("🏓 Pong!")
         .setColor(status?.online ? 0x00ff00 : 0xff0000)
@@ -25,7 +28,8 @@ module.exports = {
           { name: "Last Updated", value: status ? `${status.timestamp}` : "❌ Unknown", inline: false }
         );
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      // Edit the deferred reply with embed
+      await interaction.editReply({ embeds: [embed] });
     } catch (err) {
       console.error("🔥 Ping command error:", err);
       if (!interaction.replied) {
