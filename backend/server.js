@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
-const statusRoute = require("./routes/status"); 
+const statusRoute = require("./routes/dashboard/status"); 
 const dashboardRoute = require("./routes/dashboard");
 
 const app = express();
