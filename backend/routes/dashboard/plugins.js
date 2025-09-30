@@ -1,7 +1,7 @@
 const express = require("express");
 const admin = require("firebase-admin");
 const { body, validationResult } = require("express-validator");
-const { verifySession } = require("../../session");
+const { verifySession } = require("./session");
 
 const router = express.Router();
 

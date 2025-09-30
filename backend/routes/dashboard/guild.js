@@ -1,7 +1,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const admin = require("firebase-admin");
-const { verifySession } = require("../../session");
+const { verifySession } = require("./session");
 
 const router = express.Router();
 const BOT_TOKEN = process.env.TOKEN;
