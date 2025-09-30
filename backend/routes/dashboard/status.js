@@ -2,6 +2,16 @@ const express = require("express");
 const admin = require("firebase-admin");
 const router = express.Router();
 
+const rateLimit = require("express-rate-limit");
+
+const statusLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 min
+  max: 60, // 60 requests per IP per minute
+  message: { error: "Too many requests, please try again later." }
+});
+
+router.use(statusLimiter);
+
 // Initialize Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 if (!admin.apps.length) {

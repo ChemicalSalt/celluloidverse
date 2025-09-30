@@ -6,36 +6,19 @@ const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const API_URL = import.meta.env.VITE_API_URL;
 
 const AddBot = () => {
-  const [session, setSession] = useState(null);
   const [servers, setServers] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const s = params.get("session");
-    if (s) {
-      localStorage.setItem("session", s);
-      setSession(s);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("session");
-      window.history.replaceState({}, "", url.toString());
-    } else {
-      const stored = localStorage.getItem("session");
-      if (stored) setSession(stored);
-    }
-  }, []);
-
+  // Fetch user servers from backend
   const fetchGuilds = async () => {
-    if (!session) return;
     try {
       const res = await fetch(`${API_URL}/dashboard/servers`, {
-        headers: { Authorization: `Bearer ${session}` },
+        method: "GET",
+        credentials: "include" // ✅ sends HttpOnly cookie automatically
       });
       if (!res.ok) {
         if (res.status === 401) {
-          localStorage.removeItem("session");
-          setSession(null);
-          return alert("Session expired, please login again.");
+          return alert("Session expired or not logged in. Please login again.");
         }
         throw new Error("Failed to fetch guilds");
       }
@@ -48,7 +31,7 @@ const AddBot = () => {
 
   useEffect(() => {
     fetchGuilds();
-  }, [session]);
+  }, []);
 
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
@@ -57,7 +40,7 @@ const AddBot = () => {
     const timer = setInterval(() => {
       if (popup && popup.closed) {
         clearInterval(timer);
-        fetchGuilds();
+        fetchGuilds(); // refresh servers after closing popup
       }
     }, 1000);
   };
@@ -67,6 +50,7 @@ const AddBot = () => {
   };
 
   const gotoLogin = () => {
+    // redirect to backend login, cookie will be set automatically
     window.location.href = `${API_URL}/dashboard/login`;
   };
 
@@ -74,7 +58,7 @@ const AddBot = () => {
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
 
-      {!session && (
+      {servers.length === 0 && (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow mb-6">
           <p className="mb-4">You must login with Discord to manage your servers.</p>
           <button onClick={gotoLogin} className="px-4 py-2 bg-blue-600 text-white rounded">
