@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, InteractionResponseFlags } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { cleanChannelId } = require("../../utils/helpers");
 const { scheduleWordOfTheDay } = require("../../plugins/wotd");
 
@@ -25,36 +25,31 @@ module.exports = {
     const gid = interaction.guildId;
 
     try {
-      // 1️⃣ Immediately defer the reply
-      await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral });
+      // ✅ Correct way (no deprecated flags)
+      await interaction.deferReply({ ephemeral: true });
 
-      // 2️⃣ Fetch existing plugin config safely
       const doc = await client.db.collection("guilds").doc(gid).get();
       const plugins = doc.data()?.plugins || {};
 
-      // 3️⃣ Get command options
       const channelId = cleanChannelId(interaction.options.getString("channel"));
       const time = interaction.options.getString("time");
       const language = interaction.options.getString("language") || "japanese";
 
       const p = { channelId, time, language, enabled: true };
 
-      // 4️⃣ Save updated plugin settings to Firestore
       await client.db
         .collection("guilds")
         .doc(gid)
         .set({ plugins: { ...plugins, language: p } }, { merge: true });
 
-      // 5️⃣ Schedule the WOTD cron job
       scheduleWordOfTheDay(client, gid, p);
 
-      // 6️⃣ Edit deferred reply
       return interaction.editReply({
         content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
       });
     } catch (err) {
       console.error("🔥 Error in sendWOTD command:", err);
-      // Edit reply even on error
+
       if (interaction.deferred || interaction.replied) {
         return interaction.editReply({
           content: "❌ Something went wrong while setting WOTD.",
