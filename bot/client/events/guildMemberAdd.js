@@ -4,9 +4,9 @@ module.exports = (client) => {
       const { db } = require("../../utils/firestore");
       const doc = await db.collection("guilds").doc(member.guild.id).get();
       const plugin = doc.exists ? doc.data()?.plugins?.welcome : null;
-      if (!plugin) return;
+      if (!plugin || !plugin.enabled) return;
 
-      const welcomeHandler = require("../../plugins/welcome"); // <- correct path
+      const welcomeHandler = require("../../plugins/welcome");
       await welcomeHandler.handleWelcome(member, plugin);
     } catch (err) {
       console.error("[guildMemberAdd] error:", err);
