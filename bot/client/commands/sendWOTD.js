@@ -1,4 +1,3 @@
-// bot/client/commands/sendWOTD.js
 const { SlashCommandBuilder } = require("discord.js");
 const { cleanChannelId } = require("../../utils/helpers");
 const { scheduleWordOfTheDay } = require("../../plugins/wotd");
@@ -37,11 +36,11 @@ module.exports = {
 
       const p = { channelId, time, language, enabled: true };
 
-      // Save to Firestore
+      // Save plugin config under "wotd"
       await client.db
         .collection("guilds")
         .doc(gid)
-        .set({ plugins: { ...plugins, language: p } }, { merge: true });
+        .set({ plugins: { ...plugins, wotd: p } }, { merge: true });
 
       // Schedule job
       scheduleWordOfTheDay(client, gid, p);
@@ -49,7 +48,7 @@ module.exports = {
       // Reply once ✅
       return interaction.reply({
         content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
-        flags: 64, // replaces ephemeral: true
+        flags: 64, // ephemeral replacement
       });
     } catch (err) {
       console.error("🔥 Error in sendWOTD command:", err);
@@ -57,7 +56,7 @@ module.exports = {
       if (!interaction.replied && !interaction.deferred) {
         return interaction.reply({
           content: "❌ Something went wrong while setting WOTD.",
-          flags: 64, // replaces ephemeral: true
+          flags: 64,
         });
       }
     }
