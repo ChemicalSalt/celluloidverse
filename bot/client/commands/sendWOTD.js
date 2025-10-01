@@ -49,14 +49,17 @@ module.exports = {
       // Reply once ✅
       return interaction.reply({
         content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
-        ephemeral: true,
+        flags: 64, // replaces ephemeral: true
       });
     } catch (err) {
       console.error("🔥 Error in sendWOTD command:", err);
-      return interaction.reply({
-        content: "❌ Something went wrong while setting WOTD.",
-        ephemeral: true,
-      });
+
+      if (!interaction.replied && !interaction.deferred) {
+        return interaction.reply({
+          content: "❌ Something went wrong while setting WOTD.",
+          flags: 64, // replaces ephemeral: true
+        });
+      }
     }
   },
 };

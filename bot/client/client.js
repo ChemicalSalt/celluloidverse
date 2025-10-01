@@ -36,12 +36,18 @@ function loadClient(client) {
 
     try {
       await command.execute(interaction, client);
-    } catch (err) {
-      console.error(`Error executing command ${interaction.commandName}:`, err);
-      if (!interaction.replied) {
-        await interaction.reply({ content: "❌ Something went wrong", ephemeral: true });
-      }
-    }
+   } catch (err) {
+  console.error(`Error executing command ${interaction.commandName}:`, err);
+
+  // only reply if not already acknowledged
+  if (!interaction.replied && !interaction.deferred) {
+    await interaction.reply({
+      content: "❌ Something went wrong",
+      flags: 64 // ephemeral replacement
+    });
+  }
+}
+
   });
 }
 
