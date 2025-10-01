@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, InteractionResponseFlags } = require("discord.js");
 const { cleanChannelId } = require("../../utils/helpers");
 const { scheduleWordOfTheDay } = require("../../plugins/wotd");
 
@@ -17,6 +17,10 @@ module.exports = {
   async execute(interaction) {
     const client = interaction.client;
     const gid = interaction.guildId;
+
+    // Defer reply to avoid Unknown Interaction error
+    await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral });
+
     const plugins = (await client.db.collection("guilds").doc(gid).get()).data()?.plugins || {};
 
     const channelId = cleanChannelId(interaction.options.getString("channel"));
@@ -25,10 +29,13 @@ module.exports = {
 
     const p = { channelId, time, language, enabled: true };
 
-    await client.db.collection("guilds").doc(gid).set({ plugins: { ...plugins, language: p } }, { merge: true });
+    await client.db.collection("guilds").doc(gid).set(
+      { plugins: { ...plugins, language: p } },
+      { merge: true }
+    );
 
     scheduleWordOfTheDay(client, gid, p);
 
-    return interaction.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, ephemeral: true });
+    return interaction.editReply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.` });
   },
 };
