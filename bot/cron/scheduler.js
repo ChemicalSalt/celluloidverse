@@ -5,16 +5,14 @@ const { sendWOTDNow } = require("../plugins/language");
 
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
-    try {
-      scheduledJobs.get(key).stop();
-    } catch {}
+    try { scheduledJobs.get(key).stop(); } catch {}
     scheduledJobs.delete(key);
     console.log(`[Scheduler] Stopped ${key}`);
   }
 }
 
 /**
- * plugin is a map containing at least: enabled, channelId, time (HH:MM), timezone (optional)
+ * plugin: { enabled, channelId, time, timezone, language }
  */
 function scheduleWordOfTheDay(guildId, plugin = {}) {
   const key = `wotd:${guildId}`;
@@ -24,19 +22,16 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     return;
   }
 
-  // parse HH:MM
-  const parts = String(plugin.time).split(":").map((s) => Number(s));
-  if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
+  const parts = String(plugin.time).split(":").map(Number);
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
     console.error(`[Scheduler] Invalid time for guild ${guildId}: ${plugin.time}`);
     return;
   }
   const [hour, minute] = parts;
 
-  // stop old job
   _stopJob(key);
 
   try {
-    // run daily at minute hour (cron in UTC by default or timezone if provided)
     const expr = `${minute} ${hour} * * *`;
     const job = cron.schedule(
       expr,
