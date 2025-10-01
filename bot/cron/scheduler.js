@@ -1,7 +1,7 @@
 // cron/scheduler.js
 const cron = require("node-cron");
 const scheduledJobs = new Map();
-const { sendWOTDNow } = require("../client/plugins/language");
+const { sendWOTDNow } = require("../plugins/language");
 
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
