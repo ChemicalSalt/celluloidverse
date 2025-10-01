@@ -25,40 +25,43 @@ module.exports = {
     const gid = interaction.guildId;
 
     try {
-      // ✅ Correct way (no deprecated flags)
+      // ✅ Defer reply (ephemeral)
       await interaction.deferReply({ ephemeral: true });
 
+      // 🔹 Fetch existing plugin config
       const doc = await client.db.collection("guilds").doc(gid).get();
       const plugins = doc.data()?.plugins || {};
 
+      // 🔹 Get command options
       const channelId = cleanChannelId(interaction.options.getString("channel"));
       const time = interaction.options.getString("time");
       const language = interaction.options.getString("language") || "japanese";
 
       const p = { channelId, time, language, enabled: true };
 
+      // 🔹 Save updated plugin settings to Firestore
       await client.db
         .collection("guilds")
         .doc(gid)
-        .set({ plugins: { ...plugins, language: p } }, { merge: true });
+        .set({ plugins: { ...plugins, wotd: p } }, { merge: true });
 
+      // 🔹 Schedule the WOTD cron job
       scheduleWordOfTheDay(client, gid, p);
 
+      // ✅ Edit deferred reply
       return interaction.editReply({
         content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
       });
     } catch (err) {
       console.error("🔥 Error in sendWOTD command:", err);
 
+      const errorMessage = { content: "❌ Something went wrong while setting WOTD." };
+
+      // ✅ Avoid "already acknowledged" bug
       if (interaction.deferred || interaction.replied) {
-        return interaction.editReply({
-          content: "❌ Something went wrong while setting WOTD.",
-        });
+        return interaction.editReply(errorMessage);
       } else {
-        return interaction.reply({
-          content: "❌ Something went wrong while setting WOTD.",
-          ephemeral: true,
-        });
+        return interaction.reply({ ...errorMessage, ephemeral: true });
       }
     }
   },
