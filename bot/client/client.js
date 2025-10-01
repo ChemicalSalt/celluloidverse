@@ -5,7 +5,6 @@ const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
 
-// create client first
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -16,7 +15,7 @@ const client = new Client({
   partials: [Partials.GuildMember],
 });
 
-// set client in language plugin
+// Set client in language plugin
 languagePlugin.setClient(client);
 
 // Register slash commands
@@ -26,14 +25,14 @@ async function registerCommands() {
     const cmds = commandsConfig.map((c) => {
       const builder = new SlashCommandBuilder().setName(c.name).setDescription(c.description || "");
       (c.options || []).forEach((opt) => {
-        if (opt.type === 3) { // string
+        if (opt.type === 3) {
           builder.addStringOption((o) => {
             o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required);
-            (opt.choices || []).forEach(ch => o.addChoices({ name: ch.name, value: ch.value }));
+            (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
             return o;
           });
         }
-        if (opt.type === 5) { // boolean
+        if (opt.type === 5) {
           builder.addBooleanOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
         }
       });
@@ -64,22 +63,24 @@ client.on("interactionCreate", async (i) => {
     if (i.commandName === "ping") return i.reply("🏓 Pong!");
 
     if (i.commandName === "dashboard") {
-      return i.reply({ embeds: [new EmbedBuilder()
-        .setTitle("➡ Open Dashboard")
-        .setDescription("Click to access backend dashboard")
-        .setURL(process.env.DASHBOARD_URL || "https://example.com")
-        .setColor(0x00ff00)
-      ]});
+      return i.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("➡ Open Dashboard")
+            .setDescription("Click to access backend dashboard")
+            .setURL(process.env.DASHBOARD_URL || "https://example.com")
+            .setColor(0x00ff00),
+        ],
+      });
     }
 
+    // Language / WOTD
     if (i.commandName === "sendwotd") {
       const channelId = helpers.cleanChannelId(i.options.getString("channel"));
       const time = i.options.getString("time");
       const language = i.options.getString("language") || "japanese";
-
       const p = { channelId, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
-
       return i.reply(`✅ WOTD saved. Runs daily at ${time} UTC.`);
     }
 

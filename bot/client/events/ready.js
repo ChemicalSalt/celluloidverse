@@ -17,13 +17,13 @@ module.exports = (client) => {
       console.error("🔥 Error loading guild configs on startup:", err);
     }
 
-    // Live watcher: reschedule if plugin changes
+    // Live Firestore watcher
     db.collection("guilds").onSnapshot(
       (snap) => {
         snap.docChanges().forEach((change) => {
           const gid = change.doc.id;
           const plugins = change.doc.data()?.plugins || {};
-          const lang = plugins.language; // ONLY language
+          const lang = plugins.language;
           scheduleWordOfTheDay(gid, lang);
         });
       },

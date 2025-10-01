@@ -1,31 +1,15 @@
-const { formatMessage } = require("../../utils/helpers");
-const db = require("../../utils/firestore"); // assuming you export admin.firestore() here
-
-module.exports = {
-  name: "guildMemberAdd",
-  async execute(member) {
+module.exports = (client) => {
+  client.on("guildMemberAdd", async (member) => {
     try {
+      const { db } = require("../../utils/firestore");
       const doc = await db.collection("guilds").doc(member.guild.id).get();
-      const plugin = doc.data()?.plugins?.welcome;
-      if (!plugin || !plugin.enabled) return;
+      const plugin = doc.exists ? doc.data()?.plugins?.welcome : null;
+      if (!plugin) return;
 
-      // Send in server
-      if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
-        const channel =
-          member.guild.channels.cache.get(plugin.channelId) ||
-          (await member.guild.channels.fetch(plugin.channelId).catch(() => null));
-        if (channel?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
-          const msg = formatMessage(plugin.serverMessage, member, member.guild);
-          await channel.send(msg).catch(console.error);
-        }
-      }
-
-      // Send in DM
-      if (plugin.sendInDM && plugin.dmMessage) {
-        await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
-      }
+      const welcomeHandler = require("../../plugins/welcome"); // <- correct path
+      await welcomeHandler.handleWelcome(member, plugin);
     } catch (err) {
-      console.error("🔥 guildMemberAdd handler error:", err);
+      console.error("[guildMemberAdd] error:", err);
     }
-  },
+  });
 };
