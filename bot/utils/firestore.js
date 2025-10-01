@@ -1,9 +1,6 @@
-function getGuildDoc(db, guildId) {
-  return db.collection("guilds").doc(guildId).get();
+// firestore.js
+async function setGuildDoc(db, guildId, data) {
+  await db.collection("guilds").doc(guildId).set(data, { merge: true });
 }
 
-function setGuildDoc(db, guildId, data) {
-  return db.collection("guilds").doc(guildId).set(data, { merge: true });
-}
-
-module.exports = { getGuildDoc, setGuildDoc };
+module.exports = { setGuildDoc };

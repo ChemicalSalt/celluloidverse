@@ -1,10 +1,11 @@
-const { handleFarewell } = require("../../plugins/welcome");
+const { handleFarewell } = require("../../plugins/farewell");
 
 module.exports = async (member) => {
   try {
     const doc = await member.client.db.collection("guilds").doc(member.guild.id).get();
-    await handleFarewell(member, doc.data()?.plugins?.farewell);
+    const plugin = doc.data()?.plugins?.farewell;
+    await handleFarewell(member, plugin);
   } catch (err) {
-    console.error(err);
+    console.error("Farewell event error:", err);
   }
 };

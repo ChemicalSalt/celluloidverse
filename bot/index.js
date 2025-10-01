@@ -18,7 +18,7 @@ const client = new Client({
   ],
   partials: [Partials.GuildMember],
 });
-client.db = null; // will assign Firestore later
+client.db = null;
 
 // --- Firebase ---
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);

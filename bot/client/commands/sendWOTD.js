@@ -23,10 +23,10 @@ module.exports = {
     await db.collection("guilds").doc(gid).set({ plugins: { ...pluginsDoc, language: plugin } }, { merge: true });
     scheduleWordOfTheDay(interaction.client, gid, plugin);
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, flags: 64 });
-    } else {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, flags: 64 });
+    } else {
+      await interaction.followUp({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, flags: 64 });
     }
   },
 };

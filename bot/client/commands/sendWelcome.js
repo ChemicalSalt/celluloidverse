@@ -6,11 +6,11 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwelcome")
     .setDescription("Setup Welcome message")
-    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
-    .addBooleanOption((o) => o.setName("send_in_server").setDescription("Send in server?").setRequired(true))
-    .addBooleanOption((o) => o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
-    .addStringOption((o) => o.setName("servermessage").setDescription("Server message").setRequired(false))
-    .addStringOption((o) => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
+    .addStringOption(o => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
+    .addBooleanOption(o => o.setName("send_in_server").setDescription("Send in server?").setRequired(true))
+    .addBooleanOption(o => o.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
+    .addStringOption(o => o.setName("servermessage").setDescription("Server message").setRequired(false))
+    .addStringOption(o => o.setName("dmmessage").setDescription("DM message").setRequired(false)),
   async execute(interaction) {
     const db = interaction.client.db;
     const gid = interaction.guildId;
@@ -25,6 +25,11 @@ module.exports = {
     const plugin = { channelId, serverMessage, dmMessage, enabled: true, sendInServer, sendInDM };
 
     await setGuildDoc(db, gid, { plugins: { ...pluginsDoc, welcome: plugin } });
-await interaction.reply({ content: "✅ Welcome settings saved!", flags: 64 });
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: "✅ Welcome settings saved!", flags: 64 });
+    } else {
+      await interaction.followUp({ content: "✅ Welcome settings saved!", flags: 64 });
+    }
   },
 };

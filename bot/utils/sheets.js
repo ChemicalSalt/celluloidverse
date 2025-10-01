@@ -1,11 +1,13 @@
 const { google } = require("googleapis");
 
-async function getSheetsClient() {
+function getSheetsClient(serviceAccount) {
   const auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
+    credentials: JSON.parse(serviceAccount),
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
-  return google.sheets({ version: "v4", auth: await auth.getClient() });
+
+  const sheets = google.sheets({ version: "v4", auth });
+  return { auth, sheets };
 }
 
 module.exports = { getSheetsClient };
