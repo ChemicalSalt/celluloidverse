@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
 module.exports = {
   data: new SlashCommandBuilder().setName("dashboard").setDescription("Open dashboard"),
-  async execute(client, interaction) {
+  async execute(interaction) {
     await interaction.reply({
       embeds: [
         new EmbedBuilder()

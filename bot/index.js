@@ -1,35 +1,36 @@
 require("dotenv").config();
-const express = require("express");
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const admin = require("firebase-admin");
+const express = require("express");
 
-// --- Config & Helpers ---
-const { intents, partials } = require("./config/botConfig");
-const { registerEvents } = require("./client/events");
-const { registerCommands } = require("./client/commands");
-const { scheduleAllGuildWOTD } = require("./cron/scheduler");
+// --- Firebase ---
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+if (!admin.apps.length) {
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+}
+const db = admin.firestore();
 
 // --- Discord Client ---
 const client = new Client({
-  intents: intents.map(i => GatewayIntentBits[i]),
-  partials: partials.map(p => Partials[p])
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+  partials: [Partials.GuildMember],
 });
+client.db = db;
 
-// --- Express Server ---
+// --- Express ---
 const app = express();
 app.use(express.json());
+require("./web/server")(app);
 const PORT = process.env.PORT || 3000;
-app.get("/", (_req, res) => res.send("Bot is alive"));
-app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server running on ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server on ${PORT}`));
 
-// --- Load Events & Commands ---
-registerEvents(client);
-registerCommands(client);
+// --- Load client, events, commands, cron ---
+require("./client/client")(client);
+require("./cron/scheduler")(client);
 
-// --- Schedule WOTD on Ready ---
-client.once("ready", () => {
-  console.log(`✅ Bot logged in as ${client.user.tag}`);
-  scheduleAllGuildWOTD(client);
-});
-
-// --- Login ---
 client.login(process.env.TOKEN);

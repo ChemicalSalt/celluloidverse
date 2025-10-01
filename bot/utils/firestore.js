@@ -1,9 +1,9 @@
-const admin = require("firebase-admin");
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-
-if (!admin.apps.length) {
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+function getGuildDoc(db, guildId) {
+  return db.collection("guilds").doc(guildId).get();
 }
 
-const db = admin.firestore();
-module.exports = db;
+function setGuildDoc(db, guildId, data) {
+  return db.collection("guilds").doc(guildId).set(data, { merge: true });
+}
+
+module.exports = { getGuildDoc, setGuildDoc };

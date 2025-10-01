@@ -1,14 +1,10 @@
-// client/events/guildMemberRemove.js
-const db = require("../../utils/firestore");
-const { handleFarewell } = require("../../plugins/farewell");
+const { handleFarewell } = require("../../plugins/welcome");
 
-module.exports = (client) => {
-  client.on("guildMemberRemove", async (member) => {
-    try {
-      const doc = await db.collection("guilds").doc(member.guild.id).get();
-      await handleFarewell(member, doc.data()?.plugins?.farewell);
-    } catch (err) {
-      console.error(err);
-    }
-  });
+module.exports = async (member) => {
+  try {
+    const doc = await member.client.db.collection("guilds").doc(member.guild.id).get();
+    await handleFarewell(member, doc.data()?.plugins?.farewell);
+  } catch (err) {
+    console.error(err);
+  }
 };
