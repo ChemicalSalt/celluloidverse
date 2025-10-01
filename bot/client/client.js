@@ -1,58 +1,178 @@
 // client/client.js
-const { Client, GatewayIntentBits, Partials, REST, Routes } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
+require("dotenv").config();
+const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const commandsConfig = require("../config/botConfig").COMMANDS;
+const helpers = require("../utils/helpers");
 
-const { CLIENT_ID, TOKEN } = require("../config/botConfig");
+// create client
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+  partials: [Partials.GuildMember],
+});
 
-function buildClient() {
-  const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMembers,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,
-    ],
-    partials: [Partials.GuildMember],
-  });
-
-  // Attach a command collection for runtime use
-  client.commands = new Map();
-
-  // load command modules into memory (for execution at runtime)
-  const commandsPath = path.join(__dirname, "commands");
-  for (const file of fs.readdirSync(commandsPath)) {
-    if (!file.endsWith(".js")) continue;
-    const cmd = require(path.join(commandsPath, file));
-    if (!cmd || !cmd.data || !cmd.execute) {
-      console.warn(`⚠ Invalid command file: ${file}`);
-      continue;
-    }
-    client.commands.set(cmd.data.name, cmd);
-  }
-
-  return client;
-}
-
-// register commands with Discord via REST (full set from client/commands)
+// Register slash commands
 async function registerCommands() {
-  const commandsDir = path.join(__dirname, "commands");
-  const commands = [];
-  for (const f of fs.readdirSync(commandsDir)) {
-    if (!f.endsWith(".js")) continue;
-    const mod = require(path.join(commandsDir, f));
-    if (mod && mod.data) commands.push(mod.data.toJSON());
-  }
+  try {
+    const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+    const cmds = commandsConfig.map((c) => {
+      const builder = new SlashCommandBuilder().setName(c.name).setDescription(c.description || "no description");
+      if (Array.isArray(c.options)) {
+        c.options.forEach((opt) => {
+          if (opt.type === 3) {
+            builder.addStringOption((o) => {
+              o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required);
+              if (Array.isArray(opt.choices)) {
+                opt.choices.forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
+              }
+              return o;
+            });
+          }
+          if (opt.type === 5) {
+            builder.addBooleanOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
+          }
+        });
+      }
+      return builder.toJSON();
+    });
 
-  if (!TOKEN || !CLIENT_ID) {
-    throw new Error("CLIENT_ID or TOKEN missing in env");
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
+    console.log("[Discord] Registered slash commands");
+  } catch (err) {
+    console.error("[Discord] command registration failed", err);
   }
-
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
-  await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
 }
 
-module.exports = {
-  buildClient,
-  registerCommands,
-};
+// Load event modules (client/events/*)
+const readyEvent = require("./events/ready");
+const guildMemberAddEvent = require("./events/guildMemberAdd");
+const guildMemberRemoveEvent = require("./events/guildMemberRemove");
+
+// initialize events with client
+readyEvent(client);
+guildMemberAddEvent(client);
+guildMemberRemoveEvent(client);
+
+// Interaction handler (slash commands)
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  const gid = interaction.guildId;
+  const name = interaction.commandName;
+
+  try {
+    if (name === "ping") {
+      await interaction.reply("🏓 Pong!");
+      return;
+    }
+
+    if (name === "dashboard") {
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("➡ Open Dashboard")
+            .setDescription("Click to access backend dashboard")
+            .setURL(process.env.DASHBOARD_URL || "https://example.com")
+            .setColor(0x00ff00),
+        ],
+      });
+      return;
+    }
+
+    if (name === "sendwotd") {
+      const rawChannel = interaction.options.getString("channel");
+      const channelId = helpers.cleanChannelId(rawChannel);
+      const time = interaction.options.getString("time");
+      const language = interaction.options.getString("language") || "japanese";
+
+      const p = {
+        channelId,
+        time,
+        timezone: "UTC",
+        language,
+        enabled: true,
+      };
+
+      const { savePluginConfig } = require("../utils/firestore");
+      await savePluginConfig(gid, "language", p);
+      await savePluginConfig(gid, "wotd", p);
+
+      // schedule is handled by the Firestore watcher in ready event
+      await interaction.reply(`✅ WOTD saved. Runs daily at ${time} UTC.`);
+      return;
+    }
+
+    if (name === "sendwelcome") {
+      const rawChannel = interaction.options.getString("channel");
+      const channelId = helpers.cleanChannelId(rawChannel);
+      const serverMsg = interaction.options.getString("servermessage") || null;
+      const dmMsg = interaction.options.getString("dmmessage") || null;
+      const sendInServer = !!interaction.options.getBoolean("send_in_server");
+      const sendInDM = !!interaction.options.getBoolean("send_in_dm");
+
+      const p = {
+        channelId,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
+
+      const { savePluginConfig } = require("../utils/firestore");
+      await savePluginConfig(gid, "welcome", p);
+
+      await interaction.reply("✅ Welcome settings saved!");
+      return;
+    }
+
+    if (name === "sendfarewell") {
+      const rawChannel = interaction.options.getString("channel");
+      const channelId = helpers.cleanChannelId(rawChannel);
+      const serverMsg = interaction.options.getString("servermessage") || null;
+      const dmMsg = interaction.options.getString("dmmessage") || null;
+      const sendInServer = !!interaction.options.getBoolean("send_in_server");
+      const sendInDM = !!interaction.options.getBoolean("send_in_dm");
+
+      const p = {
+        channelId,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
+
+      const { savePluginConfig } = require("../utils/firestore");
+      await savePluginConfig(gid, "farewell", p);
+
+      await interaction.reply("✅ Farewell settings saved!");
+      return;
+    }
+  } catch (err) {
+    console.error("[interactionCreate] error:", err);
+    try {
+      if (!interaction.replied) await interaction.reply("❌ Something went wrong.");
+    } catch {}
+  }
+});
+
+async function start() {
+  if (!process.env.TOKEN) {
+    console.error("TOKEN env missing!");
+    process.exit(1);
+  }
+  if (!process.env.CLIENT_ID) {
+    console.error("CLIENT_ID env missing!");
+    process.exit(1);
+  }
+
+  await registerCommands();
+  await client.login(process.env.TOKEN);
+}
+
+module.exports = { client, start };

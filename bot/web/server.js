@@ -1,21 +1,32 @@
 // web/server.js
 const express = require("express");
-const { PORT } = require("../config/botConfig");
+const { stopAll } = require("../cron/scheduler");
 
-let serverInstance = null;
+const app = express();
+app.use(express.json());
 
-function start(client) {
-  const app = express();
-  app.use(express.json());
+app.get("/", (_req, res) => res.send("Bot is alive"));
 
-  app.get("/", (_req, res) => res.send("Bot is alive"));
-  app.get("/health", (_req, res) => res.json({ status: "ok", bot: client?.user?.tag || null }));
+app.post("/shutdown", async (req, res) => {
+  // basic protection by token header
+  const token = req.headers["x-admin-token"];
+  if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
+    return res.status(403).send("forbidden");
+  }
+  try {
+    stopAll();
+    res.send("shutting down cron jobs");
+    // process exit intentionally not called here to avoid abrupt stop
+  } catch (err) {
+    res.status(500).send("error stopping");
+  }
+});
 
-  serverInstance = app.listen(PORT || 3000, "0.0.0.0", () => {
-    console.log(`🌐 Web server on ${PORT || 3000}`);
+function start() {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🌐 Web server listening on ${PORT}`);
   });
-
-  return serverInstance;
 }
 
-module.exports = { start };
+module.exports = { start, app };

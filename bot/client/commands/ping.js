@@ -1,9 +1,9 @@
 // client/commands/ping.js
-const { SlashCommandBuilder } = require("discord.js");
-
+// (kept for reference if you want command-based loaders later)
 module.exports = {
-  data: new SlashCommandBuilder().setName("ping").setDescription("Check bot alive"),
+  name: "ping",
+  description: "Check bot alive",
   async execute(interaction) {
-    return interaction.reply({ content: "🏓 Pong!", ephemeral: true });
+    await interaction.reply("🏓 Pong!");
   },
 };

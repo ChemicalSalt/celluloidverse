@@ -1,11 +1,10 @@
 // utils/helpers.js
-
 function cleanChannelId(id) {
   if (!id) return null;
-  return id.replace(/[^0-9]/g, "");
+  return String(id).replace(/[^0-9]/g, "");
 }
 
-function formatMessage(msg, member, guild) {
+function formatMessage(msg = "", member, guild) {
   if (!msg) return "";
   return msg
     .replaceAll("{username}", member.user.username)
@@ -21,7 +20,4 @@ function formatMessage(msg, member, guild) {
     });
 }
 
-module.exports = {
-  cleanChannelId,
-  formatMessage,
-};
+module.exports = { cleanChannelId, formatMessage };
