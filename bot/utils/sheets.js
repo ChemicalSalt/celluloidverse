@@ -1,16 +1,16 @@
 async function getRandomWord(client) {
   try {
-    const clientSheets = await client.sheetsAuth.getClient();
+    const sheetsAuth = client.sheets._options.auth;
+    const clientSheets = await sheetsAuth.getClient();
     const res = await client.sheets.spreadsheets.values.get({
       spreadsheetId: client.SPREADSHEET_ID,
       range: client.RANGE,
       auth: clientSheets,
     });
-
     const rows = res.data.values || [];
     if (!rows.length) return null;
 
-    const dataRows = rows.filter(r => r[0] && r[1]);
+    const dataRows = rows.filter((r) => r[0] && r[1]);
     const row = dataRows[Math.floor(Math.random() * dataRows.length)];
 
     return {
