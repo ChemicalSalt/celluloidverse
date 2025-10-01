@@ -23,7 +23,6 @@ module.exports = {
     const sendInDM = interaction.options.getBoolean("send_in_dm");
 
     const plugin = { channelId, serverMessage, dmMessage, enabled: true, sendInServer, sendInDM };
-
     await setGuildDoc(db, gid, { plugins: { ...pluginsDoc, welcome: plugin } });
 
     if (!interaction.replied && !interaction.deferred) {

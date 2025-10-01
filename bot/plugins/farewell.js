@@ -3,15 +3,7 @@ function formatMessage(msg, member) {
   return msg
     .replaceAll("{username}", member.user.username)
     .replaceAll("{usermention}", `<@${member.id}>`)
-    .replaceAll("{server}", member.guild.name)
-    .replace(/\{role:([^\}]+)\}/g, (_, r) => {
-      const role = member.guild.roles.cache.find(x => x.name === r);
-      return role ? `<@&${role.id}>` : r;
-    })
-    .replace(/\{channel:([^\}]+)\}/g, (_, c) => {
-      const ch = member.guild.channels.cache.find(x => x.name === c);
-      return ch ? `<#${ch.id}>` : c;
-    });
+    .replaceAll("{server}", member.guild.name);
 }
 
 async function handleFarewell(member, plugin) {
