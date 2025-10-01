@@ -1,6 +1,6 @@
 // client/plugins/language.js
-const { getRandomWordFromSheet } = require("../../utils/sheets");
-const { db } = require("../../utils/firestore");
+const { getRandomWordFromSheet } = require("../utils/sheets");
+const { db } = require("../utils/firestore");
 
 async function sendWOTDNow(guildId, plugin) {
   try {
