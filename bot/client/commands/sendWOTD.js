@@ -6,36 +6,65 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwotd")
     .setDescription("Setup Word of the Day (Japanese only, UTC time)")
-    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
-    .addStringOption((o) => o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true))
     .addStringOption((o) =>
-      o.setName("language").setDescription("Pick language").setRequired(true).addChoices({
-        name: "Japanese",
-        value: "japanese",
-      })
+      o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true)
+    )
+    .addStringOption((o) =>
+      o
+        .setName("language")
+        .setDescription("Pick language")
+        .setRequired(true)
+        .addChoices({ name: "Japanese", value: "japanese" })
     ),
+
   async execute(interaction) {
     const client = interaction.client;
     const gid = interaction.guildId;
 
-    // Defer reply to avoid Unknown Interaction error
-    await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral });
+    try {
+      // 1️⃣ Immediately defer the reply
+      await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral });
 
-    const plugins = (await client.db.collection("guilds").doc(gid).get()).data()?.plugins || {};
+      // 2️⃣ Fetch existing plugin config safely
+      const doc = await client.db.collection("guilds").doc(gid).get();
+      const plugins = doc.data()?.plugins || {};
 
-    const channelId = cleanChannelId(interaction.options.getString("channel"));
-    const time = interaction.options.getString("time");
-    const language = interaction.options.getString("language") || "japanese";
+      // 3️⃣ Get command options
+      const channelId = cleanChannelId(interaction.options.getString("channel"));
+      const time = interaction.options.getString("time");
+      const language = interaction.options.getString("language") || "japanese";
 
-    const p = { channelId, time, language, enabled: true };
+      const p = { channelId, time, language, enabled: true };
 
-    await client.db.collection("guilds").doc(gid).set(
-      { plugins: { ...plugins, language: p } },
-      { merge: true }
-    );
+      // 4️⃣ Save updated plugin settings to Firestore
+      await client.db
+        .collection("guilds")
+        .doc(gid)
+        .set({ plugins: { ...plugins, language: p } }, { merge: true });
 
-    scheduleWordOfTheDay(client, gid, p);
+      // 5️⃣ Schedule the WOTD cron job
+      scheduleWordOfTheDay(client, gid, p);
 
-    return interaction.editReply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.` });
+      // 6️⃣ Edit deferred reply
+      return interaction.editReply({
+        content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
+      });
+    } catch (err) {
+      console.error("🔥 Error in sendWOTD command:", err);
+      // Edit reply even on error
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply({
+          content: "❌ Something went wrong while setting WOTD.",
+        });
+      } else {
+        return interaction.reply({
+          content: "❌ Something went wrong while setting WOTD.",
+          ephemeral: true,
+        });
+      }
+    }
   },
 };
