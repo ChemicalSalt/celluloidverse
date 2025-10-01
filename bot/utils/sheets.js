@@ -2,11 +2,13 @@ async function getRandomWord(client) {
   try {
     const sheetsAuth = client.sheets._options.auth;
     const clientSheets = await sheetsAuth.getClient();
+
     const res = await client.sheets.spreadsheets.values.get({
       spreadsheetId: client.SPREADSHEET_ID,
       range: client.RANGE,
       auth: clientSheets,
     });
+
     const rows = res.data.values || [];
     if (!rows.length) return null;
 
