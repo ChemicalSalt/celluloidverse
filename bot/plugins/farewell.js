@@ -1,14 +1,13 @@
-const { formatMessage } = require("../utils/helpers");
+const { handleWelcome } = require("./welcome"); // for formatMessage
 
 async function handleFarewell(member, plugin) {
   if (!plugin?.enabled) return;
 
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
-    const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch = member.guild.channels.cache.get(plugin.channelId) ||
-               await member.guild.channels.fetch(plugin.channelId).catch(() => null);
+      await member.guild.channels.fetch(plugin.channelId).catch(() => null);
     if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
-      await ch.send(msg).catch(console.error);
+      await ch.send(formatMessage(plugin.serverMessage, member, member.guild)).catch(() => {});
     }
   }
 

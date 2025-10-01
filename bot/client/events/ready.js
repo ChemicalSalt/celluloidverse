@@ -5,7 +5,7 @@ module.exports = {
   async execute(client) {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
 
-    // On startup, schedule existing WOTD
+    // On startup, schedule WOTD for all guilds
     try {
       const snapshot = await client.db.collection("guilds").get();
       snapshot.docs.forEach((doc) => {
@@ -18,7 +18,7 @@ module.exports = {
       console.error("🔥 Error loading guild configs on startup:", err);
     }
 
-    // Watch live changes
+    // Watch for live changes
     client.db.collection("guilds").onSnapshot((snap) => {
       snap.docChanges().forEach((change) => {
         const gid = change.doc.id;
