@@ -1,7 +1,6 @@
-// cron/scheduler.js
 const cron = require("node-cron");
 const scheduledJobs = new Map();
-const { sendWOTDNow } = require("../plugins/language");
+const { sendLanguageNow } = require("../plugins/language"); // renamed
 
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
@@ -11,23 +10,19 @@ function _stopJob(key) {
   }
 }
 
-/**
- * plugin: { enabled, channelId, time, timezone, language }
- */
 function scheduleWordOfTheDay(guildId, plugin = {}) {
-  const key = `wotd:${guildId}`;
+  const key = `language:${guildId}`; // use plugin name
 
   if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
     _stopJob(key);
     return;
   }
 
-  const parts = String(plugin.time).split(":").map(Number);
-  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+  const [hour, minute] = String(plugin.time).split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
     console.error(`[Scheduler] Invalid time for guild ${guildId}: ${plugin.time}`);
     return;
   }
-  const [hour, minute] = parts;
 
   _stopJob(key);
 
@@ -36,17 +31,15 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[Scheduler] Triggering WOTD for ${guildId} at ${plugin.time} (tz=${plugin.timezone || "UTC"})`);
-        try {
-          await sendWOTDNow(guildId, plugin);
-        } catch (e) {
-          console.error("[Scheduler] sendWOTDNow error:", e);
-        }
+        console.log(`[Scheduler] Triggering Language for ${guildId} at ${plugin.time} (tz=${plugin.timezone || "UTC"})`);
+        try { await sendLanguageNow(guildId, plugin); } 
+        catch (e) { console.error("[Scheduler] sendLanguageNow error:", e); }
       },
       { timezone: plugin.timezone || "UTC" }
     );
+
     scheduledJobs.set(key, job);
-    console.log(`[Scheduler] Scheduled WOTD for ${guildId} at ${plugin.time} (${plugin.timezone || "UTC"})`);
+    console.log(`[Scheduler] Scheduled Language for ${guildId} at ${plugin.time} (${plugin.timezone || "UTC"})`);
   } catch (err) {
     console.error("[Scheduler] failed to schedule:", err);
   }

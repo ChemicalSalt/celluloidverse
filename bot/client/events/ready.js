@@ -1,4 +1,3 @@
-// client/events/ready.js
 module.exports = (client) => {
   const { db } = require("../../utils/firestore");
   const { scheduleWordOfTheDay } = require("../../cron/scheduler");
@@ -7,29 +6,30 @@ module.exports = (client) => {
     console.log(`✅ Bot logged in as ${client.user.tag}`);
 
     try {
-      // Schedule existing language plugins on startup
       const snapshot = await db.collection("guilds").get();
       snapshot.docs.forEach((doc) => {
         const gid = doc.id;
         const plugins = doc.data()?.plugins || {};
-        const lang = plugins.language;
+        const lang = plugins.language; // ONLY language
         if (lang?.enabled) scheduleWordOfTheDay(gid, lang);
       });
     } catch (err) {
       console.error("🔥 Error loading guild configs on startup:", err);
     }
 
-    // Live watcher: reschedule on Firestore changes
+    // Live watcher: reschedule if plugin changes
     db.collection("guilds").onSnapshot(
       (snap) => {
         snap.docChanges().forEach((change) => {
           const gid = change.doc.id;
           const plugins = change.doc.data()?.plugins || {};
-          const lang = plugins.language;
+          const lang = plugins.language; // ONLY language
           scheduleWordOfTheDay(gid, lang);
         });
       },
-      (err) => console.error("[Firestore] watcher error:", err)
+      (err) => {
+        console.error("[Firestore] watcher error:", err);
+      }
     );
   });
 };

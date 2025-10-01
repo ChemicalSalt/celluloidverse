@@ -1,15 +1,17 @@
-// plugins/language.js
 const { google } = require("googleapis");
-const { client } = require("../client/client");
 
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const RANGE = "Sheet1!A:H";
+let clientRef;
+
+function setClient(client) { clientRef = client; }
 
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
 });
+
 const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const RANGE = "Sheet1!A:H";
 
 async function getRandomWord() {
   try {
@@ -21,8 +23,7 @@ async function getRandomWord() {
     });
     const rows = res.data.values || [];
     if (!rows.length) return null;
-
-    const dataRows = rows.filter((r) => r[0] && r[1]);
+    const dataRows = rows.filter(r => r[0] && r[1]);
     const row = dataRows[Math.floor(Math.random() * dataRows.length)];
     return {
       kanji: row[0] || "",
@@ -35,14 +36,25 @@ async function getRandomWord() {
       sentenceMeaning: row[7] || "",
     };
   } catch (err) {
-    console.error("🔥 Error fetching from Google Sheets:", err);
+    console.error("[Language] Error fetching from Google Sheets:", err);
     return null;
   }
 }
 
-function formatMessage(word) {
-  if (!word) return "";
-  return `📖 **Word of the Day**
+async function sendLanguageNow(guildId, plugin) {
+  if (!plugin?.enabled) return;
+  if (!clientRef) return console.error("[Language] client not set!");
+
+  const guild = clientRef.guilds.cache.get(guildId);
+  if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
+
+  const channel = guild.channels.cache.get(plugin.channelId) || await guild.channels.fetch(plugin.channelId).catch(() => null);
+  if (!channel) return console.warn(`[Language] Channel not found: ${plugin.channelId}`);
+
+  const word = await getRandomWord();
+  if (!word) return console.warn("[Language] No word found in Google Sheets");
+
+  const msg = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
 **Romaji:** ${word.romaji}
@@ -53,31 +65,9 @@ function formatMessage(word) {
 **Hiragana/Katakana:** ${word.sentenceHiragana}
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
+
+  try { await channel.send(msg); console.log(`[Language] Sent to guild ${guildId}`); } 
+  catch (e) { console.error("[Language] send error:", e); }
 }
 
-async function sendWOTDNow(guildId, plugin) {
-  if (!plugin?.enabled) return;
-  try {
-    const guild = client.guilds.cache.get(guildId);
-    if (!guild) return console.warn(`[WOTD] Guild not found: ${guildId}`);
-
-    const channel = guild.channels.cache.get(plugin.channelId) ||
-      (await guild.channels.fetch(plugin.channelId).catch(() => null));
-    if (!channel) return console.warn(`[WOTD] Channel not found: ${plugin.channelId}`);
-
-    const me = guild.members.me || (await guild.members.fetch(client.user.id).catch(() => null));
-    if (!me || !channel.permissionsFor(me)?.has("SendMessages")) {
-      return console.warn(`[WOTD] Missing send permission in ${plugin.channelId}`);
-    }
-
-    const word = await getRandomWord();
-    if (!word) return console.warn(`[WOTD] No word available for guild ${guildId}`);
-
-    await channel.send(formatMessage(word));
-    console.log(`[WOTD] ✅ Sent to guild ${guildId} channel ${plugin.channelId}`);
-  } catch (err) {
-    console.error("[WOTD] send error:", err);
-  }
-}
-
-module.exports = { sendWOTDNow };
+module.exports = { sendLanguageNow, setClient };

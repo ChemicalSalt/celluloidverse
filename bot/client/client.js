@@ -1,10 +1,11 @@
-// client/client.js
 require("dotenv").config();
 const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const helpers = require("../utils/helpers");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig } = require("../utils/firestore");
+const languagePlugin = require("../plugins/language");
 
+// create client first
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -14,6 +15,9 @@ const client = new Client({
   ],
   partials: [Partials.GuildMember],
 });
+
+// set client in language plugin
+languagePlugin.setClient(client);
 
 // Register slash commands
 async function registerCommands() {
