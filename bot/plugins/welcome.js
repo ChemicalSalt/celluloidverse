@@ -1,32 +1,19 @@
-function formatMessage(msg, member) {
-  if (!msg) return "";
-  return msg
-    .replaceAll("{username}", member.user.username)
-    .replaceAll("{usermention}", `<@${member.id}>`)
-    .replaceAll("{server}", member.guild.name)
-    .replace(/\{role:([^\}]+)\}/g, (_, r) => {
-      const role = member.guild.roles.cache.find(x => x.name === r);
-      return role ? `<@&${role.id}>` : r;
-    })
-    .replace(/\{channel:([^\}]+)\}/g, (_, c) => {
-      const ch = member.guild.channels.cache.find(x => x.name === c);
-      return ch ? `<#${ch.id}>` : c;
-    });
-}
+const { formatMessage } = require("../utils/helpers");
 
 async function handleWelcome(member, plugin) {
   if (!plugin?.enabled) return;
 
   if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
+    const msg = formatMessage(plugin.serverMessage, member, member.guild);
     const ch = member.guild.channels.cache.get(plugin.channelId) ||
-      await member.guild.channels.fetch(plugin.channelId).catch(() => null);
+               await member.guild.channels.fetch(plugin.channelId).catch(() => null);
     if (ch?.permissionsFor(member.guild.members.me)?.has("SendMessages")) {
-      await ch.send(formatMessage(plugin.serverMessage, member)).catch(() => {});
+      await ch.send(msg).catch(console.error);
     }
   }
 
   if (plugin.sendInDM && plugin.dmMessage) {
-    await member.send(formatMessage(plugin.dmMessage, member)).catch(() => {});
+    await member.send(formatMessage(plugin.dmMessage, member, member.guild)).catch(() => {});
   }
 }
 

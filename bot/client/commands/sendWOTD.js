@@ -6,27 +6,29 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwotd")
     .setDescription("Setup Word of the Day (Japanese only, UTC time)")
-    .addStringOption(o => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
-    .addStringOption(o => o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true))
-    .addStringOption(o => o.setName("language").setDescription("Pick language").setRequired(true).addChoices({ name: "Japanese", value: "japanese" })),
+    .addStringOption((o) => o.setName("channel").setDescription("Channel ID or #channel").setRequired(true))
+    .addStringOption((o) => o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true))
+    .addStringOption((o) =>
+      o.setName("language").setDescription("Pick language").setRequired(true).addChoices({
+        name: "Japanese",
+        value: "japanese",
+      })
+    ),
   async execute(interaction) {
-    const db = interaction.client.db;
+    const client = interaction.client;
     const gid = interaction.guildId;
-    const pluginsDoc = (await db.collection("guilds").doc(gid).get()).data()?.plugins || {};
+    const plugins = (await client.db.collection("guilds").doc(gid).get()).data()?.plugins || {};
 
     const channelId = cleanChannelId(interaction.options.getString("channel"));
     const time = interaction.options.getString("time");
     const language = interaction.options.getString("language") || "japanese";
 
-    const plugin = { channelId, time, language, enabled: true };
+    const p = { channelId, time, language, enabled: true };
 
-    await db.collection("guilds").doc(gid).set({ plugins: { ...pluginsDoc, language: plugin } }, { merge: true });
-    scheduleWordOfTheDay(interaction.client, gid, plugin);
+    await client.db.collection("guilds").doc(gid).set({ plugins: { ...plugins, language: p } }, { merge: true });
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, flags: 64 });
-    } else {
-      await interaction.followUp({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, flags: 64 });
-    }
+    scheduleWordOfTheDay(client, gid, p);
+
+    return interaction.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC.`, ephemeral: true });
   },
 };
