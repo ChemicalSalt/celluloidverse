@@ -4,6 +4,17 @@ let clientRef;
 
 function setClient(client) { clientRef = client; }
 
+// Sanitize text to prevent unwanted mentions or markdown abuse
+function sanitizeDiscord(text) {
+  if (!text) return "";
+  return text
+    .replace(/@/g, "@\u200b")   // prevent mentions
+    .replace(/`/g, "'")         // prevent code block injection
+    .replace(/\*/g, "\\*")      // escape bold/italic
+    .replace(/_/g, "\\_")       // escape underline/italic
+    .replace(/~/g, "\\~");      // escape strikethrough
+}
+
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
   scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
@@ -54,7 +65,8 @@ async function sendLanguageNow(guildId, plugin) {
   const word = await getRandomWord();
   if (!word) return console.warn("[Language] No word found in Google Sheets");
 
-  const msg = `📖 **Word of the Day**
+  // Build message and sanitize
+  let msg = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
 **Romaji:** ${word.romaji}
@@ -66,8 +78,14 @@ async function sendLanguageNow(guildId, plugin) {
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
 
-  try { await channel.send(msg); console.log(`[Language] Sent to guild ${guildId}`); } 
-  catch (e) { console.error("[Language] send error:", e); }
+  msg = sanitizeDiscord(msg);
+
+  try {
+    await channel.send(msg);
+    console.log(`[Language] Sent to guild ${guildId}`);
+  } catch (e) {
+    console.error("[Language] send error:", e);
+  }
 }
 
 module.exports = { sendLanguageNow, setClient };
