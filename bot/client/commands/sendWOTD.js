@@ -1,3 +1,4 @@
+// bot/client/commands/sendWOTD.js
 const { SlashCommandBuilder } = require("discord.js");
 const { cleanChannelId } = require("../../utils/helpers");
 const { scheduleWordOfTheDay } = require("../../plugins/wotd");
@@ -6,13 +7,13 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendwotd")
     .setDescription("Setup Word of the Day (Japanese only, UTC time)")
-    .addStringOption((o) =>
+    .addStringOption(o =>
       o.setName("channel").setDescription("Channel ID or #channel").setRequired(true)
     )
-    .addStringOption((o) =>
+    .addStringOption(o =>
       o.setName("time").setDescription("HH:MM 24h format (UTC)").setRequired(true)
     )
-    .addStringOption((o) =>
+    .addStringOption(o =>
       o
         .setName("language")
         .setDescription("Pick language")
@@ -25,44 +26,37 @@ module.exports = {
     const gid = interaction.guildId;
 
     try {
-      // ✅ Defer reply (ephemeral)
-      await interaction.deferReply({ ephemeral: true });
-
-      // 🔹 Fetch existing plugin config
+      // Fetch existing plugin config safely
       const doc = await client.db.collection("guilds").doc(gid).get();
       const plugins = doc.data()?.plugins || {};
 
-      // 🔹 Get command options
+      // Get command options
       const channelId = cleanChannelId(interaction.options.getString("channel"));
       const time = interaction.options.getString("time");
       const language = interaction.options.getString("language") || "japanese";
 
       const p = { channelId, time, language, enabled: true };
 
-      // 🔹 Save updated plugin settings to Firestore
+      // Save to Firestore
       await client.db
         .collection("guilds")
         .doc(gid)
-        .set({ plugins: { ...plugins, wotd: p } }, { merge: true });
+        .set({ plugins: { ...plugins, language: p } }, { merge: true });
 
-      // 🔹 Schedule the WOTD cron job
+      // Schedule job
       scheduleWordOfTheDay(client, gid, p);
 
-      // ✅ Edit deferred reply
-      return interaction.editReply({
+      // Reply once ✅
+      return interaction.reply({
         content: `✅ Word of the Day saved. Runs daily at ${time} UTC.`,
+        ephemeral: true,
       });
     } catch (err) {
       console.error("🔥 Error in sendWOTD command:", err);
-
-      const errorMessage = { content: "❌ Something went wrong while setting WOTD." };
-
-      // ✅ Avoid "already acknowledged" bug
-      if (interaction.deferred || interaction.replied) {
-        return interaction.editReply(errorMessage);
-      } else {
-        return interaction.reply({ ...errorMessage, ephemeral: true });
-      }
+      return interaction.reply({
+        content: "❌ Something went wrong while setting WOTD.",
+        ephemeral: true,
+      });
     }
   },
 };
