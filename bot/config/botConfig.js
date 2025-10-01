@@ -1,11 +1,10 @@
-const admin = require("firebase-admin");
+// config/botConfig.js
+// Exports configuration values needed across the app.
+// No heavy initialization here.
 
-function initializeFirebase() {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  if (!admin.apps.length) {
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-  }
-  return admin.firestore();
-}
-
-module.exports = { initializeFirebase };
+module.exports = {
+  CLIENT_ID: process.env.CLIENT_ID,
+  DASHBOARD_URL: process.env.DASHBOARD_URL,
+  TOKEN: process.env.TOKEN,
+  PORT: process.env.PORT || 3000,
+};

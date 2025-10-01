@@ -1,16 +1,18 @@
+// config/sheetsConfig.js
 const { google } = require("googleapis");
 
-function initializeSheets() {
-  const sheetsAuth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
+let sheetsClient = null;
+
+try {
+  const auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT || "{}"),
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
-
-  const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
-  const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-  const RANGE = "Sheet1!A:H";
-
-  return { sheets, sheetsAuth, SPREADSHEET_ID, RANGE };
+  sheetsClient = google.sheets({ version: "v4", auth });
+} catch (e) {
+  console.error("🔥 Failed to init Google Sheets client:", e);
 }
 
-module.exports = { initializeSheets };
+module.exports = {
+  sheetsClient,
+};

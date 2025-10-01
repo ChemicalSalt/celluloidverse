@@ -1,34 +1,19 @@
-async function getRandomWord(client) {
-  try {
-    const sheetsAuth = client.sheets._options.auth;
-    const clientSheets = await sheetsAuth.getClient();
+// utils/sheets.js
+// Thin wrapper over google sheets client usage used by plugins.
 
-    const res = await client.sheets.spreadsheets.values.get({
-      spreadsheetId: client.SPREADSHEET_ID,
-      range: client.RANGE,
-      auth: clientSheets,
-    });
-
-    const rows = res.data.values || [];
-    if (!rows.length) return null;
-
-    const dataRows = rows.filter((r) => r[0] && r[1]);
-    const row = dataRows[Math.floor(Math.random() * dataRows.length)];
-
-    return {
-      kanji: row[0] || "",
-      hiragana: row[1] || "",
-      romaji: row[2] || "",
-      meaning: row[3] || "",
-      sentenceJP: row[4] || "",
-      sentenceHiragana: row[5] || "",
-      sentenceRomaji: row[6] || "",
-      sentenceMeaning: row[7] || "",
-    };
-  } catch (err) {
-    console.error("🔥 Error fetching from Google Sheets:", err);
-    return null;
-  }
-}
-
-module.exports = { getRandomWord };
+module.exports = {
+  async getAllRows(sheetsClient, spreadsheetId, range) {
+    try {
+      const clientAuth = await sheetsClient.context ? sheetsClient.context._options : null;
+      // sheetsClient is already created with auth in config/sheetsConfig
+      const res = await sheetsClient.spreadsheets.values.get({
+        spreadsheetId,
+        range,
+      });
+      return res.data.values || [];
+    } catch (err) {
+      console.error("🔥 sheets.getAllRows error:", err);
+      return [];
+    }
+  },
+};

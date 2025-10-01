@@ -1,13 +1,21 @@
+// web/server.js
 const express = require("express");
+const { PORT } = require("../config/botConfig");
 
-function startServer() {
+let serverInstance = null;
+
+function start(client) {
   const app = express();
   app.use(express.json());
 
   app.get("/", (_req, res) => res.send("Bot is alive"));
+  app.get("/health", (_req, res) => res.json({ status: "ok", bot: client?.user?.tag || null }));
 
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, "0.0.0.0", () => console.log(`🌐 Web server on ${PORT}`));
+  serverInstance = app.listen(PORT || 3000, "0.0.0.0", () => {
+    console.log(`🌐 Web server on ${PORT || 3000}`);
+  });
+
+  return serverInstance;
 }
 
-module.exports = { startServer };
+module.exports = { start };

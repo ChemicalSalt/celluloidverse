@@ -1,54 +1,58 @@
+// client/client.js
+const { Client, GatewayIntentBits, Partials, REST, Routes } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-function loadClient(client) {
-  // Load events
-  const eventsPath = path.join(__dirname, "events");
-  fs.readdirSync(eventsPath).forEach((file) => {
-    const event = require(path.join(eventsPath, file));
-    if (!event || !event.name || !event.execute) return;
-    client.on(event.name, async (...args) => {
-      try {
-        await event.execute(client, ...args);
-      } catch (err) {
-        console.error(`Error in event ${event.name}:`, err);
-      }
-    });
+const { CLIENT_ID, TOKEN } = require("../config/botConfig");
+
+function buildClient() {
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+    ],
+    partials: [Partials.GuildMember],
   });
 
-  // Load commands
+  // Attach a command collection for runtime use
   client.commands = new Map();
+
+  // load command modules into memory (for execution at runtime)
   const commandsPath = path.join(__dirname, "commands");
-  fs.readdirSync(commandsPath).forEach((file) => {
+  for (const file of fs.readdirSync(commandsPath)) {
+    if (!file.endsWith(".js")) continue;
     const cmd = require(path.join(commandsPath, file));
     if (!cmd || !cmd.data || !cmd.execute) {
-      console.warn(`Skipping invalid command file: ${file}`);
-      return;
+      console.warn(`⚠ Invalid command file: ${file}`);
+      continue;
     }
     client.commands.set(cmd.data.name, cmd);
-  });
-
-  // Interaction handler
-  client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isCommand()) return;
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
-
-    try {
-      await command.execute(interaction, client);
-   } catch (err) {
-  console.error(`Error executing command ${interaction.commandName}:`, err);
-
-  // only reply if not already acknowledged
-  if (!interaction.replied && !interaction.deferred) {
-    await interaction.reply({
-      content: "❌ Something went wrong",
-      flags: 64 // ephemeral replacement
-    });
   }
+
+  return client;
 }
 
-  });
+// register commands with Discord via REST (full set from client/commands)
+async function registerCommands() {
+  const commandsDir = path.join(__dirname, "commands");
+  const commands = [];
+  for (const f of fs.readdirSync(commandsDir)) {
+    if (!f.endsWith(".js")) continue;
+    const mod = require(path.join(commandsDir, f));
+    if (mod && mod.data) commands.push(mod.data.toJSON());
+  }
+
+  if (!TOKEN || !CLIENT_ID) {
+    throw new Error("CLIENT_ID or TOKEN missing in env");
+  }
+
+  const rest = new REST({ version: "10" }).setToken(TOKEN);
+  await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
 }
 
-module.exports = { loadClient };
+module.exports = {
+  buildClient,
+  registerCommands,
+};

@@ -1,60 +1,113 @@
+// plugins/wotd.js
+// Exports a function that attaches plugin methods to the client (to avoid multiple instantiations).
 const cron = require("node-cron");
-const { getRandomWord } = require("../utils/sheets");
+const utils = require("../utils/helpers");
+const sheetsUtil = require("../utils/sheets");
 
-const scheduledJobs = new Map();
+let scheduledJobs = new Map();
 
-async function scheduleWordOfTheDay(client, guildId, plugin) {
-  const key = `wotd:${guildId}`;
+module.exports = (client, { db, sheets, helpers, scheduler } = {}) => {
+  // attach to client.plugins
+  client.plugins = client.plugins || {};
+  client.plugins.wotd = {
+    scheduleWordOfTheDay,
+    sendWOTDNow,
+    stopScheduleForGuild,
+  };
 
-  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
-    if (scheduledJobs.has(key)) {
-      scheduledJobs.get(key).stop();
-      scheduledJobs.delete(key);
+  async function getRandomWord() {
+    try {
+      const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+      const RANGE = "Sheet1!A:H";
+      const rows = await sheetsUtil.getAllRows(sheets, SPREADSHEET_ID, RANGE);
+      if (!rows || !rows.length) return null;
+      const dataRows = rows.filter((r) => r[0] && r[1]);
+      const row = dataRows[Math.floor(Math.random() * dataRows.length)];
+      return {
+        kanji: row[0] || "",
+        hiragana: row[1] || "",
+        romaji: row[2] || "",
+        meaning: row[3] || "",
+        sentenceJP: row[4] || "",
+        sentenceHiragana: row[5] || "",
+        sentenceRomaji: row[6] || "",
+        sentenceMeaning: row[7] || "",
+      };
+    } catch (err) {
+      console.error("🔥 Error fetching from Google Sheets (wotd):", err);
+      return null;
     }
-    return;
   }
 
-  const [hour, minute] = plugin.time.split(":").map(Number);
-  if (isNaN(hour) || isNaN(minute)) return;
-
-  if (scheduledJobs.has(key)) {
-    scheduledJobs.get(key).stop();
-    scheduledJobs.delete(key);
+  function stopScheduleForGuild(guildId) {
+    const key = `wotd:${guildId}`;
+    if (scheduledJobs.has(key)) {
+      try {
+        scheduledJobs.get(key).stop();
+      } catch {}
+      scheduledJobs.delete(key);
+      console.log(`[WOTD] ❌ Stopped schedule for guild ${guildId}`);
+    }
   }
 
-  console.log(`[WOTD] Scheduled job for guild ${guildId} at ${hour}:${minute} UTC`);
+  function scheduleWordOfTheDay(guildId, plugin) {
+    const key = `wotd:${guildId}`;
 
-  const job = cron.schedule(
-    `${minute} ${hour} * * *`,
-    async () => {
-      await sendWOTDNow(client, guildId, plugin);
-    },
-    { timezone: "UTC" }
-  );
+    if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
+      // stop existing if present
+      stopScheduleForGuild(guildId);
+      return;
+    }
 
-  scheduledJobs.set(key, job);
-}
+    const parts = (plugin.time || "").split(":").map((s) => Number(s));
+    if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1])) {
+      return console.error(`[WOTD] ⚠ Invalid time for guild ${guildId}:`, plugin.time);
+    }
+    const [hour, minute] = parts;
 
-async function sendWOTDNow(client, guildId, plugin) {
-  if (!plugin?.enabled) return;
+    // remove old job
+    stopScheduleForGuild(guildId);
 
-  const guild = client.guilds.cache.get(guildId);
-  if (!guild) return;
+    try {
+      const expr = `${minute} ${hour} * * *`; // daily at UTC hour:minute
+      const job = cron.schedule(
+        expr,
+        async () => {
+          try {
+            await sendWOTDNow(guildId, plugin);
+          } catch (e) {
+            console.error("[WOTD] send error:", e);
+          }
+        },
+        { timezone: "UTC" }
+      );
+      scheduledJobs.set(key, job);
+      console.log(`[WOTD] ✅ Scheduled for guild ${guildId} at ${plugin.time} UTC (key=${key})`);
+    } catch (err) {
+      console.error("🔥 Failed to schedule WOTD:", err);
+    }
+  }
 
-  const channel =
-    guild.channels.cache.get(plugin.channelId) ||
-    (await guild.channels.fetch(plugin.channelId).catch(() => null));
-  if (!channel) return;
+  async function sendWOTDNow(guildId, plugin) {
+    if (!plugin?.enabled) return;
+    try {
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) return console.warn(`[WOTD] Guild not found in cache: ${guildId}`);
 
-  const me =
-    guild.members.me ||
-    (await guild.members.fetch(client.user.id).catch(() => null));
-  if (!me || !channel.permissionsFor(me)?.has("SendMessages")) return;
+      const channel =
+        guild.channels.cache.get(plugin.channelId) ||
+        (await guild.channels.fetch(plugin.channelId).catch(() => null));
+      if (!channel) return console.warn(`[WOTD] Channel not found: ${plugin.channelId}`);
 
-  const word = await getRandomWord(client);
-  if (!word) return;
+      const me = guild.members.me || (await guild.members.fetch(client.user.id).catch(() => null));
+      if (!me || !channel.permissionsFor(me)?.has("SendMessages")) {
+        return console.warn(`[WOTD] Missing send permission in ${plugin.channelId}`);
+      }
 
-  const msg = `📖 **Word of the Day**
+      const word = await getRandomWord();
+      if (!word) return console.warn(`[WOTD] No word available`);
+
+      const message = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
 **Romaji:** ${word.romaji}
@@ -66,7 +119,13 @@ async function sendWOTDNow(client, guildId, plugin) {
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
 
-  await channel.send(msg).catch(console.error);
-}
+      await channel.send(message);
+      console.log(`[WOTD] ✅ Sent to guild ${guildId} channel ${plugin.channelId}`);
+    } catch (err) {
+      console.error("🔥 Error sending WOTD:", err);
+    }
+  }
 
-module.exports = { scheduleWordOfTheDay, sendWOTDNow };
+  // export plugin functions by returning object (already attached to client.plugins)
+  return client.plugins.wotd;
+};
