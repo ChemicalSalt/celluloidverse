@@ -11,7 +11,7 @@ module.exports = {
           .setURL(process.env.DASHBOARD_URL)
           .setColor(0x00ff00),
       ],
-      ephemeral: true,
+      flags: 64,
     });
   },
 };

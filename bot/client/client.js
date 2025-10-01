@@ -1,14 +1,13 @@
 const fs = require("fs");
 const path = require("path");
-const { REST, Routes } = require("discord.js");
 
 module.exports = async (client) => {
   client.commands = new Map();
 
-  // --- Load commands dynamically ---
+  // --- Load commands ---
   const commandsPath = path.join(__dirname, "commands");
   const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
-
+  const { REST, Routes } = require("discord.js");
   const commandsForDiscord = [];
 
   for (const file of commandFiles) {
@@ -19,7 +18,7 @@ module.exports = async (client) => {
     commandsForDiscord.push(command.data.toJSON());
   }
 
-  // --- Register slash commands globally ---
+  // --- Register slash commands ---
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
   (async () => {
     try {
@@ -30,7 +29,7 @@ module.exports = async (client) => {
     }
   })();
 
-  // --- Load events dynamically ---
+  // --- Load events ---
   const eventsPath = path.join(__dirname, "events");
   const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith(".js"));
 
@@ -50,7 +49,6 @@ module.exports = async (client) => {
   // --- Interaction handler ---
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isCommand()) return;
-
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
@@ -58,8 +56,8 @@ module.exports = async (client) => {
       await command.execute(interaction);
     } catch (err) {
       console.error("🔥 Interaction handler error:", err);
-      if (!interaction.replied) {
-        await interaction.reply({ content: "❌ Something went wrong", ephemeral: true });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: "❌ Something went wrong", flags: 64 });
       }
     }
   });

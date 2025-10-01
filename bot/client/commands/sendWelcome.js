@@ -25,6 +25,6 @@ module.exports = {
     const plugin = { channelId, serverMessage, dmMessage, enabled: true, sendInServer, sendInDM };
 
     await setGuildDoc(db, gid, { plugins: { ...pluginsDoc, welcome: plugin } });
-    await interaction.reply({ content: "✅ Welcome settings saved!", ephemeral: true });
+await interaction.reply({ content: "✅ Welcome settings saved!", flags: 64 });
   },
 };
