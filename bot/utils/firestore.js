@@ -1,4 +1,3 @@
-// utils/firestore.js
 const admin = require("firebase-admin");
 
 if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -15,8 +14,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 /**
- * Ensure plugin map structure merging helper
- * Writes the plugins map at /guilds/{guildId}.plugins
+ * Save plugin config for a guild
  */
 async function savePluginConfig(guildId, pluginKey, pluginData) {
   const now = new Date().toISOString();
