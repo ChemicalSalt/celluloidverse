@@ -129,7 +129,7 @@ client.on("interactionCreate", async (i) => {
     }
 
     // -------- LANGUAGE / WOTD --------
-    if (i.commandName === "sendlanguage") {
+    if (i.commandName === "send_language") {
       const channel = i.options.getChannel("channel");
       const time = i.options.getString("time");
       const language = i.options.getString("language") || "japanese";
@@ -141,7 +141,7 @@ client.on("interactionCreate", async (i) => {
     }
 
     // -------- WELCOME --------
-    if (i.commandName === "sendwelcome") {
+    if (i.commandName === "send_welcome") {
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
@@ -155,7 +155,7 @@ client.on("interactionCreate", async (i) => {
     }
 
     // -------- FAREWELL --------
-    if (i.commandName === "sendfarewell") {
+    if (i.commandName === "send_farewell") {
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
