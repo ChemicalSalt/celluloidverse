@@ -45,9 +45,6 @@ async function registerCommands() {
   }
 }
 
-// Import your advanced ping command
-const pingCommand = require("./commands/ping"); // Adjust this path if needed
-
 // Events
 const readyEvent = require("./events/ready");
 const guildMemberAddEvent = require("./events/guildMemberAdd");
@@ -63,10 +60,7 @@ client.on("interactionCreate", async (i) => {
   const gid = i.guildId;
 
   try {
-    if (i.commandName === "ping") {
-      // Use your advanced logic!
-      return pingCommand.execute(i);
-    }
+    if (i.commandName === "ping") return i.reply("🏓 Pong!");
 
     if (i.commandName === "dashboard") {
       return i.reply({
