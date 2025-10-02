@@ -1,5 +1,5 @@
 const { db } = require("../../utils/firestore");
-const { EmbedBuilder, SlashCommandBuilder, InteractionResponseFlags } = require("discord.js");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -8,11 +8,12 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      // Safely defer reply with ephemeral flag
+      // Defer immediately to avoid "application did not respond" (public)
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral });
+        await interaction.deferReply();
       }
 
+      // Fetch bot status from Firestore
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
 
@@ -31,7 +32,7 @@ module.exports = {
     } catch (err) {
       console.error("[/ping] error:", err);
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: "❌ Something went wrong." }).catch(() => {});
       }
     }
   },
