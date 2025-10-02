@@ -11,6 +11,7 @@ const {
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
+const { sanitizeDynamic } = require("../utils/sanitize");
 
 // Create Discord client
 const client = new Client({
@@ -148,8 +149,9 @@ client.on("interactionCreate", async (i) => {
       await safeDefer();
 
       const channel = i.options.getChannel("channel");
-      const serverMsg = i.options.getString("server_message") || null;
-      const dmMsg = i.options.getString("dm_message") || null;
+    const serverMsg = sanitizeDynamic(i.options.getString("server_message") || null);
+const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
+
       const sendInServer = i.options.getBoolean("send_in_server");
       const sendInDM = i.options.getBoolean("send_in_dm");
 
@@ -164,8 +166,9 @@ client.on("interactionCreate", async (i) => {
       await safeDefer();
 
       const channel = i.options.getChannel("channel");
-      const serverMsg = i.options.getString("server_message") || null;
-      const dmMsg = i.options.getString("dm_message") || null;
+     const serverMsg = sanitizeDynamic(i.options.getString("server_message") || null);
+const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
+
       const sendInServer = i.options.getBoolean("send_in_server");
       const sendInDM = i.options.getBoolean("send_in_dm");
 
