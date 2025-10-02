@@ -7,7 +7,7 @@ module.exports = {
   description: "Check bot alive and live status",
   async execute(interaction) {
     try {
-      // Defer reply to prevent "already acknowledged" error
+      // Defer reply to prevent 'already acknowledged' error
       await interaction.deferReply();
 
       // Discord websocket ping
@@ -16,6 +16,8 @@ module.exports = {
       // Fetch Firestore document at botStatus/main
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
+
+      console.log("[Ping] Fetched bot status:", status);
 
       // Build embed
       const embed = new EmbedBuilder()
@@ -32,8 +34,9 @@ module.exports = {
         .setFooter({ text: "Bot live status from Firestore" })
         .setTimestamp();
 
-      // Send the embed
+      // Send final reply
       await interaction.editReply({ embeds: [embed] });
+
     } catch (err) {
       console.error("[Ping] error:", err);
       if (!interaction.replied) {
