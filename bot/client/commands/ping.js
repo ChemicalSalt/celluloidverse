@@ -7,14 +7,17 @@ module.exports = {
   description: "Check bot alive and live status",
   async execute(interaction) {
     try {
+      // Defer reply to prevent "already acknowledged" error
+      await interaction.deferReply();
+
+      // Discord websocket ping
       const wsPing = interaction.client.ws.ping;
 
-      console.log("[Ping] Fetching botStatus/main from Firestore...");
+      // Fetch Firestore document at botStatus/main
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
-      console.log("[Ping] Status exists:", statusDoc.exists);
-      console.log("[Ping] Status data:", status);
 
+      // Build embed
       const embed = new EmbedBuilder()
         .setTitle("🏓 Bot Status")
         .setColor(status?.online ? 0x00ff00 : 0xff0000)
@@ -29,10 +32,13 @@ module.exports = {
         .setFooter({ text: "Bot live status from Firestore" })
         .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+      // Send the embed
+      await interaction.editReply({ embeds: [embed] });
     } catch (err) {
-      console.error("[Ping] Error fetching bot status:", err);
-      await interaction.reply("❌ Something went wrong while fetching bot status.");
+      console.error("[Ping] error:", err);
+      if (!interaction.replied) {
+        await interaction.reply("❌ Something went wrong while fetching bot status.");
+      }
     }
   },
 };
