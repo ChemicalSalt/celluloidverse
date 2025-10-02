@@ -1,25 +1,23 @@
-// client/commands/ping.js
 const { db } = require("../utils/firestore");
 const { EmbedBuilder } = require("discord.js");
 
 module.exports = {
   name: "ping",
-  description: "Check bot alive and live status",
+  description: "Check bot alive and live status (from Firestore)",
   async execute(interaction) {
     try {
-      // Defer reply to prevent 'already acknowledged' error
       await interaction.deferReply();
 
       // Discord websocket ping
       const wsPing = interaction.client.ws.ping;
 
-      // Fetch Firestore document at botStatus/main
+      // Fetch Firestore status (written by backend)
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
 
-      console.log("[Ping] Fetched bot status:", status);
+      console.log("[Ping] Fetched bot status from Firestore:", status);
 
-      // Build embed
+      // Build embed for Discord
       const embed = new EmbedBuilder()
         .setTitle("🏓 Bot Status")
         .setColor(status?.online ? 0x00ff00 : 0xff0000)
@@ -31,10 +29,9 @@ module.exports = {
           { name: "Users", value: status ? `${status.users}` : "❌ N/A", inline: true },
           { name: "Last Update", value: status ? new Date(status.timestamp).toLocaleString() : "❌ N/A", inline: false }
         )
-        .setFooter({ text: "Bot live status from Firestore" })
+        .setFooter({ text: "Bot live status from Firestore (via backend)" })
         .setTimestamp();
 
-      // Send final reply
       await interaction.editReply({ embeds: [embed] });
 
     } catch (err) {
