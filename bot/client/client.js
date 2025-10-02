@@ -1,5 +1,5 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder, InteractionResponseFlags } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const helpers = require("../utils/helpers");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
@@ -69,12 +69,10 @@ client.on("interactionCreate", async (i) => {
   const gid = i.guildId;
 
   try {
-    const replyFlags = 64; // ephemeral
-
     // -------- PING --------
     if (i.commandName === "ping") {
-      await i.deferReply({ flags: replyFlags });
-
+      // Use deferReply and editReply for long processing
+      if (!i.deferred && !i.replied) await i.deferReply();
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
 
@@ -102,7 +100,6 @@ client.on("interactionCreate", async (i) => {
             .setURL(process.env.DASHBOARD_URL || "https://example.com")
             .setColor(0x00ff00),
         ],
-        flags: replyFlags,
       });
     }
 
@@ -115,7 +112,7 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
 
-      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.`, flags: replyFlags });
+      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.` });
     }
 
     // -------- WELCOME --------
@@ -129,7 +126,7 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "welcome", p);
 
-      return i.reply({ content: `✅ Welcome settings saved for ${channel}.`, flags: replyFlags });
+      return i.reply({ content: `✅ Welcome settings saved for ${channel}.` });
     }
 
     // -------- FAREWELL --------
@@ -143,13 +140,13 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "farewell", p);
 
-      return i.reply({ content: `✅ Farewell settings saved for ${channel}.`, flags: replyFlags });
+      return i.reply({ content: `✅ Farewell settings saved for ${channel}.` });
     }
   } catch (err) {
     console.error("[interactionCreate] error:", err);
-    if (!i.replied) {
+    if (!i.replied && !i.deferred) {
       try {
-        await i.reply({ content: "❌ Something went wrong.", flags: 64 });
+        await i.reply({ content: "❌ Something went wrong." });
       } catch {}
     }
   }
