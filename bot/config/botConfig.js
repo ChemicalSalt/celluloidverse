@@ -2,15 +2,15 @@ module.exports = {
   COMMANDS: [
     {
       name: "ping",
-      description: "Check bot alive",
+      description: "Ping Celluloidverse",
     },
     {
       name: "dashboard",
       description: "Open dashboard",
     },
     {
-      name: "sendwotd",
-      description: "Setup Word of the Day (Japanese only, UTC time)",
+      name: "sendLanguage",
+      description: "Setup Word of the Day (UTC time)",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
         { name: "time", type: 3, description: "HH:MM 24h format (UTC)", required: true },
@@ -18,25 +18,25 @@ module.exports = {
       ],
     },
     {
-      name: "sendwelcome",
+      name: "sendWelcome",
       description: "Setup Welcome message",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
         { name: "send_in_server", type: 5, description: "Send in server?", required: true },
         { name: "send_in_dm", type: 5, description: "Send in DM?", required: true },
-        { name: "servermessage", type: 3, description: "Server message", required: false },
-        { name: "dmmessage", type: 3, description: "DM message", required: false },
+        { name: "server_message", type: 3, description: "Server message", required: false },
+        { name: "dm_message", type: 3, description: "DM message", required: false },
       ],
     },
     {
-      name: "sendfarewell",
+      name: "sendFarewell",
       description: "Setup Farewell message",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
         { name: "send_in_server", type: 5, description: "Send in server?", required: true },
         { name: "send_in_dm", type: 5, description: "Send in DM?", required: true },
-        { name: "servermessage", type: 3, description: "Server message", required: false },
-        { name: "dmmessage", type: 3, description: "DM message", required: false },
+        { name: "server_message", type: 3, description: "Server message", required: false },
+        { name: "dm_message", type: 3, description: "DM message", required: false },
       ],
     },
   ],
