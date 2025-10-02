@@ -124,49 +124,59 @@ client.on("interactionCreate", async (i) => {
             .setURL(process.env.DASHBOARD_URL || "https://example.com")
             .setColor(0x00ff00),
         ],
+        ephemeral: true,
       });
     }
 
     // -------- LANGUAGE / WOTD --------
-    if (i.commandName === "sendwotd") {
-      const channelId = helpers.cleanChannelId(i.options.getString("channel"));
+    if (i.commandName === "sendlanguage") {
+      const channel = i.options.getChannel("channel");
       const time = i.options.getString("time");
       const language = i.options.getString("language") || "japanese";
-      const p = { channelId, time, timezone: "UTC", language, enabled: true };
+
+      const p = { channelId: channel.id, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
-      return i.reply(`✅ WOTD saved. Runs daily at ${time} UTC.`);
+
+      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.`, ephemeral: true });
     }
 
     // -------- WELCOME --------
     if (i.commandName === "sendwelcome") {
-      const channelId = helpers.cleanChannelId(i.options.getString("channel"));
-      const serverMsg = i.options.getString("servermessage") || null;
-      const dmMsg = i.options.getString("dmmessage") || null;
-      const sendInServer = !!i.options.getBoolean("send_in_server");
-      const sendInDM = !!i.options.getBoolean("send_in_dm");
+      const channel = i.options.getChannel("channel");
+      const serverMsg = i.options.getString("server_message") || null;
+      const dmMsg = i.options.getString("dm_message") || null;
+      const sendInServer = i.options.getBoolean("send_in_server");
+      const sendInDM = i.options.getBoolean("send_in_dm");
 
-      const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
+      const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "welcome", p);
-      return i.reply("✅ Welcome settings saved!");
+
+      return i.reply({ content: `✅ Welcome settings saved for ${channel}.`, ephemeral: true });
     }
 
     // -------- FAREWELL --------
     if (i.commandName === "sendfarewell") {
-      const channelId = helpers.cleanChannelId(i.options.getString("channel"));
-      const serverMsg = i.options.getString("servermessage") || null;
-      const dmMsg = i.options.getString("dmmessage") || null;
-      const sendInServer = !!i.options.getBoolean("send_in_server");
-      const sendInDM = !!i.options.getBoolean("send_in_dm");
+      const channel = i.options.getChannel("channel");
+      const serverMsg = i.options.getString("server_message") || null;
+      const dmMsg = i.options.getString("dm_message") || null;
+      const sendInServer = i.options.getBoolean("send_in_server");
+      const sendInDM = i.options.getBoolean("send_in_dm");
 
-      const p = { channelId, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
+      const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "farewell", p);
-      return i.reply("✅ Farewell settings saved!");
+
+      return i.reply({ content: `✅ Farewell settings saved for ${channel}.`, ephemeral: true });
     }
   } catch (err) {
     console.error("[interactionCreate] error:", err);
-    if (!i.replied) try { await i.reply("❌ Something went wrong."); } catch {}
+    if (!i.replied) {
+      try {
+        await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+      } catch {}
+    }
   }
 });
+
 
 async function start() {
   if (!process.env.TOKEN || !process.env.CLIENT_ID) {
