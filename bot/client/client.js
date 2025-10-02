@@ -31,16 +31,26 @@ async function registerCommands() {
       (c.options || []).forEach((opt) => {
         if (opt.type === 3) {
           builder.addStringOption((o) => {
-            o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required);
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required);
             (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
             return o;
           });
         }
         if (opt.type === 5) {
-          builder.addBooleanOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
+          builder.addBooleanOption((o) =>
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required)
+          );
         }
         if (opt.type === 7) {
-          builder.addChannelOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
+          builder.addChannelOption((o) =>
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required)
+          );
         }
       });
 
@@ -71,7 +81,7 @@ client.on("interactionCreate", async (i) => {
   try {
     // -------- PING --------
     if (i.commandName === "ping") {
-      // Use deferReply and editReply for long processing
+      // Only defer if processing will take long
       if (!i.deferred && !i.replied) await i.deferReply();
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
