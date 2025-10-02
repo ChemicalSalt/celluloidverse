@@ -10,8 +10,11 @@ module.exports = (client) => {
       snapshot.docs.forEach((doc) => {
         const gid = doc.id;
         const plugins = doc.data()?.plugins || {};
-        const lang = plugins.language; // ONLY language
-        if (lang?.enabled) scheduleWordOfTheDay(gid, lang);
+        const lang = plugins.language;
+
+        if (lang?.enabled) {
+          scheduleWordOfTheDay(gid, lang);
+        }
       });
     } catch (err) {
       console.error("🔥 Error loading guild configs on startup:", err);
@@ -24,7 +27,11 @@ module.exports = (client) => {
           const gid = change.doc.id;
           const plugins = change.doc.data()?.plugins || {};
           const lang = plugins.language;
-          scheduleWordOfTheDay(gid, lang);
+
+          // Only schedule if language plugin exists and is enabled
+          if (lang?.enabled) {
+            scheduleWordOfTheDay(gid, lang);
+          }
         });
       },
       (err) => {

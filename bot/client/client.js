@@ -1,5 +1,13 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  EmbedBuilder,
+} = require("discord.js");
 const helpers = require("../utils/helpers");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
@@ -15,7 +23,6 @@ const client = new Client({
   partials: [Partials.GuildMember],
 });
 
-// Set client in language plugin
 languagePlugin.setClient(client);
 
 // Register slash commands
@@ -37,15 +44,13 @@ async function registerCommands() {
             (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
             return o;
           });
-        }
-        if (opt.type === 5) {
+        } else if (opt.type === 5) {
           builder.addBooleanOption((o) =>
             o.setName(opt.name)
               .setDescription(opt.description || "")
               .setRequired(!!opt.required)
           );
-        }
-        if (opt.type === 7) {
+        } else if (opt.type === 7) {
           builder.addChannelOption((o) =>
             o.setName(opt.name)
               .setDescription(opt.description || "")
@@ -64,25 +69,22 @@ async function registerCommands() {
   }
 }
 
-// Events
-const readyEvent = require("./events/ready");
-const guildMemberAddEvent = require("./events/guildMemberAdd");
-const guildMemberRemoveEvent = require("./events/guildMemberRemove");
-
-readyEvent(client);
-guildMemberAddEvent(client);
-guildMemberRemoveEvent(client);
+// Load events
+require("./events/ready")(client);
+require("./events/guildMemberAdd")(client);
+require("./events/guildMemberRemove")(client);
 
 // Slash interactions
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
-  const gid = i.guildId;
 
   try {
+    const gid = i.guildId;
+
     // -------- PING --------
     if (i.commandName === "ping") {
-      // Only defer if processing will take long
-      if (!i.deferred && !i.replied) await i.deferReply();
+      await i.deferReply(); // always defer before async work
+
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
 
@@ -115,6 +117,7 @@ client.on("interactionCreate", async (i) => {
 
     // -------- LANGUAGE / WOTD --------
     if (i.commandName === "send_language") {
+      await i.deferReply({ ephemeral: true });
       const channel = i.options.getChannel("channel");
       const time = i.options.getString("time");
       const language = i.options.getString("language") || "japanese";
@@ -122,11 +125,12 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
 
-      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.` });
+      return i.editReply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.` });
     }
 
     // -------- WELCOME --------
     if (i.commandName === "send_welcome") {
+      await i.deferReply({ ephemeral: true });
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
@@ -136,11 +140,12 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "welcome", p);
 
-      return i.reply({ content: `✅ Welcome settings saved for ${channel}.` });
+      return i.editReply({ content: `✅ Welcome settings saved for ${channel}.` });
     }
 
     // -------- FAREWELL --------
     if (i.commandName === "send_farewell") {
+      await i.deferReply({ ephemeral: true });
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
@@ -150,15 +155,13 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "farewell", p);
 
-      return i.reply({ content: `✅ Farewell settings saved for ${channel}.` });
+      return i.editReply({ content: `✅ Farewell settings saved for ${channel}.` });
     }
   } catch (err) {
     console.error("[interactionCreate] error:", err);
-    if (!i.replied && !i.deferred) {
-      try {
-        await i.reply({ content: "❌ Something went wrong." });
-      } catch {}
-    }
+    try {
+      if (!i.replied && !i.deferred) await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+    } catch {}
   }
 });
 
