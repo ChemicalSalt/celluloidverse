@@ -46,7 +46,7 @@ async function registerCommands() {
 }
 
 // Import your advanced ping command
-const pingCommand = require("../commands/ping"); // Adjust this path if needed
+const pingCommand = require("./commands/ping"); // Adjust this path if needed
 
 // Events
 const readyEvent = require("./events/ready");
