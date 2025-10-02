@@ -22,28 +22,60 @@ languagePlugin.setClient(client);
 async function registerCommands() {
   try {
     const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
     const cmds = commandsConfig.map((c) => {
-      const builder = new SlashCommandBuilder().setName(c.name).setDescription(c.description || "");
+      const builder = new SlashCommandBuilder()
+        .setName(c.name)
+        .setDescription(c.description || "");
+
       (c.options || []).forEach((opt) => {
+        // STRING
         if (opt.type === 3) {
           builder.addStringOption((o) => {
-            o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required);
-            (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required);
+
+            (opt.choices || []).forEach((ch) =>
+              o.addChoices({ name: ch.name, value: ch.value })
+            );
+
             return o;
           });
         }
+
+        // BOOLEAN
         if (opt.type === 5) {
-          builder.addBooleanOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
+          builder.addBooleanOption((o) =>
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required)
+          );
+        }
+
+        // CHANNEL
+        if (opt.type === 7) {
+          builder.addChannelOption((o) =>
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required)
+          );
         }
       });
+
       return builder.toJSON();
     });
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
+
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: cmds,
+    });
+
     console.log("[Discord] Registered slash commands");
   } catch (err) {
     console.error("[Discord] command registration failed", err);
   }
 }
+
 
 // Events
 const readyEvent = require("./events/ready");
