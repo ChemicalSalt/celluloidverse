@@ -23,6 +23,7 @@ const client = new Client({
   partials: [Partials.GuildMember],
 });
 
+// Set client in language plugin
 languagePlugin.setClient(client);
 
 // Register slash commands
@@ -74,16 +75,26 @@ require("./events/ready")(client);
 require("./events/guildMemberAdd")(client);
 require("./events/guildMemberRemove")(client);
 
-// Slash interactions
+// Slash interactions with safe defer/reply and debug logs
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
+
+  console.log(`[Debug] Interaction received: ${i.commandName} | Replied: ${i.replied} | Deferred: ${i.deferred}`);
 
   try {
     const gid = i.guildId;
 
+    // Helper to safely defer once
+    async function safeDefer() {
+      if (!i.replied && !i.deferred) {
+        await i.deferReply({ ephemeral: true });
+        console.log(`[Debug] Deferred reply for ${i.commandName}`);
+      }
+    }
+
     // -------- PING --------
     if (i.commandName === "ping") {
-      await i.deferReply(); // always defer before async work
+      await safeDefer();
 
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
@@ -117,7 +128,8 @@ client.on("interactionCreate", async (i) => {
 
     // -------- LANGUAGE / WOTD --------
     if (i.commandName === "send_language") {
-      await i.deferReply({ ephemeral: true });
+      await safeDefer();
+
       const channel = i.options.getChannel("channel");
       const time = i.options.getString("time");
       const language = i.options.getString("language") || "japanese";
@@ -130,7 +142,8 @@ client.on("interactionCreate", async (i) => {
 
     // -------- WELCOME --------
     if (i.commandName === "send_welcome") {
-      await i.deferReply({ ephemeral: true });
+      await safeDefer();
+
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
@@ -145,7 +158,8 @@ client.on("interactionCreate", async (i) => {
 
     // -------- FAREWELL --------
     if (i.commandName === "send_farewell") {
-      await i.deferReply({ ephemeral: true });
+      await safeDefer();
+
       const channel = i.options.getChannel("channel");
       const serverMsg = i.options.getString("server_message") || null;
       const dmMsg = i.options.getString("dm_message") || null;
@@ -157,10 +171,13 @@ client.on("interactionCreate", async (i) => {
 
       return i.editReply({ content: `✅ Farewell settings saved for ${channel}.` });
     }
+
   } catch (err) {
     console.error("[interactionCreate] error:", err);
     try {
-      if (!i.replied && !i.deferred) await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+      if (!i.replied && !i.deferred) {
+        await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+      }
     } catch {}
   }
 });
