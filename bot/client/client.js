@@ -1,8 +1,8 @@
 require("dotenv").config();
-const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, REST, Routes, SlashCommandBuilder, EmbedBuilder, InteractionResponseFlags } = require("discord.js");
 const helpers = require("../utils/helpers");
 const commandsConfig = require("../config/botConfig").COMMANDS;
-const { savePluginConfig, db } = require("../utils/firestore"); // add db import
+const { savePluginConfig, db } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
 
 const client = new Client({
@@ -29,53 +29,30 @@ async function registerCommands() {
         .setDescription(c.description || "");
 
       (c.options || []).forEach((opt) => {
-        // STRING
         if (opt.type === 3) {
           builder.addStringOption((o) => {
-            o.setName(opt.name)
-              .setDescription(opt.description || "")
-              .setRequired(!!opt.required);
-
-            (opt.choices || []).forEach((ch) =>
-              o.addChoices({ name: ch.name, value: ch.value })
-            );
-
+            o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required);
+            (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
             return o;
           });
         }
-
-        // BOOLEAN
         if (opt.type === 5) {
-          builder.addBooleanOption((o) =>
-            o.setName(opt.name)
-              .setDescription(opt.description || "")
-              .setRequired(!!opt.required)
-          );
+          builder.addBooleanOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
         }
-
-        // CHANNEL
         if (opt.type === 7) {
-          builder.addChannelOption((o) =>
-            o.setName(opt.name)
-              .setDescription(opt.description || "")
-              .setRequired(!!opt.required)
-          );
+          builder.addChannelOption((o) => o.setName(opt.name).setDescription(opt.description || "").setRequired(!!opt.required));
         }
       });
 
       return builder.toJSON();
     });
 
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
-      body: cmds,
-    });
-
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
     console.log("[Discord] Registered slash commands");
   } catch (err) {
     console.error("[Discord] command registration failed", err);
   }
 }
-
 
 // Events
 const readyEvent = require("./events/ready");
@@ -92,10 +69,11 @@ client.on("interactionCreate", async (i) => {
   const gid = i.guildId;
 
   try {
-    // -------- PING (Firestore Embed) --------
+    const replyFlags = 64; // ephemeral
+
+    // -------- PING --------
     if (i.commandName === "ping") {
-      await i.deferReply();
-      const wsPing = i.client.ws.ping;
+      await i.deferReply({ flags: replyFlags });
 
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
@@ -124,7 +102,7 @@ client.on("interactionCreate", async (i) => {
             .setURL(process.env.DASHBOARD_URL || "https://example.com")
             .setColor(0x00ff00),
         ],
-        ephemeral: true,
+        flags: replyFlags,
       });
     }
 
@@ -137,7 +115,7 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
 
-      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.`, ephemeral: true });
+      return i.reply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.`, flags: replyFlags });
     }
 
     // -------- WELCOME --------
@@ -151,7 +129,7 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "welcome", p);
 
-      return i.reply({ content: `✅ Welcome settings saved for ${channel}.`, ephemeral: true });
+      return i.reply({ content: `✅ Welcome settings saved for ${channel}.`, flags: replyFlags });
     }
 
     // -------- FAREWELL --------
@@ -165,18 +143,17 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "farewell", p);
 
-      return i.reply({ content: `✅ Farewell settings saved for ${channel}.`, ephemeral: true });
+      return i.reply({ content: `✅ Farewell settings saved for ${channel}.`, flags: replyFlags });
     }
   } catch (err) {
     console.error("[interactionCreate] error:", err);
     if (!i.replied) {
       try {
-        await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+        await i.reply({ content: "❌ Something went wrong.", flags: 64 });
       } catch {}
     }
   }
 });
-
 
 async function start() {
   if (!process.env.TOKEN || !process.env.CLIENT_ID) {
