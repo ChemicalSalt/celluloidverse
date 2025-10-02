@@ -21,7 +21,7 @@ module.exports = {
       name: "sendwelcome",
       description: "Setup Welcome message",
       options: [
-        { name: "channel", type: 3, description: "Channel ID or #channel", required: true },
+        { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
         { name: "send_in_server", type: 5, description: "Send in server?", required: true },
         { name: "send_in_dm", type: 5, description: "Send in DM?", required: true },
         { name: "servermessage", type: 3, description: "Server message", required: false },
