@@ -9,7 +9,7 @@ module.exports = {
       description: "Open dashboard",
     },
     {
-      name: "sendLanguage",
+      name: "send_language",
       description: "Setup Word of the Day (UTC time)",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
@@ -18,7 +18,7 @@ module.exports = {
       ],
     },
     {
-      name: "sendWelcome",
+      name: "send_welcome",
       description: "Setup Welcome message",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
@@ -29,7 +29,7 @@ module.exports = {
       ],
     },
     {
-      name: "sendFarewell",
+      name: "send_farewell",
       description: "Setup Farewell message",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
