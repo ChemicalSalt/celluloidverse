@@ -7,6 +7,7 @@ const {
   Routes,
   SlashCommandBuilder,
   EmbedBuilder,
+  InteractionResponseFlags,
 } = require("discord.js");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
@@ -86,10 +87,10 @@ client.on("interactionCreate", async (i) => {
   try {
     const gid = i.guildId;
 
-    // Helper to safely defer once
+    // Helper to safely defer once using flags
     async function safeDefer() {
       if (!i.replied && !i.deferred) {
-        await i.deferReply({ ephemeral: true });
+        await i.deferReply({ flags: InteractionResponseFlags.Ephemeral });
         console.log(`[Debug] Deferred reply for ${i.commandName}`);
       }
     }
@@ -117,9 +118,8 @@ client.on("interactionCreate", async (i) => {
 
     // -------- DASHBOARD --------
     if (i.commandName === "dashboard") {
-      await safeDefer();
-
-      return i.editReply({
+      // Immediate reply — fast command, no defer needed
+      return i.reply({
         embeds: [
           new EmbedBuilder()
             .setTitle("➡ Open Dashboard")
@@ -127,6 +127,7 @@ client.on("interactionCreate", async (i) => {
             .setURL(process.env.DASHBOARD_URL || "https://example.com")
             .setColor(0x00ff00),
         ],
+        flags: InteractionResponseFlags.Ephemeral,
       });
     }
 
@@ -180,7 +181,7 @@ client.on("interactionCreate", async (i) => {
     console.error("[interactionCreate] error:", err);
     try {
       if (!i.replied && !i.deferred) {
-        await i.reply({ content: "❌ Something went wrong.", ephemeral: true });
+        await i.reply({ content: "❌ Something went wrong.", flags: InteractionResponseFlags.Ephemeral });
       }
     } catch {}
   }
