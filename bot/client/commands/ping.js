@@ -1,16 +1,19 @@
+// client/commands/ping.js
 const { db } = require("../utils/firestore");
 const { EmbedBuilder } = require("discord.js");
 
 module.exports = {
   name: "ping",
-  description: "Check bot alive and status",
+  description: "Check bot alive and live status",
   async execute(interaction) {
     try {
       const wsPing = interaction.client.ws.ping;
 
-      // Fetch Firestore document at botStatus/main
+      console.log("[Ping] Fetching botStatus/main from Firestore...");
       const statusDoc = await db.collection("botStatus").doc("main").get();
       const status = statusDoc.exists ? statusDoc.data() : null;
+      console.log("[Ping] Status exists:", statusDoc.exists);
+      console.log("[Ping] Status data:", status);
 
       const embed = new EmbedBuilder()
         .setTitle("🏓 Bot Status")
@@ -28,7 +31,7 @@ module.exports = {
 
       await interaction.reply({ embeds: [embed] });
     } catch (err) {
-      console.error("[Ping] error:", err);
+      console.error("[Ping] Error fetching bot status:", err);
       await interaction.reply("❌ Something went wrong while fetching bot status.");
     }
   },
