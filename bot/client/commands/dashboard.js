@@ -1,16 +1,17 @@
-// client/commands/dashboard.js
+const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+
 module.exports = {
-  name: "dashboard",
-  description: "Open dashboard",
+  data: new SlashCommandBuilder()
+    .setName("dashboard")
+    .setDescription("Open the backend dashboard"),
+  
   async execute(interaction) {
-    await interaction.reply({
-      embeds: [
-        {
-          title: "➡ Open Dashboard",
-          description: "Click to access backend dashboard",
-          url: process.env.DASHBOARD_URL || "https://example.com",
-        },
-      ],
-    });
+    const embed = new EmbedBuilder()
+      .setTitle("➡ Open Dashboard")
+      .setDescription("Click the link below to access the backend dashboard")
+      .setURL(process.env.DASHBOARD_URL || "https://example.com")
+      .setColor(0x3498db);
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };

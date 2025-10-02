@@ -16,11 +16,11 @@ module.exports = {
       .setTitle("Bot Status")
       .setColor(status?.online ? 0x00ff00 : 0xff0000)
       .addFields(
-        { name: "Discord Ping", value: `${wsPing}ms`, inline: false },
-        { name: "Bot Online", value: status ? (status.online ? "🟢 Yes" : "🔴 No") : "❌ N/A", inline: false },
-        { name: "Ping Recorded", value: status ? `${status.ping}ms` : "❌ N/A", inline: false },
+       
+        { name: "Signal", value: status ? (status.online ? "🟢 Online" : "🔴 Offline") : "❌ N/A", inline: false },
+        { name: "Ping", value: status ? `${status.ping}ms` : "❌ N/A", inline: false },
         { name: "Servers", value: status ? `${status.servers}` : "❌ N/A", inline: false },
-        { name: "Users", value: status ? `${status.users}` : "❌ N/A", inline: false },
+        
         { name: "Last Update", value: status ? new Date(status.timestamp).toLocaleString() : "❌ N/A", inline: false }
       )
       .setTimestamp();
