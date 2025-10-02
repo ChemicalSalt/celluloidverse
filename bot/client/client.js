@@ -8,11 +8,11 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
 } = require("discord.js");
-const helpers = require("../utils/helpers");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
 
+// Create Discord client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -42,7 +42,9 @@ async function registerCommands() {
             o.setName(opt.name)
               .setDescription(opt.description || "")
               .setRequired(!!opt.required);
-            (opt.choices || []).forEach((ch) => o.addChoices({ name: ch.name, value: ch.value }));
+            (opt.choices || []).forEach((ch) =>
+              o.addChoices({ name: ch.name, value: ch.value })
+            );
             return o;
           });
         } else if (opt.type === 5) {
@@ -75,7 +77,7 @@ require("./events/ready")(client);
 require("./events/guildMemberAdd")(client);
 require("./events/guildMemberRemove")(client);
 
-// Slash interactions with safe defer/reply and debug logs
+// Safe interactionCreate handler
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
 
@@ -115,7 +117,9 @@ client.on("interactionCreate", async (i) => {
 
     // -------- DASHBOARD --------
     if (i.commandName === "dashboard") {
-      return i.reply({
+      await safeDefer();
+
+      return i.editReply({
         embeds: [
           new EmbedBuilder()
             .setTitle("➡ Open Dashboard")
@@ -182,6 +186,7 @@ client.on("interactionCreate", async (i) => {
   }
 });
 
+// Start bot
 async function start() {
   if (!process.env.TOKEN || !process.env.CLIENT_ID) {
     console.error("TOKEN or CLIENT_ID missing!");

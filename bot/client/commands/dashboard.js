@@ -7,7 +7,9 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true }); // acknowledge quickly
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ ephemeral: true }); // acknowledge quickly
+      }
 
       const embed = new EmbedBuilder()
         .setTitle("➡ Open Dashboard")
@@ -18,9 +20,11 @@ module.exports = {
       await interaction.editReply({ embeds: [embed] });
     } catch (err) {
       console.error("[/dashboard] error:", err);
-      if (!interaction.replied) {
-        await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true }).catch(() => {});
-      }
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true });
+        }
+      } catch {}
     }
   },
 };
