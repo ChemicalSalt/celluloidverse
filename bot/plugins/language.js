@@ -1,19 +1,8 @@
 const { google } = require("googleapis");
+const { sanitizeDynamic } = require("../utils/sanitize");
 
 let clientRef;
-
 function setClient(client) { clientRef = client; }
-
-// Sanitize text to prevent unwanted mentions or markdown abuse
-function sanitizeDiscord(text) {
-  if (!text) return "";
-  return text
-    .replace(/@/g, "@\u200b")   // prevent mentions
-    .replace(/`/g, "'")         // prevent code block injection
-    .replace(/\*/g, "\\*")      // escape bold/italic
-    .replace(/_/g, "\\_")       // escape underline/italic
-    .replace(/~/g, "\\~");      // escape strikethrough
-}
 
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
@@ -34,17 +23,19 @@ async function getRandomWord() {
     });
     const rows = res.data.values || [];
     if (!rows.length) return null;
+
     const dataRows = rows.filter(r => r[0] && r[1]);
     const row = dataRows[Math.floor(Math.random() * dataRows.length)];
+
     return {
-      kanji: row[0] || "",
-      hiragana: row[1] || "",
-      romaji: row[2] || "",
-      meaning: row[3] || "",
-      sentenceJP: row[4] || "",
-      sentenceHiragana: row[5] || "",
-      sentenceRomaji: row[6] || "",
-      sentenceMeaning: row[7] || "",
+      kanji: sanitizeDynamic(row[0] || ""),
+      hiragana: sanitizeDynamic(row[1] || ""),
+      romaji: sanitizeDynamic(row[2] || ""),
+      meaning: sanitizeDynamic(row[3] || ""),
+      sentenceJP: sanitizeDynamic(row[4] || ""),
+      sentenceHiragana: sanitizeDynamic(row[5] || ""),
+      sentenceRomaji: sanitizeDynamic(row[6] || ""),
+      sentenceMeaning: sanitizeDynamic(row[7] || ""),
     };
   } catch (err) {
     console.error("[Language] Error fetching from Google Sheets:", err);
@@ -65,8 +56,7 @@ async function sendLanguageNow(guildId, plugin) {
   const word = await getRandomWord();
   if (!word) return console.warn("[Language] No word found in Google Sheets");
 
-  // Build message and sanitize
-  let msg = `📖 **Word of the Day**
+  const msg = `📖 **Word of the Day**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
 **Romaji:** ${word.romaji}
@@ -78,10 +68,8 @@ async function sendLanguageNow(guildId, plugin) {
 **Romaji:** ${word.sentenceRomaji}
 **English:** ${word.sentenceMeaning}`;
 
-  msg = sanitizeDiscord(msg);
-
   try {
-    await channel.send(msg);
+    await channel.send({ content: msg, allowedMentions: { parse: [] } });
     console.log(`[Language] Sent to guild ${guildId}`);
   } catch (e) {
     console.error("[Language] send error:", e);
