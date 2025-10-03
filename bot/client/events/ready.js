@@ -3,7 +3,7 @@ module.exports = (client) => {
   const { scheduleWordOfTheDay } = require("../../cron/scheduler");
 
   client.once("ready", async () => {
-    console.log(`✅ Bot logged in as ${client.user.tag}`);
+    console.log(`Bot logged in as ${client.user.tag}`);
 
     try {
       const snapshot = await db.collection("guilds").get();

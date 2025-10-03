@@ -7,6 +7,7 @@ const {
   Routes,
   SlashCommandBuilder,
   EmbedBuilder,
+  ChannelType,
 } = require("discord.js");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
@@ -55,11 +56,12 @@ async function registerCommands() {
               .setRequired(!!opt.required)
           );
         } else if (opt.type === 7) {
-          builder.addChannelOption((o) =>
-            o.setName(opt.name)
-              .setDescription(opt.description || "")
-              .setRequired(!!opt.required)
-          );
+         builder.addChannelOption((o) =>
+  o.setName(opt.name)
+    .setDescription(opt.description || "")
+    .addChannelTypes(ChannelType.GuildText) // only text channels
+    .setRequired(!!opt.required)
+);
         }
       });
 
@@ -90,7 +92,7 @@ client.on("interactionCreate", async (i) => {
     // Helper to safely defer once (public response)
     async function safeDefer() {
       if (!i.replied && !i.deferred) {
-        await i.deferReply(); // no ephemeral
+        await i.deferReply(); 
         console.log(`[Debug] Deferred reply for ${i.commandName}`);
       }
     }
@@ -141,7 +143,7 @@ client.on("interactionCreate", async (i) => {
       const p = { channelId: channel.id, time, timezone: "UTC", language, enabled: true };
       await savePluginConfig(gid, "language", p);
 
-      return i.editReply({ content: `✅ WOTD saved. Runs daily at ${time} UTC in ${channel}.` });
+      return i.editReply({ content: `Runs daily at ${time} UTC in ${channel}.` });
     }
 
     // -------- WELCOME --------
@@ -158,7 +160,7 @@ const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "welcome", p);
 
-      return i.editReply({ content: `✅ Welcome settings saved for ${channel}.` });
+      return i.editReply({ content: `Welcome settings saved for ${channel}.` });
     }
 
     // -------- FAREWELL --------
@@ -175,7 +177,7 @@ const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
       const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
       await savePluginConfig(gid, "farewell", p);
 
-      return i.editReply({ content: `✅ Farewell settings saved for ${channel}.` });
+      return i.editReply({ content: `Farewell settings saved for ${channel}.` });
     }
 
   } catch (err) {
