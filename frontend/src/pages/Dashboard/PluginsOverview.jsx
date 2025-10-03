@@ -3,19 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 
 const PluginsOverview = () => {
   const { serverId } = useParams();
-  const token = localStorage.getItem("session");
   const navigate = useNavigate();
 
   const [server, setServer] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token || !serverId) return;
+    if (!serverId) return;
 
     const fetchServer = async () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         const data = await res.json();
         setServer(data);
@@ -27,12 +26,12 @@ const PluginsOverview = () => {
     };
 
     fetchServer();
-  }, [token, serverId]);
+  }, [serverId]);
 
   if (loading) return <div className="text-center mt-10">Loading...</div>;
   if (!server) return <div className="text-center mt-10">No server data</div>;
 
-   const plugins = [
+  const plugins = [
     {
       name: "Welcome",
       path: "welcome",
@@ -69,10 +68,8 @@ const PluginsOverview = () => {
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ enabled: newEnabled }),
         }
       );

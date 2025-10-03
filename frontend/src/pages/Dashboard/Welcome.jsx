@@ -1,11 +1,9 @@
-// Welcome.jsx
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sanitizeDynamic } from "../../utils/sanitize"; // adjust path if needed
+import { sanitizeDynamic } from "../../utils/sanitize";
 
 const Welcome = () => {
   const { serverId } = useParams();
-  const token = localStorage.getItem("session");
 
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
@@ -20,14 +18,11 @@ const Welcome = () => {
 
   useEffect(() => {
     const fetchChannels = async () => {
-      if (!serverId || !token) return;
+      if (!serverId) return;
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
+          credentials: "include"
+        });
         const data = await res.json();
         setChannels(data);
       } catch (err) {
@@ -37,7 +32,7 @@ const Welcome = () => {
       }
     };
     fetchChannels();
-  }, [serverId, token]);
+  }, [serverId]);
 
   const handleSave = async () => {
     if (!settings.channelId || (!settings.serverMessage && !settings.dmMessage)) {
@@ -49,21 +44,16 @@ const Welcome = () => {
     try {
       const payload = {
         ...settings,
-        serverMessage: sanitizeDynamic(settings.serverMessage, { maxLen: 500 }),
-        dmMessage: sanitizeDynamic(settings.dmMessage, { maxLen: 500 }),
+        serverMessage: sanitizeDynamic(settings.serverMessage),
+        dmMessage: sanitizeDynamic(settings.dmMessage),
       };
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
       const data = await res.json();
 
       if (data.success) {
@@ -134,17 +124,13 @@ const Welcome = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setSettings({ ...settings, enabled: !settings.enabled })}
-            className={`px-3 py-1 rounded ${
-              settings.enabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"
-            }`}
+            className={`px-3 py-1 rounded ${settings.enabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
           >
             SERVER {settings.enabled ? "ON" : "OFF"}
           </button>
           <button
             onClick={() => setSettings({ ...settings, dmEnabled: !settings.dmEnabled })}
-            className={`px-3 py-1 rounded ${
-              settings.dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"
-            }`}
+            className={`px-3 py-1 rounded ${settings.dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
           >
             DM {settings.dmEnabled ? "ON" : "OFF"}
           </button>
@@ -155,21 +141,13 @@ const Welcome = () => {
             Save
           </button>
         </div>
-      </div>
 
-      {saveMessage && (
-        <div
-          className={`mt-2 text-center ${
-            saveMessage.includes("Please") ||
-            saveMessage.includes("Error") ||
-            saveMessage.includes("Failed")
-              ? "text-red-600 dark:text-red-400"
-              : "text-green-600 dark:text-green-400"
-          }`}
-        >
-          {saveMessage}
-        </div>
-      )}
+        {saveMessage && (
+          <div className={`mt-2 text-center ${saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed") ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+            {saveMessage}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

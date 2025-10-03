@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sanitizeDynamic } from "../../utils/sanitize"; // import sanitize
+import { sanitizeDynamic } from "../../utils/sanitize";
 
 const Farewell = () => {
   const { serverId } = useParams();
-  const token = localStorage.getItem("session");
 
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
@@ -19,10 +18,10 @@ const Farewell = () => {
 
   useEffect(() => {
     const fetchChannels = async () => {
-      if (!serverId || !token) return;
+      if (!serverId) return;
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include"
         });
         const data = await res.json();
         setChannels(data);
@@ -33,7 +32,7 @@ const Farewell = () => {
       }
     };
     fetchChannels();
-  }, [serverId, token]);
+  }, [serverId]);
 
   const handleSave = async () => {
     if (!settings.channelId || (!settings.serverMessage && !settings.dmMessage)) {
@@ -51,7 +50,8 @@ const Farewell = () => {
 
       const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/farewell`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -139,19 +139,13 @@ const Farewell = () => {
             Save
           </button>
         </div>
-      </div>
 
-      {saveMessage && (
-        <div
-          className={`mt-2 text-center ${
-            saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed")
-              ? "text-red-600 dark:text-red-400"
-              : "text-green-600 dark:text-green-400"
-          }`}
-        >
-          {saveMessage}
-        </div>
-      )}
+        {saveMessage && (
+          <div className={`mt-2 text-center ${saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed") ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}>
+            {saveMessage}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sanitizeDynamic } from "../../utils/sanitize"; // import sanitize
+import { sanitizeDynamic } from "../../utils/sanitize";
 
 const Language = () => {
   const { serverId } = useParams();
-  const token = localStorage.getItem("session");
 
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
@@ -18,10 +17,10 @@ const Language = () => {
 
   useEffect(() => {
     const fetchChannels = async () => {
-      if (!serverId || !token) return;
+      if (!serverId) return;
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include"
         });
         const data = await res.json();
         setChannels(data);
@@ -32,7 +31,7 @@ const Language = () => {
       }
     };
     fetchChannels();
-  }, [serverId, token]);
+  }, [serverId]);
 
   const handleSave = async () => {
     if (!settings.channelId || !settings.time || !settings.language) {
@@ -51,7 +50,8 @@ const Language = () => {
 
       const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 

@@ -31,7 +31,7 @@ router.get("/login", async (req, res) => {
       res.cookie("session", sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "none",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
       return res.redirect(`${FRONTEND_URL}/dashboard`);
@@ -85,7 +85,7 @@ router.get("/callback", async (req, res) => {
     res.cookie("session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
