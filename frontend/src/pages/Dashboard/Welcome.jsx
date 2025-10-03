@@ -1,7 +1,7 @@
 // Welcome.jsx
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sanitizeDynamic } from "../utils/sanitize"; // adjust path if needed
+import { sanitizeDynamic } from "../../utils/sanitize"; // adjust path if needed
 
 const Welcome = () => {
   const { serverId } = useParams();

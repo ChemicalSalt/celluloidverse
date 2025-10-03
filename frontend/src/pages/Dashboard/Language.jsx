@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sanitizeDynamic } from "../bot/utils/sanitize"; // import sanitize
+import { sanitizeDynamic } from "../../utils/sanitize"; // import sanitize
 
 const Language = () => {
   const { serverId } = useParams();
