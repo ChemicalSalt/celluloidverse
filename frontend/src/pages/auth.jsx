@@ -9,6 +9,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { sanitizeDynamic } from "../utils/sanitize";
 
 const Auth = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -30,10 +31,14 @@ const Auth = () => {
     setError("");
 
     try {
+      // Sanitize inputs before sending to Firebase
+      const safeEmail = sanitizeDynamic(email, { maxLen: 100 });
+      const safePassword = sanitizeDynamic(password, { maxLen: 100 });
+
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, safeEmail, safePassword);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, safeEmail, safePassword);
       }
 
       setEmail("");

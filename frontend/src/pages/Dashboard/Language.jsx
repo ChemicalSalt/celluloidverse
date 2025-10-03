@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { sanitizeDynamic } from "../bot/utils/sanitize"; // import sanitize
 
 const Language = () => {
   const { serverId } = useParams();
@@ -41,12 +42,19 @@ const Language = () => {
     }
 
     try {
-      const payload = { ...settings };
+      const payload = {
+        channelId: sanitizeDynamic(settings.channelId),
+        time: sanitizeDynamic(settings.time),
+        language: sanitizeDynamic(settings.language),
+        enabled: settings.enabled,
+      };
+
       const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
+
       const data = await res.json();
       if (data.success) {
         setSaveMessage("Saved successfully!");

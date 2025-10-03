@@ -1,5 +1,7 @@
+// Welcome.jsx
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { sanitizeDynamic } from "../utils/sanitize"; // adjust path if needed
 
 const Welcome = () => {
   const { serverId } = useParams();
@@ -20,9 +22,12 @@ const Welcome = () => {
     const fetchChannels = async () => {
       if (!serverId || !token) return;
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         const data = await res.json();
         setChannels(data);
       } catch (err) {
@@ -42,13 +47,25 @@ const Welcome = () => {
     }
 
     try {
-      const payload = { ...settings };
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
+      const payload = {
+        ...settings,
+        serverMessage: sanitizeDynamic(settings.serverMessage, { maxLen: 500 }),
+        dmMessage: sanitizeDynamic(settings.dmMessage, { maxLen: 500 }),
+      };
+
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/welcome`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
+
       if (data.success) {
         setSaveMessage("Saved successfully!");
         setSettings({
@@ -73,7 +90,9 @@ const Welcome = () => {
 
   return (
     <div className="min-h-screen px-6 py-8 bg-white dark:bg-black">
-      <h1 className="text-3xl font-bold mb-6 text-black dark:text-white">Welcome Plugin</h1>
+      <h1 className="text-3xl font-bold mb-6 text-black dark:text-white">
+        Welcome Plugin
+      </h1>
 
       <div className="max-w-xl mx-auto flex flex-col gap-6">
         <div>
@@ -115,17 +134,24 @@ const Welcome = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setSettings({ ...settings, enabled: !settings.enabled })}
-            className={`px-3 py-1 rounded ${settings.enabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+            className={`px-3 py-1 rounded ${
+              settings.enabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"
+            }`}
           >
             SERVER {settings.enabled ? "ON" : "OFF"}
           </button>
           <button
             onClick={() => setSettings({ ...settings, dmEnabled: !settings.dmEnabled })}
-            className={`px-3 py-1 rounded ${settings.dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"}`}
+            className={`px-3 py-1 rounded ${
+              settings.dmEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-black"
+            }`}
           >
             DM {settings.dmEnabled ? "ON" : "OFF"}
           </button>
-          <button onClick={handleSave} className="px-6 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:opacity-90">
+          <button
+            onClick={handleSave}
+            className="px-6 py-2 bg-black text-white dark:bg-white dark:text-black rounded hover:opacity-90"
+          >
             Save
           </button>
         </div>
@@ -134,7 +160,9 @@ const Welcome = () => {
       {saveMessage && (
         <div
           className={`mt-2 text-center ${
-            saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed")
+            saveMessage.includes("Please") ||
+            saveMessage.includes("Error") ||
+            saveMessage.includes("Failed")
               ? "text-red-600 dark:text-red-400"
               : "text-green-600 dark:text-green-400"
           }`}

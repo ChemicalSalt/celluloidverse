@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { sanitizeDynamic } from "../utils/sanitize";
 
 const Contact = () => {
   const [name, setName] = useState("");
@@ -9,7 +10,7 @@ const Contact = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load reCAPTCHA script only on this page
+  // Load reCAPTCHA script only on this page (optional for now)
   useEffect(() => {
     const script = document.createElement("script");
     script.src =
@@ -30,16 +31,23 @@ const Contact = () => {
     setError(null);
 
     try {
-      const token = await window.grecaptcha.execute(
-        "6Lc1UWUrAAAAAN9u-CzXBFk8RYek-PsaP8ivJbwm",
-        { action: "submit" }
-      );
+      // Sanitize all inputs
+      const sanitizedName = sanitizeDynamic(name);
+      const sanitizedEmail = sanitizeDynamic(email);
+      const sanitizedMessage = sanitizeDynamic(message, { maxLen: 1000 });
+
+      const token = window.grecaptcha
+        ? await window.grecaptcha.execute(
+            "6Lc1UWUrAAAAAN9u-CzXBFk8RYek-PsaP8ivJbwm",
+            { action: "submit" }
+          )
+        : null;
 
       await addDoc(collection(db, "messages"), {
-        name,
-        email,
-        message,
-        recaptchaToken: token,
+        name: sanitizedName,
+        email: sanitizedEmail,
+        message: sanitizedMessage,
+        recaptchaToken: token || "",
         timestamp: Timestamp.now(),
       });
 
@@ -55,14 +63,14 @@ const Contact = () => {
 
   return (
     <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center px-4 transition-colors duration-300">
-      {/* Welcome Section */}
       <section className="text-center mt-12">
         <h2 className="text-2xl font-bold mb-2">Welcome!</h2>
         <p className="text-gray-600 dark:text-gray-400">
-Have questions or feedback? Reach out to the Celluloidverse team to connect about the bot or our latest videos.        </p>
+          Have questions or feedback? Reach out to the Celluloidverse team to
+          connect about the bot or our latest videos.
+        </p>
       </section>
 
-      {/* Contact Form */}
       <section className="w-full max-w-xl mt-12">
         <h3 className="text-xl font-semibold mb-4">Contact Us</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -98,7 +106,6 @@ Have questions or feedback? Reach out to the Celluloidverse team to connect abou
             Send
           </button>
 
-          {/* Status Messages */}
           {success && <p className="text-green-500">Message sent successfully!</p>}
           {error && <p className="text-red-500">{error}</p>}
 

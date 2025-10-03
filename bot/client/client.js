@@ -7,7 +7,6 @@ const {
   Routes,
   SlashCommandBuilder,
   EmbedBuilder,
-  ChannelType,
 } = require("discord.js");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
@@ -56,12 +55,11 @@ async function registerCommands() {
               .setRequired(!!opt.required)
           );
         } else if (opt.type === 7) {
-         builder.addChannelOption((o) =>
-  o.setName(opt.name)
-    .setDescription(opt.description || "")
-    .addChannelTypes(ChannelType.GuildText) // only text channels
-    .setRequired(!!opt.required)
-);
+          builder.addChannelOption((o) =>
+            o.setName(opt.name)
+              .setDescription(opt.description || "")
+              .setRequired(!!opt.required)
+          );
         }
       });
 

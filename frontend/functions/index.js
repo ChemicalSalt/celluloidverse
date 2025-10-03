@@ -2,25 +2,25 @@
 const functions = require("firebase-functions");
 const fetch = require("node-fetch");
 
-// Get secrets from Firebase environment
 const CLIENT_ID = functions.config().discord.client_id;
 const CLIENT_SECRET = functions.config().discord.client_secret;
 const REDIRECT_URI = functions.config().discord.redirect_uri;
 
-// Endpoint to exchange Discord code for access token
 exports.discordToken = functions.https.onRequest(async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).send("Method Not Allowed");
   }
 
   const { code } = req.body;
-  if (!code) return res.status(400).send("Missing code");
+  if (typeof code !== "string" || !code.trim()) {
+    return res.status(400).json({ error: "Invalid code" });
+  }
 
   const params = new URLSearchParams();
   params.append("client_id", CLIENT_ID);
   params.append("client_secret", CLIENT_SECRET);
   params.append("grant_type", "authorization_code");
-  params.append("code", code);
+  params.append("code", code.trim());
   params.append("redirect_uri", REDIRECT_URI);
 
   try {
@@ -31,8 +31,20 @@ exports.discordToken = functions.https.onRequest(async (req, res) => {
     });
 
     const data = await response.json();
-    return res.json(data); // access_token, refresh_token, expires_in, etc.
+
+    if (data.error) {
+      functions.logger.error("Discord token exchange failed", data);
+      return res.status(400).json({ error: "OAuth failed" });
+    }
+
+    // Return only safe fields
+    return res.json({
+      access_token: data.access_token,
+      token_type: data.token_type,
+      expires_in: data.expires_in,
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    functions.logger.error("OAuth error", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
