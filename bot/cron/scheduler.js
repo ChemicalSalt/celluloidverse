@@ -13,33 +13,29 @@ function _stopJob(key) {
 function scheduleWordOfTheDay(guildId, plugin = {}) {
   const key = `language:${guildId}`; // use plugin name
 
-  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time) {
+  if (!plugin || !plugin.enabled || !plugin.channelId || plugin.hourUTC == null || plugin.minuteUTC == null) {
     _stopJob(key);
-    return;
-  }
-
-  const [hour, minute] = String(plugin.time).split(":").map(Number);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    console.error(`[Scheduler] Invalid time for guild ${guildId}: ${plugin.time}`);
     return;
   }
 
   _stopJob(key);
 
   try {
-    const expr = `${minute} ${hour} * * *`;
+    // Use UTC hour/minute for cron expression
+    const expr = `${plugin.minuteUTC} ${plugin.hourUTC} * * *`;
+
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[Scheduler] Triggering Language for ${guildId} at ${plugin.time} (tz=${plugin.timezone || "UTC"})`);
+        console.log(`[Scheduler] Triggering Language for ${guildId} at ${plugin.hourUTC}:${plugin.minuteUTC} (tz=${plugin.timezone || "UTC"})`);
         try { await sendLanguageNow(guildId, plugin); } 
         catch (e) { console.error("[Scheduler] sendLanguageNow error:", e); }
       },
-      { timezone: plugin.timezone || "UTC" }
+      { timezone: "UTC" } // always schedule in UTC
     );
 
     scheduledJobs.set(key, job);
-    console.log(`[Scheduler] Scheduled Language for ${guildId} at ${plugin.time} (${plugin.timezone || "UTC"})`);
+    console.log(`[Scheduler] Scheduled Language for ${guildId} at ${plugin.hourUTC}:${plugin.minuteUTC} (${plugin.timezone || "UTC"})`);
   } catch (err) {
     console.error("[Scheduler] failed to schedule:", err);
   }

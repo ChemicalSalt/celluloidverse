@@ -1,4 +1,6 @@
 const { SlashCommandBuilder, ChannelType } = require("discord.js");
+const { db } = require("../utils/firestore"); // Firestore helper
+const { scheduleWordOfTheDay } = require("../cron/scheduler");
 const moment = require("moment-timezone");
 
 module.exports = {
@@ -18,7 +20,7 @@ module.exports = {
     )
     .addStringOption(opt =>
       opt.setName("timezone")
-         .setDescription("Timezone (e.g., Asia/Kolkata, America/New_York)")
+         .setDescription("Your timezone (e.g., Asia/Kolkata)")
          .setRequired(true)
     )
     .addStringOption(opt =>
@@ -37,25 +39,43 @@ module.exports = {
       const timezone = interaction.options.getString("timezone");
       const language = interaction.options.getString("language");
 
+      // Validate 24-hour HH:MM format
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time)) {
         return interaction.editReply(
-          "❌ Invalid time format. Use HH:MM 24-hour format (e.g., 14:30)."
+          "❌ Invalid time format. Please use HH:MM in 24-hour format."
         );
       }
 
-      if (!moment.tz.zone(timezone)) {
-        return interaction.editReply("❌ Invalid timezone.");
-      }
+      // Parse hour and minute
+      const [hour, minute] = time.split(":").map(Number);
 
       // Convert local time to UTC
-      const [hour, minute] = time.split(":").map(Number);
-      const utcTime = moment.tz({ hour, minute }, timezone).utc().format("HH:mm");
+      const utcMoment = moment.tz({ hour, minute }, timezone).utc();
+      const hourUTC = utcMoment.hour();
+      const minuteUTC = utcMoment.minute();
 
-      // Save channel, utcTime, language, timezone to DB here
+      // Save plugin config to Firestore
+      const pluginData = {
+        enabled: true,
+        channelId: channel.id,
+        language,
+        timezone,
+        time,         // original local time
+        hourUTC,
+        minuteUTC
+      };
+
+      await db
+        .collection("plugins")
+        .doc(interaction.guild.id)
+        .set({ language: pluginData }, { merge: true });
+
+      // Schedule immediately
+      scheduleWordOfTheDay(interaction.guild.id, pluginData);
 
       await interaction.editReply(
-        `✅ WOTD scheduled for ${channel} at ${time} ${timezone} (UTC: ${utcTime}) (${language})`
+        `✅ Word of the Day configured for ${channel} at ${time} (${timezone}) in ${language}.`
       );
     } catch (err) {
       console.error("[/sendLanguage] error:", err);
