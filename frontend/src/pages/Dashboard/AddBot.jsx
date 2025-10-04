@@ -7,25 +7,32 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const AddBot = () => {
   const [servers, setServers] = useState([]);
+  const [loading, setLoading] = useState(true); // ✅ added
   const navigate = useNavigate();
 
   // Fetch user servers from backend
   const fetchGuilds = async () => {
     try {
+      setLoading(true); // ✅ start loading
       const res = await fetch(`${API_URL}/dashboard/servers`, {
         method: "GET",
-        credentials: "include" // ✅ sends HttpOnly cookie automatically
+        credentials: "include", // ✅ sends HttpOnly cookie automatically
       });
+
       if (!res.ok) {
         if (res.status === 401) {
-          return alert("Session expired or not logged in. Please login again.");
+          setServers([]); // no valid session
+        } else {
+          throw new Error("Failed to fetch guilds");
         }
-        throw new Error("Failed to fetch guilds");
+      } else {
+        const data = await res.json();
+        setServers(data);
       }
-      const data = await res.json();
-      setServers(data);
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
+    } finally {
+      setLoading(false); // ✅ stop loading
     }
   };
 
@@ -54,20 +61,27 @@ const AddBot = () => {
     window.location.href = `${API_URL}/dashboard/login`;
   };
 
+  // ✅ NEW — while loading, show loader
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-semibold">Loading your servers...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
 
-      {servers.length === 0 && (
+      {servers.length === 0 ? (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow mb-6">
           <p className="mb-4">You must login with Discord to manage your servers.</p>
           <button onClick={gotoLogin} className="px-4 py-2 bg-blue-600 text-white rounded">
             Login with Discord
           </button>
         </div>
-      )}
-
-      {servers.length > 0 && (
+      ) : (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
           <h2 className="font-bold text-xl">Your Servers</h2>
           {servers.map((g) => (
