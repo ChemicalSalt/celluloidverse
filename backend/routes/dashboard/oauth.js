@@ -95,5 +95,11 @@ router.get("/callback", async (req, res) => {
     return res.status(500).send("OAuth callback failed");
   }
 });
+// ✅ Returns a dynamic Discord OAuth URL for the frontend (no flicker)
+router.get("/auth/url", (req, res) => {
+  const redirectUri = encodeURIComponent(REDIRECT_URI);
+  const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=code&scope=identify%20guilds&redirect_uri=${redirectUri}`;
+  res.json({ url });
+});
 
 module.exports = router;

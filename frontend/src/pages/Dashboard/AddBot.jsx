@@ -1,38 +1,49 @@
-// AddBot.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
 const API_URL = import.meta.env.VITE_API_URL;
 
 const AddBot = () => {
   const [servers, setServers] = useState([]);
-  const [loading, setLoading] = useState(true); // ✅ added
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Fetch user servers from backend
+  // ✅ Fetch guilds dynamically from backend
   const fetchGuilds = async () => {
     try {
-      setLoading(true); // ✅ start loading
+      setLoading(true);
       const res = await fetch(`${API_URL}/dashboard/servers`, {
         method: "GET",
-        credentials: "include", // ✅ sends HttpOnly cookie automatically
+        credentials: "include", // sends HttpOnly cookie
       });
 
-      if (!res.ok) {
-        if (res.status === 401) {
-          setServers([]); // no valid session
-        } else {
-          throw new Error("Failed to fetch guilds");
-        }
-      } else {
-        const data = await res.json();
-        setServers(data);
+      if (res.status === 401) {
+        // not logged in → auto start Discord auth
+        startDiscordAuth();
+        return;
       }
+
+      const data = await res.json();
+      setServers(data);
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
     } finally {
-      setLoading(false); // ✅ stop loading
+      setLoading(false);
+    }
+  };
+
+  // ✅ Backend builds proper Discord OAuth URL dynamically
+  const startDiscordAuth = async () => {
+    try {
+      const res = await fetch(`${API_URL}/dashboard/auth/url`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Go straight to Discord OAuth
+      }
+    } catch (err) {
+      console.error("Error starting Discord auth:", err);
     }
   };
 
@@ -41,13 +52,15 @@ const AddBot = () => {
   }, []);
 
   const handleAddBot = (guildId) => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
+    const clientId = import.meta.env.VITE_CLIENT_ID;
+    const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=bot&guild_id=${guildId}&permissions=8`;
+
     const popup = window.open(url, "AddBot", "width=600,height=700");
 
     const timer = setInterval(() => {
       if (popup && popup.closed) {
         clearInterval(timer);
-        fetchGuilds(); // refresh servers after closing popup
+        fetchGuilds(); // refresh after closing popup
       }
     }, 1000);
   };
@@ -56,12 +69,7 @@ const AddBot = () => {
     navigate(`/dashboard/${guildId}/plugins/overview`);
   };
 
-  const gotoLogin = () => {
-    // redirect to backend login, cookie will be set automatically
-    window.location.href = `${API_URL}/dashboard/login`;
-  };
-
-  // ✅ NEW — while loading, show loader
+  // ✅ Show loading while fetching
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -70,18 +78,12 @@ const AddBot = () => {
     );
   }
 
+  // ✅ Render user servers
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
 
-      {servers.length === 0 ? (
-        <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow mb-6">
-          <p className="mb-4">You must login with Discord to manage your servers.</p>
-          <button onClick={gotoLogin} className="px-4 py-2 bg-blue-600 text-white rounded">
-            Login with Discord
-          </button>
-        </div>
-      ) : (
+      {servers.length > 0 && (
         <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
           <h2 className="font-bold text-xl">Your Servers</h2>
           {servers.map((g) => (
