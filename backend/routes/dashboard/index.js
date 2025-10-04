@@ -9,8 +9,8 @@ const router = express.Router();
 
 // Mount routes
 router.use("/", oauthRoutes);
-router.use("/servers", serversRoutes);       // servers routes
-router.use("/servers", pluginsRoutes);       // plugins under servers
+router.use("/", serversRoutes);       // servers routes
+router.use("/plugins", pluginsRoutes);       // plugins under servers
 router.use("/guild", guildRoutes);
 router.use("/status", statusRoutes);
 
