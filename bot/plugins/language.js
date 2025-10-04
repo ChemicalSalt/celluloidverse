@@ -1,8 +1,11 @@
 const { google } = require("googleapis");
 const { sanitizeDynamic } = require("../utils/sanitize");
+const moment = require("moment-timezone");
 
 let clientRef;
-function setClient(client) { clientRef = client; }
+function setClient(client) {
+  clientRef = client;
+}
 
 const sheetsAuth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT),
@@ -13,6 +16,7 @@ const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 const RANGE = "Sheet1!A:H";
 
+// Fetch random word from Google Sheets
 async function getRandomWord() {
   try {
     const clientSheets = await sheetsAuth.getClient();
@@ -21,6 +25,7 @@ async function getRandomWord() {
       range: RANGE,
       auth: clientSheets,
     });
+
     const rows = res.data.values || [];
     if (!rows.length) return null;
 
@@ -43,6 +48,7 @@ async function getRandomWord() {
   }
 }
 
+// Send Word of the Day if the plugin is scheduled for this UTC time
 async function sendLanguageNow(guildId, plugin) {
   if (!plugin?.enabled) return;
   if (!clientRef) return console.error("[Language] client not set!");
@@ -79,4 +85,10 @@ async function sendLanguageNow(guildId, plugin) {
   }
 }
 
-module.exports = { sendLanguageNow, setClient };
+// Scheduler helper: check if current UTC matches plugin's UTC time
+function isTimeToSend(plugin) {
+  const nowUtc = moment.utc().format("HH:mm");
+  return plugin.utcTime === nowUtc;
+}
+
+module.exports = { sendLanguageNow, setClient, isTimeToSend };
