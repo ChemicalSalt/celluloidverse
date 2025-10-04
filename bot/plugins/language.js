@@ -50,7 +50,9 @@ async function sendLanguageNow(guildId, plugin) {
   const guild = clientRef.guilds.cache.get(guildId);
   if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
 
-  const channel = guild.channels.cache.get(plugin.channelId) || await guild.channels.fetch(plugin.channelId).catch(() => null);
+  const channel =
+    guild.channels.cache.get(plugin.channelId) ||
+    (await guild.channels.fetch(plugin.channelId).catch(() => null));
   if (!channel) return console.warn(`[Language] Channel not found: ${plugin.channelId}`);
 
   const word = await getRandomWord();

@@ -19,9 +19,10 @@ const Language = () => {
     const fetchChannels = async () => {
       if (!serverId) return;
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`, {
-          credentials: "include"
-        });
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/channels`,
+          { credentials: "include" }
+        );
         const data = await res.json();
         setChannels(data);
       } catch (err) {
@@ -41,19 +42,26 @@ const Language = () => {
     }
 
     try {
+      // ✅ Auto-detect user timezone safely
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
       const payload = {
         channelId: sanitizeDynamic(settings.channelId),
         time: sanitizeDynamic(settings.time),
         language: sanitizeDynamic(settings.language),
         enabled: settings.enabled,
+        timezone, // added timezone
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/language`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(payload),
+        }
+      );
 
       const data = await res.json();
       if (data.success) {
@@ -88,7 +96,9 @@ const Language = () => {
           <label className="block mb-2 text-black dark:text-white">Select a channel</label>
           <select
             value={settings.channelId}
-            onChange={(e) => setSettings({ ...settings, channelId: e.target.value })}
+            onChange={(e) =>
+              setSettings({ ...settings, channelId: e.target.value })
+            }
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
             <option value="">-- Select a channel --</option>
@@ -101,11 +111,14 @@ const Language = () => {
         </div>
 
         <div>
-          <label className="block mb-2 text-black dark:text-white">Time (HH:MM)</label>
+          <label className="block mb-2 text-black dark:text-white">Time (24-hour)</label>
           <input
             type="time"
             value={settings.time}
-            onChange={(e) => setSettings({ ...settings, time: e.target.value })}
+            onChange={(e) =>
+              setSettings({ ...settings, time: e.target.value })
+            }
+            step="60"
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           />
         </div>
@@ -114,7 +127,9 @@ const Language = () => {
           <label className="block mb-2 text-black dark:text-white">Select language</label>
           <select
             value={settings.language}
-            onChange={(e) => setSettings({ ...settings, language: e.target.value })}
+            onChange={(e) =>
+              setSettings({ ...settings, language: e.target.value })
+            }
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           >
             <option value="">-- Select a language --</option>
@@ -132,7 +147,9 @@ const Language = () => {
         {saveMessage && (
           <div
             className={`mt-2 text-center ${
-              saveMessage.includes("Please") || saveMessage.includes("Error") || saveMessage.includes("Failed")
+              saveMessage.includes("Please") ||
+              saveMessage.includes("Error") ||
+              saveMessage.includes("Failed")
                 ? "text-red-600 dark:text-red-400"
                 : "text-green-600 dark:text-green-400"
             }`}
