@@ -1,4 +1,3 @@
-// routes/dashboard/index.js
 const express = require("express");
 const oauthRoutes = require("./oauth");
 const serversRoutes = require("./servers");
@@ -8,10 +7,10 @@ const statusRoutes = require("./status");
 
 const router = express.Router();
 
-// Mount all subroutes
+// Mount routes
 router.use("/", oauthRoutes);
-router.use("/servers", serversRoutes);
-router.use("/plugins", pluginsRoutes);
+router.use("/servers", serversRoutes);       // servers routes
+router.use("/servers", pluginsRoutes);       // plugins under servers
 router.use("/guild", guildRoutes);
 router.use("/status", statusRoutes);
 
