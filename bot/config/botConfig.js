@@ -10,10 +10,11 @@ module.exports = {
     },
     {
       name: "send_language",
-      description: "Setup Word of the Day (UTC time)",
+      description: "Setup Word of the Day (Local time)",
       options: [
         { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
         { name: "time", type: 3, description: "HH:MM 24h format (UTC)", required: true },
+         { name: "timezone", type: 3, description: "Your timezone (e.g., Asia/Kolkata)", required: true },
         { name: "language", type: 3, description: "Pick language", required: true, choices: [{ name: "Japanese", value: "japanese" }] },
       ],
     },
