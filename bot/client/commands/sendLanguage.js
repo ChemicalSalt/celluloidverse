@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, ChannelType } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -7,6 +7,7 @@ module.exports = {
     .addChannelOption(opt =>
       opt.setName("channel")
          .setDescription("Channel")
+         .addChannelTypes(ChannelType.GuildText) // only text channels
          .setRequired(true)
     )
     .addStringOption(opt =>
@@ -37,7 +38,6 @@ module.exports = {
         );
       }
 
-      // The rest remains unchanged
       await interaction.editReply(
         `✅ WOTD configured for ${channel} at ${time} (${language}).`
       );

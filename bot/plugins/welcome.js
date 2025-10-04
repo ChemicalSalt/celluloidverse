@@ -14,7 +14,7 @@ async function handleWelcome(member, plugin) {
 
     if (plugin.sendInServer && plugin.serverMessage && plugin.channelId) {
       const ch = member.guild.channels.cache.get(plugin.channelId) || await member.guild.channels.fetch(plugin.channelId).catch(() => null);
-      if (ch && ch.permissionsFor(botMember)?.has("SendMessages")) {
+      if (ch && ch.type === 0 && ch.permissionsFor(botMember)?.has("SendMessages")) { // check text channel
         let msg = formatMessage(plugin.serverMessage, member, member.guild);
         msg = sanitizeMsg(msg);
         await ch.send({ content: msg, allowedMentions: { parse: [] } })

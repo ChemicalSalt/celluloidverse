@@ -54,6 +54,7 @@ async function sendLanguageNow(guildId, plugin) {
     guild.channels.cache.get(plugin.channelId) ||
     (await guild.channels.fetch(plugin.channelId).catch(() => null));
   if (!channel) return console.warn(`[Language] Channel not found: ${plugin.channelId}`);
+  if (channel.type !== 0) return; // ensure text channel
 
   const word = await getRandomWord();
   if (!word) return console.warn("[Language] No word found in Google Sheets");

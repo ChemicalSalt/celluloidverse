@@ -1,10 +1,15 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, ChannelType } = require("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendWelcome")
     .setDescription("Setup Welcome message")
-    .addChannelOption(opt => opt.setName("channel").setDescription("Channel").setRequired(true))
+    .addChannelOption(opt =>
+      opt.setName("channel")
+         .setDescription("Channel")
+         .addChannelTypes(ChannelType.GuildText) // only text channels
+         .setRequired(true)
+    )
     .addBooleanOption(opt => opt.setName("send_in_server").setDescription("Send in server?").setRequired(true))
     .addBooleanOption(opt => opt.setName("send_in_dm").setDescription("Send in DM?").setRequired(true))
     .addStringOption(opt => opt.setName("server_message").setDescription("Server message"))
