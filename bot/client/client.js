@@ -130,27 +130,26 @@ client.on("interactionCreate", async (i) => {
       });
     }
 
-   // -------- LANGUAGE / WOTD --------
-if (i.commandName === "send_language") {
-  await safeDefer();
-
+    // -------- LANGUAGE / WOTD --------
+  if (i.commandName === "send_language") {
   const channel = i.options.getChannel("channel");
   const time = i.options.getString("time");
   const timezone = i.options.getString("timezone"); // get user's timezone
   const language = i.options.getString("language") || "japanese";
 
-  
+  // Validate timezone
   if (!moment.tz.zone(timezone)) {
-    return i.editReply({ content: `❌ Invalid timezone: ${timezone}` });
+    return i.reply({ content: `❌ Invalid timezone: ${timezone}` });
   }
 
   const p = { channelId: channel.id, time, timezone, language, enabled: true };
   await savePluginConfig(gid, "language", p);
 
-  return i.editReply({
+  return i.reply({
     content: `Runs daily at ${time} (${timezone}) in ${channel} for ${language}.`,
   });
 }
+
 
     // -------- WELCOME --------
     if (i.commandName === "send_welcome") {
