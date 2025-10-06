@@ -6,28 +6,32 @@ const moment = require("moment-timezone");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendlanguage")
-    .setDescription("Set up automatic Word of the Day")
+    .setDescription("Setup Word of the Day")
     .addChannelOption(opt =>
-      opt.setName("channel")
-         .setDescription("Select the channel to post the Word of the Day")
-         .addChannelTypes(ChannelType.GuildText)
-         .setRequired(true)
+      opt
+        .setName("channel")
+        .setDescription("Select the text channel")
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName("time")
-         .setDescription("Enter local time in 24-hour format (HH:MM)")
-         .setRequired(true)
+      opt
+        .setName("time")
+        .setDescription("Enter time in 24-hour format (HH:MM)")
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName("timezone")
-         .setDescription("Your IANA timezone (e.g. Asia/Kolkata, Europe/London)")
-         .setRequired(true)
+      opt
+        .setName("timezone")
+        .setDescription("Enter your timezone (e.g., Asia/Kolkata, America/New_York)")
+        .setRequired(true)
     )
     .addStringOption(opt =>
-      opt.setName("language")
-         .setDescription("Select the language for Word of the Day")
-         .setRequired(true)
-         .addChoices({ name: "Japanese", value: "japanese" })
+      opt
+        .setName("language")
+        .setDescription("Choose the Word of the Day language")
+        .setRequired(true)
+        .addChoices({ name: "Japanese", value: "japanese" })
     ),
 
   async execute(interaction) {
@@ -39,41 +43,50 @@ module.exports = {
       const timezone = interaction.options.getString("timezone");
       const language = interaction.options.getString("language");
 
+      // Validate 24-hour format HH:MM
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time)) {
-        return interaction.editReply("❌ Invalid time format. Use HH:MM (24-hour).");
+        return interaction.editReply("❌ Invalid time format. Use 24-hour format HH:MM (e.g., 17:30).");
       }
 
       // Validate timezone
       if (!moment.tz.zone(timezone)) {
-        return interaction.editReply("❌ Invalid timezone. Example: Asia/Kolkata");
+        return interaction.editReply("❌ Invalid timezone. Example: Asia/Kolkata, Europe/London, America/New_York");
       }
 
       const [hour, minute] = time.split(":").map(Number);
-      const utcMoment = moment.tz({ hour, minute }, timezone).utc();
 
+      // Convert local time to UTC for scheduling
+      const utcMoment = moment.tz({ hour, minute }, timezone).utc();
+      const hourUTC = utcMoment.hour();
+      const minuteUTC = utcMoment.minute();
+
+      // Build plugin data
       const pluginData = {
         enabled: true,
         channelId: channel.id,
         language,
         timezone,
-        time,
-        hourUTC: utcMoment.hour(),
-        minuteUTC: utcMoment.minute(),
+        time, // local time user entered
+        hourUTC,
+        minuteUTC,
       };
 
-      await db.collection("plugins")
-              .doc(interaction.guild.id)
-              .set({ language: pluginData }, { merge: true });
+      // Save config
+      await db
+        .collection("plugins")
+        .doc(interaction.guild.id)
+        .set({ language: pluginData }, { merge: true });
 
+      // Schedule the job
       scheduleWordOfTheDay(interaction.guild.id, pluginData);
 
       await interaction.editReply(
-        `✅ Word of the Day configured!\n**Channel:** ${channel}\n**Time:** ${time} (${timezone})\n**Language:** ${language}`
+        `✅ Word of the Day set for ${channel} at **${time} (${timezone})** in **${language}**.\nIt will automatically adjust globally by timezone.`
       );
     } catch (err) {
-      console.error("[/sendlanguage] Error:", err);
-      await interaction.editReply("❌ Something went wrong while setting up the schedule.");
+      console.error("[/sendlanguage] error:", err);
+      await interaction.editReply("❌ Something went wrong while setting up Word of the Day.");
     }
   },
 };
