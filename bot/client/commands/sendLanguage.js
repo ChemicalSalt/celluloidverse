@@ -40,49 +40,57 @@ module.exports = {
 
       const channel = interaction.options.getChannel("channel");
       const time = interaction.options.getString("time");
-      const timezone = interaction.options.getString("timezone");
+      const timezone = interaction.options.getString("timezone").trim();
       const language = interaction.options.getString("language");
 
-      // Validate 24-hour format HH:MM
+      // ✅ Validate time format (24h HH:MM)
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time)) {
         return interaction.editReply("❌ Invalid time format. Use 24-hour format HH:MM (e.g., 17:30).");
       }
 
-      // Validate timezone
+      // ✅ Validate timezone
       if (!moment.tz.zone(timezone)) {
         return interaction.editReply("❌ Invalid timezone. Example: Asia/Kolkata, Europe/London, America/New_York");
       }
 
       const [hour, minute] = time.split(":").map(Number);
 
-      // Convert local time to UTC for scheduling
+      // ✅ Convert local time to UTC for internal scheduling
       const utcMoment = moment.tz({ hour, minute }, timezone).utc();
       const hourUTC = utcMoment.hour();
       const minuteUTC = utcMoment.minute();
 
-      // Build plugin data
+      // ✅ Build plugin data
       const pluginData = {
         enabled: true,
         channelId: channel.id,
         language,
-        timezone,
-        time, // local time user entered
+        timezone, // user’s actual input preserved
+        time,     // local time as entered
         hourUTC,
         minuteUTC,
+        updatedAt: new Date().toISOString(),
       };
 
-      // Save config
+      // ✅ Save config to Firestore
       await db
         .collection("plugins")
         .doc(interaction.guild.id)
         .set({ language: pluginData }, { merge: true });
 
-      // Schedule the job
+      // ✅ Schedule job dynamically
       scheduleWordOfTheDay(interaction.guild.id, pluginData);
 
       await interaction.editReply(
-        `✅ Word of the Day set for ${channel} at **${time} (${timezone})** in **${language}**.\nIt will automatically adjust globally by timezone.`
+        `✅ Word of the Day scheduled in ${channel} for **${language}** at **${time} (${timezone})**.\n` +
+        `🕒 Converted to **${hourUTC.toString().padStart(2, "0")}:${minuteUTC
+          .toString()
+          .padStart(2, "0")} UTC** for internal scheduling.`
+      );
+
+      console.log(
+        `[Scheduler] Scheduled Language for ${interaction.guild.id} at ${time} (${timezone}) [UTC ${hourUTC}:${minuteUTC}]`
       );
     } catch (err) {
       console.error("[/sendlanguage] error:", err);
