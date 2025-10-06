@@ -130,24 +130,31 @@ client.on("interactionCreate", async (i) => {
       });
     }
 
-    // -------- LANGUAGE / WOTD --------
-  if (i.commandName === "send_language") {
-  const channel = i.options.getChannel("channel");
-  const time = i.options.getString("time");
-  const timezone = i.options.getString("timezone"); // get user's timezone
-  const language = i.options.getString("language") || "japanese";
+    // -------- LANGUAGE --------
+ if (i.commandName === "send_language") {
+  await safeDefer(); 
+  try {
+    const channel = i.options.getChannel("channel");
+    const time = i.options.getString("time").trim();
+    const timezone = i.options.getString("timezone").trim();
+    const language = i.options.getString("language") || "japanese";
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRegex.test(time)) {
+      return i.editReply({ content: `❌ Invalid time format. Use HH:MM 24h format.` });
+    }
+    if (!moment.tz.zone(timezone)) {
+      return i.editReply({ content: `❌ Invalid timezone: ${timezone}` });
+    }
+    const p = { channelId: channel.id, time, timezone, language, enabled: true };
+    await savePluginConfig(gid, "language", p);
+    return i.editReply({
+      content: `Word of the Day scheduled in ${channel} at ${time} (${timezone}) for ${language}.`,
+    });
 
-  // Validate timezone
-  if (!moment.tz.zone(timezone)) {
-    return i.reply({ content: `❌ Invalid timezone: ${timezone}` });
+  } catch (err) {
+    console.error("[send_language] error:", err);
+    return i.editReply({ content: "❌ Something went wrong while saving settings." });
   }
-
-  const p = { channelId: channel.id, time, timezone, language, enabled: true };
-  await savePluginConfig(gid, "language", p);
-
-  return i.reply({
-    content: `Runs daily at ${time} (${timezone}) in ${channel} for ${language}.`,
-  });
 }
 
 
