@@ -5,9 +5,7 @@ const { sendLanguageNow } = require("../plugins/language");
 
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
-    try {
-      scheduledJobs.get(key).stop();
-    } catch {}
+    try { scheduledJobs.get(key).stop(); } catch {}
     scheduledJobs.delete(key);
     console.log(`[Scheduler] Stopped ${key}`);
   }
@@ -30,27 +28,17 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     return;
   }
 
-  // Convert local time (user) → UTC
-  const utcTime = moment.tz({ hour, minute }, plugin.timezone).utc();
-  const hourUTC = utcTime.hour();
-  const minuteUTC = utcTime.minute();
-
-  // Log conversion clearly
-  console.log(
-    `[Debug] Local ${plugin.time} ${plugin.timezone} → UTC ${hourUTC}:${minuteUTC}`
-  );
-
   _stopJob(key);
 
   try {
-    const expr = `${minuteUTC} ${hourUTC} * * *`;
+    const expr = `${minute} ${hour} * * *`;
 
     const job = cron.schedule(
       expr,
       async () => {
-        const localNow = moment.utc().tz(plugin.timezone).format("HH:mm");
+        const localNow = moment().tz(plugin.timezone).format("HH:mm");
         console.log(
-          `[Scheduler] 🔔 Triggering for ${guildId} — Local ${localNow} (${plugin.timezone}), UTC ${moment.utc().format("HH:mm")}`
+          `[Scheduler] 🔔 Triggering Word for ${guildId} — Local ${localNow} (${plugin.timezone})`
         );
         try {
           await sendLanguageNow(guildId, plugin);
@@ -58,18 +46,13 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
           console.error("[Scheduler] sendLanguageNow error:", e);
         }
       },
-      { timezone: "UTC" }
+      { timezone: plugin.timezone }
     );
 
     scheduledJobs.set(key, job);
 
-    const localFormatted = moment
-      .tz({ hour: hourUTC, minute: minuteUTC }, "UTC")
-      .tz(plugin.timezone)
-      .format("HH:mm");
-
     console.log(
-      `[Scheduler] ✅ Scheduled Language for ${guildId} — Local ${localFormatted} (${plugin.timezone}) [UTC ${hourUTC}:${minuteUTC}]`
+      `[Scheduler] ✅ Scheduled Language for ${guildId} at ${plugin.time} (${plugin.timezone})`
     );
   } catch (err) {
     console.error("[Scheduler] failed to schedule:", err);

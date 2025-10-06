@@ -23,7 +23,7 @@ module.exports = {
     .addStringOption(opt =>
       opt
         .setName("timezone")
-        .setDescription("Enter your timezone (e.g., Asia/Kolkata, America/New_York)")
+        .setDescription("Select your timezone (e.g., Asia/Kolkata, America/New_York)")
         .setRequired(true)
     )
     .addStringOption(opt =>
@@ -36,65 +36,51 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
-
       const channel = interaction.options.getChannel("channel");
       const time = interaction.options.getString("time");
       const timezone = interaction.options.getString("timezone").trim();
       const language = interaction.options.getString("language");
 
-      // ✅ Validate time format (24h HH:MM)
+      // ✅ Validate 24-hour format HH:MM
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time)) {
-        return interaction.editReply("❌ Invalid time format. Use 24-hour format HH:MM (e.g., 17:30).");
+        return interaction.reply("❌ Invalid time format. Use 24-hour format HH:MM (e.g., 17:30).");
       }
 
       // ✅ Validate timezone
       if (!moment.tz.zone(timezone)) {
-        return interaction.editReply("❌ Invalid timezone. Example: Asia/Kolkata, Europe/London, America/New_York");
+        return interaction.reply("❌ Invalid timezone. Example: Asia/Kolkata, Europe/London, America/New_York");
       }
 
-      const [hour, minute] = time.split(":").map(Number);
-
-      // ✅ Convert local time to UTC for internal scheduling
-      const utcMoment = moment.tz({ hour, minute }, timezone).utc();
-      const hourUTC = utcMoment.hour();
-      const minuteUTC = utcMoment.minute();
-
-      // ✅ Build plugin data
+      // ✅ Build plugin data (local time + timezone only)
       const pluginData = {
         enabled: true,
         channelId: channel.id,
         language,
-        timezone, // user’s actual input preserved
-        time,     // local time as entered
-        hourUTC,
-        minuteUTC,
+        timezone,
+        time,
         updatedAt: new Date().toISOString(),
       };
 
-      // ✅ Save config to Firestore
+      // ✅ Save config
       await db
         .collection("plugins")
         .doc(interaction.guild.id)
         .set({ language: pluginData }, { merge: true });
 
-      // ✅ Schedule job dynamically
+      // ✅ Schedule job
       scheduleWordOfTheDay(interaction.guild.id, pluginData);
 
-      await interaction.editReply(
-        `✅ Word of the Day scheduled in ${channel} for **${language}** at **${time} (${timezone})**.\n` +
-        `🕒 Converted to **${hourUTC.toString().padStart(2, "0")}:${minuteUTC
-          .toString()
-          .padStart(2, "0")} UTC** for internal scheduling.`
+      interaction.reply(
+        `✅ Word of the Day scheduled in ${channel} for **${language}** at **${time} (${timezone})**.`
       );
 
       console.log(
-        `[Scheduler] Scheduled Language for ${interaction.guild.id} at ${time} (${timezone}) [UTC ${hourUTC}:${minuteUTC}]`
+        `[Scheduler] Scheduled Language for ${interaction.guild.id} at ${time} (${timezone})`
       );
     } catch (err) {
       console.error("[/sendlanguage] error:", err);
-      await interaction.editReply("❌ Something went wrong while setting up Word of the Day.");
+      interaction.reply("❌ Something went wrong while setting up Word of the Day.");
     }
   },
 };
