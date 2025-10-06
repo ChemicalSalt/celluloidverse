@@ -1,31 +1,31 @@
 const { SlashCommandBuilder, ChannelType } = require("discord.js");
-const { db } = require("../utils/firestore"); // Firestore helper
+const { db } = require("../utils/firestore");
 const { scheduleWordOfTheDay } = require("../cron/scheduler");
 const moment = require("moment-timezone");
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName("sendLanguage")
-    .setDescription("Setup Word of the Day")
+    .setName("sendlanguage")
+    .setDescription("Set up automatic Word of the Day")
     .addChannelOption(opt =>
       opt.setName("channel")
-         .setDescription("Channel")
+         .setDescription("Select the channel to post the Word of the Day")
          .addChannelTypes(ChannelType.GuildText)
          .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName("time")
-         .setDescription("Time in 24-hour format HH:MM")
+         .setDescription("Enter local time in 24-hour format (HH:MM)")
          .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName("timezone")
-         .setDescription("Your timezone (e.g., Asia/Kolkata)")
+         .setDescription("Your IANA timezone (e.g. Asia/Kolkata, Europe/London)")
          .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName("language")
-         .setDescription("Pick language")
+         .setDescription("Select the language for Word of the Day")
          .setRequired(true)
          .addChoices({ name: "Japanese", value: "japanese" })
     ),
@@ -39,49 +39,41 @@ module.exports = {
       const timezone = interaction.options.getString("timezone");
       const language = interaction.options.getString("language");
 
-      // Validate 24-hour HH:MM format
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time)) {
-        return interaction.editReply(
-          "❌ Invalid time format. Please use HH:MM in 24-hour format."
-        );
+        return interaction.editReply("❌ Invalid time format. Use HH:MM (24-hour).");
       }
 
-      // Parse hour and minute
+      // Validate timezone
+      if (!moment.tz.zone(timezone)) {
+        return interaction.editReply("❌ Invalid timezone. Example: Asia/Kolkata");
+      }
+
       const [hour, minute] = time.split(":").map(Number);
-
-      // Convert local time to UTC
       const utcMoment = moment.tz({ hour, minute }, timezone).utc();
-      const hourUTC = utcMoment.hour();
-      const minuteUTC = utcMoment.minute();
 
-      // Save plugin config to Firestore
       const pluginData = {
         enabled: true,
         channelId: channel.id,
         language,
         timezone,
-        time,         // original local time
-        hourUTC,
-        minuteUTC
+        time,
+        hourUTC: utcMoment.hour(),
+        minuteUTC: utcMoment.minute(),
       };
 
-      await db
-        .collection("plugins")
-        .doc(interaction.guild.id)
-        .set({ language: pluginData }, { merge: true });
+      await db.collection("plugins")
+              .doc(interaction.guild.id)
+              .set({ language: pluginData }, { merge: true });
 
-      // Schedule immediately
       scheduleWordOfTheDay(interaction.guild.id, pluginData);
 
       await interaction.editReply(
-        `✅ Word of the Day configured for ${channel} at ${time} (${timezone}) in ${language}.`
+        `✅ Word of the Day configured!\n**Channel:** ${channel}\n**Time:** ${time} (${timezone})\n**Language:** ${language}`
       );
     } catch (err) {
-      console.error("[/sendLanguage] error:", err);
-      await interaction.editReply(
-        "❌ Something went wrong while setting up Word of the Day."
-      );
+      console.error("[/sendlanguage] Error:", err);
+      await interaction.editReply("❌ Something went wrong while setting up the schedule.");
     }
   },
 };

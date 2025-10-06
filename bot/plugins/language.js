@@ -25,8 +25,8 @@ async function getRandomWord() {
     const rows = res.data.values || [];
     if (!rows.length) return null;
 
-    const dataRows = rows.filter(r => r[0] && r[1]);
-    const row = dataRows[Math.floor(Math.random() * dataRows.length)];
+    const validRows = rows.filter(r => r[0] && r[1]);
+    const row = validRows[Math.floor(Math.random() * validRows.length)];
 
     return {
       kanji: sanitizeDynamic(row[0] || ""),
@@ -39,23 +39,24 @@ async function getRandomWord() {
       sentenceMeaning: sanitizeDynamic(row[7] || ""),
     };
   } catch (err) {
-    console.error("[Language] Error fetching from Google Sheets:", err);
+    console.error("[Language] Google Sheets error:", err);
     return null;
   }
 }
 
 async function sendLanguageNow(guildId, plugin) {
   if (!plugin?.enabled) return;
-  if (!clientRef) return console.error("[Language] client not set!");
+  if (!clientRef) return console.error("[Language] Client not set!");
 
   const guild = clientRef.guilds.cache.get(guildId);
   if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
 
-  const channel =
-    guild.channels.cache.get(plugin.channelId) ||
-    (await guild.channels.fetch(plugin.channelId).catch(() => null));
-  if (!channel) return console.warn(`[Language] Channel not found: ${plugin.channelId}`);
-  if (channel.type !== 0) return;
+  const channel = guild.channels.cache.get(plugin.channelId) ||
+                  await guild.channels.fetch(plugin.channelId).catch(() => null);
+
+  if (!channel || channel.type !== 0) {
+    return console.warn(`[Language] Invalid or missing channel: ${plugin.channelId}`);
+  }
 
   const word = await getRandomWord();
   if (!word) return console.warn("[Language] No word found in Google Sheets");
@@ -74,9 +75,9 @@ async function sendLanguageNow(guildId, plugin) {
 
   try {
     await channel.send({ content: msg, allowedMentions: { parse: [] } });
-    console.log(`[Language] Sent to guild ${guildId}`);
+    console.log(`[Language] Sent successfully to guild ${guildId}`);
   } catch (e) {
-    console.error("[Language] send error:", e);
+    console.error("[Language] Send failed:", e);
   }
 }
 

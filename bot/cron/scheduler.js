@@ -1,7 +1,7 @@
 const cron = require("node-cron");
+const moment = require("moment-timezone");
 const scheduledJobs = new Map();
-const { sendLanguageNow } = require("../plugins/language"); 
-const moment = require("moment-timezone"); // make sure installed
+const { sendLanguageNow } = require("../plugins/language");
 
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
@@ -14,7 +14,7 @@ function _stopJob(key) {
 function scheduleWordOfTheDay(guildId, plugin = {}) {
   const key = `language:${guildId}`;
 
-  if (!plugin || !plugin.enabled || !plugin.channelId || !plugin.time || !plugin.timezone) {
+  if (!plugin?.enabled || !plugin.channelId || !plugin.time || !plugin.timezone) {
     _stopJob(key);
     return;
   }
@@ -41,22 +41,22 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[Scheduler] Triggering Language for ${guildId} at ${plugin.time} (${plugin.timezone}) -> ${hourUTC}:${minuteUTC} UTC`);
-        try { await sendLanguageNow(guildId, plugin); } 
+        console.log(`[Scheduler] Running Language for ${guildId} (${plugin.time} ${plugin.timezone})`);
+        try { await sendLanguageNow(guildId, plugin); }
         catch (e) { console.error("[Scheduler] sendLanguageNow error:", e); }
       },
-      { timezone: "UTC" } // cron always runs in UTC
+      { timezone: "UTC" }
     );
 
     scheduledJobs.set(key, job);
-    console.log(`[Scheduler] Scheduled Language for ${guildId} at ${plugin.time} (${plugin.timezone}) -> ${hourUTC}:${minuteUTC} UTC`);
+    console.log(`[Scheduler] Scheduled Language for ${guildId} at ${plugin.time} (${plugin.timezone}) [UTC ${hourUTC}:${minuteUTC}]`);
   } catch (err) {
     console.error("[Scheduler] failed to schedule:", err);
   }
 }
 
 function stopAll() {
-  for (const k of Array.from(scheduledJobs.keys())) _stopJob(k);
+  for (const k of scheduledJobs.keys()) _stopJob(k);
 }
 
 module.exports = { scheduleWordOfTheDay, stopAll };
