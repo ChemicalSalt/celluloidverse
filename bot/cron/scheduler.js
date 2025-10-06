@@ -30,16 +30,15 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     return;
   }
 
-  // Convert local time → UTC for scheduling
+  // Convert local time (user) → UTC
   const utcTime = moment.tz({ hour, minute }, plugin.timezone).utc();
   const hourUTC = utcTime.hour();
   const minuteUTC = utcTime.minute();
 
-  // Compute what that UTC time looks like back in the user's local zone
-  const localFormatted = moment
-    .tz({ hour: hourUTC, minute: minuteUTC }, "UTC")
-    .tz(plugin.timezone)
-    .format("HH:mm");
+  // Log conversion clearly
+  console.log(
+    `[Debug] Local ${plugin.time} ${plugin.timezone} → UTC ${hourUTC}:${minuteUTC}`
+  );
 
   _stopJob(key);
 
@@ -49,20 +48,28 @@ function scheduleWordOfTheDay(guildId, plugin = {}) {
     const job = cron.schedule(
       expr,
       async () => {
-        console.log(`[Scheduler] 🔔 Running Language for ${guildId} (${localFormatted} ${plugin.timezone})`);
+        const localNow = moment.utc().tz(plugin.timezone).format("HH:mm");
+        console.log(
+          `[Scheduler] 🔔 Triggering for ${guildId} — Local ${localNow} (${plugin.timezone}), UTC ${moment.utc().format("HH:mm")}`
+        );
         try {
           await sendLanguageNow(guildId, plugin);
         } catch (e) {
           console.error("[Scheduler] sendLanguageNow error:", e);
         }
       },
-      { timezone: "UTC" } // cron executes in UTC space
+      { timezone: "UTC" }
     );
 
     scheduledJobs.set(key, job);
 
+    const localFormatted = moment
+      .tz({ hour: hourUTC, minute: minuteUTC }, "UTC")
+      .tz(plugin.timezone)
+      .format("HH:mm");
+
     console.log(
-      `[Scheduler] ✅ Scheduled Language for ${guildId} at ${localFormatted} (${plugin.timezone}) [UTC ${hourUTC}:${minuteUTC}]`
+      `[Scheduler] ✅ Scheduled Language for ${guildId} — Local ${localFormatted} (${plugin.timezone}) [UTC ${hourUTC}:${minuteUTC}]`
     );
   } catch (err) {
     console.error("[Scheduler] failed to schedule:", err);
