@@ -8,6 +8,7 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
 } = require("discord.js");
+const moment = require("moment-timezone");
 const commandsConfig = require("../config/botConfig").COMMANDS;
 const { savePluginConfig, db } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
@@ -66,7 +67,9 @@ async function registerCommands() {
       return builder.toJSON();
     });
 
-    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: cmds });
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
+      body: cmds,
+    });
     console.log("[Discord] Registered slash commands");
   } catch (err) {
     console.error("[Discord] command registration failed", err);
@@ -78,19 +81,20 @@ require("./events/ready")(client);
 require("./events/guildMemberAdd")(client);
 require("./events/guildMemberRemove")(client);
 
-// Safe interactionCreate handler
+// Safe interaction handler
 client.on("interactionCreate", async (i) => {
   if (!i.isCommand()) return;
 
-  console.log(`[Debug] Interaction received: ${i.commandName} | Replied: ${i.replied} | Deferred: ${i.deferred}`);
+  console.log(
+    `[Debug] Interaction received: ${i.commandName} | Replied: ${i.replied} | Deferred: ${i.deferred}`
+  );
 
   try {
     const gid = i.guildId;
 
-    // Helper to safely defer once (public response)
     async function safeDefer() {
       if (!i.replied && !i.deferred) {
-        await i.deferReply(); 
+        await i.deferReply();
         console.log(`[Debug] Deferred reply for ${i.commandName}`);
       }
     }
@@ -106,10 +110,32 @@ client.on("interactionCreate", async (i) => {
         .setTitle("Bot Status")
         .setColor(status?.online ? 0x00ff00 : 0xff0000)
         .addFields(
-          { name: "Signal", value: status ? (status.online ? "🟢 Online" : "🔴 Offline") : "❌ N/A", inline: false },
-          { name: "Ping", value: status ? `${status.ping}ms` : "❌ N/A", inline: false },
-          { name: "Servers", value: status ? `${status.servers}` : "❌ N/A", inline: false },
-          { name: "Last Update", value: status ? new Date(status.timestamp).toLocaleString() : "❌ N/A", inline: false }
+          {
+            name: "Signal",
+            value: status
+              ? status.online
+                ? "🟢 Online"
+                : "🔴 Offline"
+              : "❌ N/A",
+            inline: false,
+          },
+          {
+            name: "Ping",
+            value: status ? `${status.ping}ms` : "❌ N/A",
+            inline: false,
+          },
+          {
+            name: "Servers",
+            value: status ? `${status.servers}` : "❌ N/A",
+            inline: false,
+          },
+          {
+            name: "Last Update",
+            value: status
+              ? new Date(status.timestamp).toLocaleString()
+              : "❌ N/A",
+            inline: false,
+          }
         )
         .setTimestamp();
 
@@ -118,7 +144,6 @@ client.on("interactionCreate", async (i) => {
 
     // -------- DASHBOARD --------
     if (i.commandName === "dashboard") {
-      // Immediate reply, public
       return i.reply({
         embeds: [
           new EmbedBuilder()
@@ -131,40 +156,72 @@ client.on("interactionCreate", async (i) => {
     }
 
     // -------- LANGUAGE --------
-if (i.commandName === "send_language") {
-  const channel = i.options.getChannel("channel");
-  const time = i.options.getString("time");
-  const timezone = i.options.getString("timezone");
-  const language = i.options.getString("language") || "japanese";
+    if (i.commandName === "send_language") {
+      const channel = i.options.getChannel("channel");
+      const time = i.options.getString("time");
+      const timezone = i.options.getString("timezone");
+      const language = i.options.getString("language") || "japanese";
 
-  if (!moment.tz.zone(timezone)) {
-    return i.reply({ content: `❌ Invalid timezone: ${timezone}`, ephemeral: true });
-  }
+      // Validate timezone
+      if (!moment.tz.zone(timezone)) {
+        return i.reply({
+          content: `❌ Invalid timezone: \`${timezone}\``,
+          ephemeral: true,
+        });
+      }
 
-  const p = { channelId: channel.id, time, timezone, language, enabled: true };
-  await savePluginConfig(i.guildId, "language", p);
+      // Validate time format
+      if (!/^\d{2}:\d{2}$/.test(time)) {
+        return i.reply({
+          content: "❌ Invalid time format. Use HH:MM (24-hour format).",
+          ephemeral: true,
+        });
+      }
 
-  return i.reply({
-    content: `✅ Word of the Day scheduled at ${time} (${timezone}) in ${channel} for ${language}.`,
-  });
-}
+      // Convert local time to UTC
+      const utcTime = moment.tz(time, "HH:mm", timezone).utc().format("HH:mm");
 
+      const p = {
+        channelId: channel.id,
+        time,
+        timezone,
+        utcTime,
+        language,
+        enabled: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await savePluginConfig(i.guildId, "language", p);
+
+      return i.reply({
+        content: `✅ Word of the Day scheduled at **${time} (${timezone})** → **${utcTime} UTC** in ${channel} for **${language}**.`,
+      });
+    }
 
     // -------- WELCOME --------
     if (i.commandName === "send_welcome") {
       await safeDefer();
 
       const channel = i.options.getChannel("channel");
-    const serverMsg = sanitizeDynamic(i.options.getString("server_message") || null);
-const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
+      const serverMsg = sanitizeDynamic(
+        i.options.getString("server_message") || null
+      );
+      const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
 
       const sendInServer = i.options.getBoolean("send_in_server");
       const sendInDM = i.options.getBoolean("send_in_dm");
 
-      const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
+      const p = {
+        channelId: channel.id,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
       await savePluginConfig(gid, "welcome", p);
 
-      return i.editReply({ content: `Welcome settings saved for ${channel}.` });
+      return i.editReply({ content: `✅ Welcome settings saved for ${channel}.` });
     }
 
     // -------- FAREWELL --------
@@ -172,23 +229,31 @@ const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
       await safeDefer();
 
       const channel = i.options.getChannel("channel");
-     const serverMsg = sanitizeDynamic(i.options.getString("server_message") || null);
-const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
+      const serverMsg = sanitizeDynamic(
+        i.options.getString("server_message") || null
+      );
+      const dmMsg = sanitizeDynamic(i.options.getString("dm_message") || null);
 
       const sendInServer = i.options.getBoolean("send_in_server");
       const sendInDM = i.options.getBoolean("send_in_dm");
 
-      const p = { channelId: channel.id, serverMessage: serverMsg, dmMessage: dmMsg, enabled: true, sendInServer, sendInDM };
+      const p = {
+        channelId: channel.id,
+        serverMessage: serverMsg,
+        dmMessage: dmMsg,
+        enabled: true,
+        sendInServer,
+        sendInDM,
+      };
       await savePluginConfig(gid, "farewell", p);
 
-      return i.editReply({ content: `Farewell settings saved for ${channel}.` });
+      return i.editReply({ content: `✅ Farewell settings saved for ${channel}.` });
     }
-
   } catch (err) {
     console.error("[interactionCreate] error:", err);
     try {
       if (!i.replied && !i.deferred) {
-        await i.reply({ content: "❌ Something went wrong." }); // public
+        await i.reply({ content: "❌ Something went wrong." });
       }
     } catch {}
   }
