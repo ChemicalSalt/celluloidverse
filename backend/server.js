@@ -8,8 +8,9 @@ const dashboardRoute = require("./routes/dashboard");
 const statusRoute = require("./routes/dashboard/status");
 
 const app = express();
-app.set("trust proxy", 1); // for secure cookies behind proxy
+app.set("trust proxy", 1);
 
+// Safety check
 if (!process.env.JWT_SECRET) {
   console.error("FATAL: JWT_SECRET not set");
   process.exit(1);
@@ -34,7 +35,7 @@ app.use(
   rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: "Too many requests" } })
 );
 app.use(
-  ["/api/dashboard/login", "/api/dashboard/callback"],
+  ["/api/dashboard/auth/login", "/api/dashboard/auth/callback"],
   rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: "Too many login attempts" } })
 );
 

@@ -7,11 +7,7 @@ const cookieParser = require("cookie-parser");
 const router = express.Router();
 
 // Env constants
-const CLIENT_ID = process.env.CLIENT_ID;
-const CLIENT_SECRET = process.env.CLIENT_SECRET;
-const REDIRECT_URI = process.env.REDIRECT_URI;
-const FRONTEND_URL = process.env.FRONTEND_URL;
-const JWT_SECRET = process.env.JWT_SECRET;
+const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, FRONTEND_URL, JWT_SECRET } = process.env;
 
 // Firebase init
 if (!admin.apps.length) {
@@ -20,10 +16,9 @@ if (!admin.apps.length) {
 }
 const db = admin.firestore();
 
-// Middleware
 router.use(cookieParser());
 
-// JWT helper
+// Helper: JWT session
 function createSessionToken(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
 }
@@ -44,7 +39,7 @@ router.get("/session", async (req, res) => {
   }
 });
 
-// 2️⃣ Start OAuth login
+// 2️⃣ OAuth login
 router.get("/login", (_req, res) => {
   const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&scope=identify%20guilds&response_type=code&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
