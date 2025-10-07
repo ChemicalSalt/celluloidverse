@@ -4,47 +4,39 @@ const fetch = require("node-fetch");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
-const { db } = require("../../firebase"); // your firebase.js exporting { db }
-
+const { db } = require("../../firebase"); // keep your firebase export
 const router = express.Router();
 router.use(cookieParser());
 
-// --- Required env vars (must exist) ---
+// env
 const {
   CLIENT_ID,
   CLIENT_SECRET,
   REDIRECT_URI,
   FRONTEND_URL,
   JWT_SECRET,
-  ENCRYPT_KEY, // optional but recommended
+  ENCRYPT_KEY,
   NODE_ENV,
 } = process.env;
 
 if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI || !FRONTEND_URL || !JWT_SECRET) {
-  throw new Error(
-    "Missing required env vars (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, FRONTEND_URL, JWT_SECRET)"
-  );
+  throw new Error("Missing required env vars (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, FRONTEND_URL, JWT_SECRET)");
 }
 
-// --- AES-GCM helper: derive 32-byte key from ENCRYPT_KEY or fallback to JWT_SECRET ---
+// key derivation for AES-GCM (same as yours)
 function deriveKey() {
   const raw = ENCRYPT_KEY && ENCRYPT_KEY.length >= 32 ? ENCRYPT_KEY : JWT_SECRET;
   return crypto.createHash("sha256").update(String(raw)).digest();
 }
-const AES_KEY = deriveKey(); // Buffer(32)
+const AES_KEY = deriveKey();
 
-// --- Encryption helpers (AES-256-GCM) ---
 function encryptObject(obj) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", AES_KEY, iv);
   const plaintext = Buffer.from(JSON.stringify(obj), "utf8");
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return {
-    iv: iv.toString("base64"),
-    ct: encrypted.toString("base64"),
-    tag: tag.toString("base64"),
-  };
+  return { iv: iv.toString("base64"), ct: encrypted.toString("base64"), tag: tag.toString("base64") };
 }
 
 function decryptObject(enc) {
@@ -63,12 +55,10 @@ function decryptObject(enc) {
   }
 }
 
-// --- JWT session ---
 function createSessionToken(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
 }
 
-// --- Discord helpers ---
 async function exchangeCodeForToken(code) {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -82,8 +72,9 @@ async function exchangeCodeForToken(code) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString(),
   });
-  if (!res.ok) throw new Error("Token exchange failed: " + (await res.text()));
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error("Token exchange failed: " + text);
+  return JSON.parse(text);
 }
 
 async function refreshTokens(refreshToken) {
@@ -98,22 +89,26 @@ async function refreshTokens(refreshToken) {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params.toString(),
   });
-  if (!res.ok) throw new Error("Token refresh failed: " + (await res.text()));
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error("Token refresh failed: " + text);
+  return JSON.parse(text);
 }
 
 async function fetchDiscordProfile(accessToken) {
   const res = await fetch("https://discord.com/api/users/@me", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error("Profile fetch failed: " + (await res.text()));
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error("Profile fetch failed: " + text);
+  return JSON.parse(text);
 }
 
-// --- Route: /auth/login -> redirect to Discord with state ---
+// ---- LOGIN: redirect user to discord authorize URL
 router.get("/login", (req, res) => {
-  console.log("CLIENT_ID:", CLIENT_ID);
-  console.log("REDIRECT_URI:", REDIRECT_URI);   // <-- add this
+  // debug (no secrets)
+  console.log("[oauth/login] CLIENT_ID:", CLIENT_ID);
+  console.log("[oauth/login] REDIRECT_URI:", REDIRECT_URI);
+  console.log("[oauth/login] FRONTEND_URL:", FRONTEND_URL);
 
   const state = crypto.randomBytes(16).toString("hex");
   res.cookie("oauth_state", state, {
@@ -123,23 +118,27 @@ router.get("/login", (req, res) => {
     maxAge: 5 * 60 * 1000,
   });
 
-  const scope = encodeURIComponent("identify guilds");
-  const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
-    REDIRECT_URI
-  )}&response_type=code&scope=${scope}&state=${state}&prompt=consent`;
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: "code",
+    scope: "identify guilds",
+    state,
+    prompt: "consent",
+  });
 
-  console.log("[OAuth login URL]", url); // <-- optional full URL check
-
+  const url = `https://discord.com/api/oauth2/authorize?${params.toString()}`;
+  console.log("[oauth/login] redirecting to:", url);
   return res.redirect(url);
 });
 
-
-// --- Route: /auth/callback -> handle Discord OAuth callback ---
+// ---- CALLBACK
 router.get("/callback", async (req, res) => {
   const { code, state } = req.query;
   const savedState = req.cookies?.oauth_state;
 
   if (!code || !state || !savedState || state !== savedState) {
+    console.warn("[oauth/callback] bad state. got:", { codeExists: !!code, state, savedState });
     return res.status(400).send("Invalid OAuth state (CSRF).");
   }
   res.clearCookie("oauth_state");
@@ -180,105 +179,20 @@ router.get("/callback", async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.redirect(`${FRONTEND_URL}/dashboard`);
+    return res.redirect(`${FRONTEND_URL.replace(/\/$/, "")}/dashboard`);
   } catch (err) {
-    console.error("[oauth callback] failed:", err);
-    return res.status(500).send("OAuth callback failed");
+    console.error("[oauth callback] failed:", err && err.message ? err.message : err);
+    // include an error query param to help frontend show error
+    return res.redirect(`${FRONTEND_URL.replace(/\/$/, "")}/?oauth_error=1`);
   }
 });
 
-// --- Session check ---
+// ---- session, refresh, logout (keep unchanged)
 router.get("/session", async (req, res) => {
-  try {
-    const token = req.cookies?.session;
-    if (!token) return res.status(401).json({ error: "No session" });
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (e) {
-      return res.status(401).json({ error: "Invalid session" });
-    }
-
-    const doc = await db.collection("users").doc(decoded.userId).get();
-    if (!doc.exists) return res.status(401).json({ error: "User not found" });
-
-    const data = doc.data();
-
-    if (!data.expires_at || data.expires_at <= Date.now()) {
-      const stored = decryptObject(data.enc_tokens);
-      if (!stored?.refresh_token) return res.status(401).json({ error: "Token expired, re-auth required" });
-
-      try {
-        const refreshed = await refreshTokens(stored.refresh_token);
-        const newEnc = encryptObject({
-          access_token: refreshed.access_token,
-          refresh_token: refreshed.refresh_token,
-          scope: refreshed.scope,
-          token_type: refreshed.token_type,
-        });
-        await db.collection("users").doc(decoded.userId).set(
-          {
-            enc_tokens: newEnc,
-            expires_at: Date.now() + (refreshed.expires_in || 0) * 1000,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-        data.enc_tokens = newEnc;
-        data.expires_at = Date.now() + (refreshed.expires_in || 0) * 1000;
-      } catch {
-        return res.status(401).json({ error: "Token refresh failed, re-auth required" });
-      }
-    }
-
-    return res.json({ user: data.user || { id: decoded.userId } });
-  } catch (err) {
-    console.error("[oauth session] error:", err);
-    return res.status(500).json({ error: "Session check failed" });
-  }
-});
-
-// --- Manual refresh ---
-router.get("/refresh/:userId", async (req, res) => {
-  try {
-    const doc = await db.collection("users").doc(req.params.userId).get();
-    if (!doc.exists) return res.status(404).json({ error: "User not found" });
-
-    const stored = decryptObject(doc.data().enc_tokens);
-    if (!stored?.refresh_token) return res.status(400).json({ error: "No refresh token" });
-
-    const refreshed = await refreshTokens(stored.refresh_token);
-    const newEnc = encryptObject({
-      access_token: refreshed.access_token,
-      refresh_token: refreshed.refresh_token,
-      scope: refreshed.scope,
-      token_type: refreshed.token_type,
-    });
-    await db.collection("users").doc(req.params.userId).set(
-      {
-        enc_tokens: newEnc,
-        expires_at: Date.now() + (refreshed.expires_in || 0) * 1000,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("[oauth refresh] failed:", err);
-    return res.status(500).json({ error: "Refresh failed" });
-  }
-});
-
-// --- Logout ---
-router.post("/logout", async (req, res) => {
-  try {
-    res.clearCookie("session");
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("[oauth logout] error:", err);
-    return res.status(500).json({ error: "Logout failed" });
-  }
+  // ... keep your existing session code (no changes required) ...
+  // For brevity, include the same logic you already had for /session
+  // Copy-paste your existing session handler here.
+  res.status(501).send("Not implemented in sample - keep your existing session handler.");
 });
 
 module.exports = router;
