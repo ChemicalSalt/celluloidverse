@@ -10,7 +10,7 @@ const AddBot = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ 1️⃣ Check if the user already has a valid session
+  // 1️⃣ Check if user has valid session
   const checkSession = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/session`, {
@@ -20,15 +20,15 @@ const AddBot = () => {
       if (res.ok) {
         setAuthChecked(true);
       } else {
-        // No session — go through Discord OAuth silently
-        await startDiscordAuth();
+        // No session — redirect directly to Discord OAuth
+        startDiscordAuth();
       }
     } catch (err) {
       console.error("Session check failed:", err);
     }
   };
 
-  // ✅ 2️⃣ Fetch guilds after successful auth
+  // 2️⃣ Fetch servers/guilds
   const fetchGuilds = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/servers`, {
@@ -44,33 +44,22 @@ const AddBot = () => {
     }
   };
 
-  // ✅ 3️⃣ Start Discord OAuth (no flicker or intermediate screen)
-  const startDiscordAuth = async () => {
-    try {
-      const res = await fetch(`${API_URL}/dashboard/auth/url`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.url) {
-        // Redirect user directly to Discord OAuth
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error("Error starting Discord auth:", err);
-    }
+  // 3️⃣ Start Discord OAuth by redirect
+  const startDiscordAuth = () => {
+    window.location.href = `${API_URL}/dashboard/auth/login`;
   };
 
-  // ✅ 4️⃣ Run auth check once on mount
+  // 4️⃣ Run auth check on mount
   useEffect(() => {
     checkSession();
   }, []);
 
-  // ✅ 5️⃣ Fetch guilds once the user is verified
+  // 5️⃣ Fetch guilds once user is verified
   useEffect(() => {
     if (authChecked) fetchGuilds();
   }, [authChecked]);
 
-  // ✅ 6️⃣ Add bot flow
+  // 6️⃣ Add bot to server
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -83,12 +72,12 @@ const AddBot = () => {
     }, 1000);
   };
 
-  // ✅ 7️⃣ Navigate to plugin dashboard
+  // 7️⃣ Go to plugin dashboard
   const goToPlugins = (guildId) => {
     navigate(`/dashboard/${guildId}/plugins/overview`);
   };
 
-  // ✅ 8️⃣ Loading UI
+  // 8️⃣ Loading state
   if (loading || !authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -97,7 +86,7 @@ const AddBot = () => {
     );
   }
 
-  // ✅ 9️⃣ Display servers once ready
+  // 9️⃣ Display servers
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
