@@ -50,7 +50,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 
           <button
- onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/dashboard/login`}  className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+ onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/dashboard/auth/login`}  className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
 >
   Dashboard
 </button>
