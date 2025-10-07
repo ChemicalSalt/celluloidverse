@@ -1,3 +1,4 @@
+// server.js
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -8,9 +9,8 @@ const statusRoute = require("./routes/dashboard/status");
 const dashboardRoute = require("./routes/dashboard");
 
 const app = express();
-app.set("trust proxy", 1); // needed for secure cookies behind proxies (Render, Vercel, etc.)
+app.set("trust proxy", 1); // needed for secure cookies behind proxies
 
-// --- Safety check ---
 if (!process.env.JWT_SECRET) {
   console.error("FATAL: JWT_SECRET not set");
   process.exit(1);
@@ -32,7 +32,7 @@ app.use(
 
 // --- Rate Limiters ---
 const dashboardLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 30,
   message: { error: "Too many requests, please try again later." },
 });
@@ -43,8 +43,9 @@ const oauthLimiter = rateLimit({
   max: 10,
   message: { error: "Too many login attempts, please wait." },
 });
-app.use("/api/dashboard/login", oauthLimiter);
-app.use("/api/dashboard/callback", oauthLimiter);
+// ✅ Corrected paths for OAuth routes
+app.use("/api/dashboard/auth/login", oauthLimiter);
+app.use("/api/dashboard/auth/callback", oauthLimiter);
 
 // --- Routes ---
 app.use("/api/status", statusRoute);

@@ -121,6 +121,10 @@ async function fetchDiscordProfile(accessToken) {
   }
   return res.json();
 }
+router.get("/login", (req, res) => {
+  const authorizeURL = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify+guilds&prompt=consent`;
+  res.redirect(authorizeURL);
+});
 
 // --- Route: /auth/url -> redirect user to Discord authorize page (adds state cookie) ---
 router.get("/url", (req, res) => {
