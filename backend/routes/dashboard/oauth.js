@@ -112,6 +112,9 @@ async function fetchDiscordProfile(accessToken) {
 
 // --- Route: /auth/login -> redirect to Discord with state ---
 router.get("/login", (req, res) => {
+  console.log("CLIENT_ID:", CLIENT_ID);
+  console.log("REDIRECT_URI:", REDIRECT_URI);   // <-- add this
+
   const state = crypto.randomBytes(16).toString("hex");
   res.cookie("oauth_state", state, {
     httpOnly: true,
@@ -124,8 +127,12 @@ router.get("/login", (req, res) => {
   const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
     REDIRECT_URI
   )}&response_type=code&scope=${scope}&state=${state}&prompt=consent`;
+
+  console.log("[OAuth login URL]", url); // <-- optional full URL check
+
   return res.redirect(url);
 });
+
 
 // --- Route: /auth/callback -> handle Discord OAuth callback ---
 router.get("/callback", async (req, res) => {
