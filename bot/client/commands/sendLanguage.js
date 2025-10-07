@@ -78,7 +78,7 @@ module.exports = {
 
       // ✅ Confirm setup
       await interaction.reply(
-        `✅ **Word of the Day setup complete!**
+        `**Word of the Day setup complete!**
 📚 Language: **${language}**
 📢 Channel: ${channel}
 🕓 Local Time: **${time} (${timezone})**

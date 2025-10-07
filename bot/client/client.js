@@ -194,7 +194,7 @@ client.on("interactionCreate", async (i) => {
       await savePluginConfig(i.guildId, "language", p);
 
       return i.reply({
-        content: `✅ Word of the Day scheduled at **${time} (${timezone})** → **${utcTime} UTC** in ${channel} for **${language}**.`,
+        content: `✅ Word of the Day scheduled at **${time} (${timezone})** in ${channel} for **${language}**.`,
       });
     }
 
