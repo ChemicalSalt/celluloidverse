@@ -168,13 +168,14 @@ router.get("/callback", async (req, res) => {
 
     const sessionToken = createSessionToken(userData.id);
 
-  res.cookie("session", sessionToken, {
+res.cookie("session", sessionToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production", 
-  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: "/", 
+  secure: true,              // must be true for HTTPS
+  sameSite: "none",          // allow cross-site
+  maxAge: 7 * 24 * 60 * 60 * 1000, 
+  path: "/"                  // ensure cookie is sent to frontend
 });
+
 
 
     // ✅ Redirect user to dashboard (logged in)
