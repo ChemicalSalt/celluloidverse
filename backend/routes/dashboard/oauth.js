@@ -170,10 +170,11 @@ router.get("/callback", async (req, res) => {
 
 res.cookie("session", sessionToken, {
   httpOnly: true,
-  secure: true,              // must be true for HTTPS
-  sameSite: "none",          // allow cross-site
+  secure: true,              
+  sameSite: "none",        
   maxAge: 7 * 24 * 60 * 60 * 1000, 
-  path: "/"                  // ensure cookie is sent to frontend
+  path: "/",   
+  domain: ".web.app"             
 });
 
 
