@@ -174,7 +174,7 @@ res.cookie("session", sessionToken, {
   sameSite: "none",        
   maxAge: 7 * 24 * 60 * 60 * 1000, 
   path: "/",   
-  domain: ".web.app"             
+  domain: ".celluloidverse-7d324.web.app"             
 });
 
 
