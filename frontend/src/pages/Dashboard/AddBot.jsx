@@ -38,9 +38,11 @@ const AddBot = () => {
       let data = await res.json();
 
       // 🔹 Filter only servers user can manage (permission bit 0x20)
-      data = data.filter((g) => (g.permissions & 0x20) === 0x20);
+     // data = data.filter((g) => (g.permissions & 0x20) === 0x20);
 
       setServers(data);
+      console.log("Fetched servers:", servers);
+
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
     } finally {
@@ -63,7 +65,7 @@ const AddBot = () => {
 
   // 4️⃣ Add bot to selected server
   const handleAddBot = (guildId) => {
-    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
+    const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot+applications.commands&permissions=8&integration_type=0&guild_id=${guildId}`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
 
     const timer = setInterval(() => {
