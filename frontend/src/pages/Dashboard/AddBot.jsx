@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
-
+console.log("API_URL in React:", API_URL);
+console.log("CLIENT_ID in React:", CLIENT_ID);
 const AddBot = () => {
   const [servers, setServers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ const AddBot = () => {
   // 1️⃣ Check if user has valid session
   const checkSession = async () => {
     try {
-      const res = await fetch(`${API_URL}/dashboard/session`, {
+      const res = await fetch(`${API_URL}/dashboard/auth/session`, {
         credentials: "include",
       });
 
