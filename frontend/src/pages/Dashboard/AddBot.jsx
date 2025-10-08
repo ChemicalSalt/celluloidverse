@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const CLIENT_ID = import.meta.env.VITE_CLIENT_ID;
-console.log("API_URL in React:", API_URL);
-console.log("CLIENT_ID in React:", CLIENT_ID);
+
 const AddBot = () => {
   const [servers, setServers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
 
-  // 1️⃣ Check if user has valid session
+  // 1️⃣ Check session
   const checkSession = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/auth/session`, {
@@ -21,7 +20,6 @@ const AddBot = () => {
       if (res.ok) {
         setAuthChecked(true);
       } else {
-        // No session — redirect directly to Discord OAuth
         startDiscordAuth();
       }
     } catch (err) {
@@ -29,14 +27,19 @@ const AddBot = () => {
     }
   };
 
-  // 2️⃣ Fetch servers/guilds
+  // 2️⃣ Fetch guilds
   const fetchGuilds = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/servers`, {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch guilds");
-      const data = await res.json();
+
+      let data = await res.json();
+
+      // 🔹 Filter only servers user can manage (permission bit 0x20)
+      data = data.filter((g) => (g.permissions & 0x20) === 0x20);
+
       setServers(data);
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
@@ -45,22 +48,20 @@ const AddBot = () => {
     }
   };
 
-  // 3️⃣ Start Discord OAuth by redirect
+  // 3️⃣ Redirect to Discord OAuth if not logged in
   const startDiscordAuth = () => {
     window.location.href = `${API_URL}/dashboard/auth/login`;
   };
 
-  // 4️⃣ Run auth check on mount
   useEffect(() => {
     checkSession();
   }, []);
 
-  // 5️⃣ Fetch guilds once user is verified
   useEffect(() => {
     if (authChecked) fetchGuilds();
   }, [authChecked]);
 
-  // 6️⃣ Add bot to server
+  // 4️⃣ Add bot to selected server
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot&guild_id=${guildId}&permissions=8`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -73,12 +74,12 @@ const AddBot = () => {
     }, 1000);
   };
 
-  // 7️⃣ Go to plugin dashboard
+  // 5️⃣ Go to plugin dashboard
   const goToPlugins = (guildId) => {
     navigate(`/dashboard/${guildId}/plugins/overview`);
   };
 
-  // 8️⃣ Loading state
+  // 6️⃣ Loading
   if (loading || !authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -87,7 +88,7 @@ const AddBot = () => {
     );
   }
 
-  // 9️⃣ Display servers
+  // 7️⃣ Render
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
@@ -128,7 +129,7 @@ const AddBot = () => {
           ))}
         </div>
       ) : (
-        <p>You don't own any servers where you can add the bot.</p>
+        <p>You don't have permission to manage any servers.</p>
       )}
     </div>
   );

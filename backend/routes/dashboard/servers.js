@@ -6,7 +6,6 @@ const { verifySession, refreshDiscordToken } = require("./session");
 const router = express.Router();
 const BOT_TOKEN = process.env.TOKEN;
 
-// Initialize Firebase only once
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -14,7 +13,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ------------------------------
-// GET: All servers (guilds)
+// Get all servers (guilds)
 // ------------------------------
 router.get("/", verifySession, async (req, res) => {
   const userId = req.session.userId;
@@ -26,57 +25,41 @@ router.get("/", verifySession, async (req, res) => {
 
     let { access_token, refresh_token, expires_at } = userDoc.data();
 
-    // 🔹 Auto-refresh token if expired or close to expiry (within 30s)
+    // Refresh if expired
     if (!access_token || (expires_at && Date.now() > expires_at - 30_000)) {
       if (!refresh_token) return res.status(401).json({ error: "Re-authenticate" });
-      try {
-        const refreshed = await refreshDiscordToken(refresh_token);
-        access_token = refreshed.access_token;
-        refresh_token = refreshed.refresh_token || refresh_token;
-        expires_at = Date.now() + (refreshed.expires_in || 0) * 1000;
-        await userDocRef.set({ access_token, refresh_token, expires_at }, { merge: true });
-      } catch (err) {
-        console.error("Token refresh failed:", err);
-        return res.status(401).json({ error: "Re-authenticate" });
-      }
+      const refreshed = await refreshDiscordToken(refresh_token);
+      access_token = refreshed.access_token;
+      refresh_token = refreshed.refresh_token || refresh_token;
+      expires_at = Date.now() + (refreshed.expires_in || 0) * 1000;
+      await userDocRef.set({ access_token, refresh_token, expires_at }, { merge: true });
     }
 
-    // 🔹 Get user guilds
+    // User's guilds
     const guildRes = await fetch("https://discord.com/api/users/@me/guilds", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-
-    if (!guildRes.ok) {
-      return res.status(guildRes.status).json({ error: "Failed to fetch user guilds" });
-    }
-
+    if (!guildRes.ok) return res.status(403).json({ error: "Failed to fetch guilds" });
     const userGuilds = await guildRes.json();
 
-    // 🔹 For each guild, check if the bot is present
-    const enriched = await Promise.all(
-      userGuilds.map(async (g) => {
-        let hasBot = false;
-
-        // Quick check in Firestore (cached)
-        const doc = await db.collection("guilds").doc(g.id).get();
-        if (doc.exists) {
-          hasBot = true;
-        } else {
-          // Verify via Discord API
-          const botCheck = await fetch(`https://discord.com/api/v10/guilds/${g.id}`, {
-            headers: { Authorization: `Bot ${BOT_TOKEN}` },
-          });
-          hasBot = botCheck.ok;
-        }
-
-        return {
-          id: g.id,
-          name: g.name,
-          icon: g.icon,
-          hasBot,
-        };
-      })
+    // Only manageable guilds
+    const manageableGuilds = userGuilds.filter(
+      (g) => (g.permissions & 0x20) === 0x20
     );
+
+    // Bot's guilds
+    const botGuildsRes = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+      headers: { Authorization: `Bot ${BOT_TOKEN}` },
+    });
+    const botGuilds = botGuildsRes.ok ? await botGuildsRes.json() : [];
+    const botGuildIds = new Set(botGuilds.map((bg) => bg.id));
+
+    const enriched = manageableGuilds.map((g) => ({
+      id: g.id,
+      name: g.name,
+      icon: g.icon,
+      hasBot: botGuildIds.has(g.id),
+    }));
 
     return res.json(enriched);
   } catch (err) {
@@ -86,7 +69,7 @@ router.get("/", verifySession, async (req, res) => {
 });
 
 // ------------------------------
-// GET: All text channels of a guild
+// Get channels of a server
 // ------------------------------
 router.get("/:id/channels", verifySession, async (req, res) => {
   const guildId = req.params.id;
@@ -97,14 +80,10 @@ router.get("/:id/channels", verifySession, async (req, res) => {
     );
 
     if (!channelsRes.ok) {
-      return res
-        .status(channelsRes.status)
-        .json({ error: `Failed to fetch channels (${channelsRes.status})` });
+      return res.status(channelsRes.status).json({ error: "Failed to fetch channels" });
     }
 
     const channels = await channelsRes.json();
-
-    // 🔹 Filter only text channels
     const textChannels = channels.filter((ch) => ch.type === 0);
     return res.json(textChannels);
   } catch (err) {
@@ -114,18 +93,49 @@ router.get("/:id/channels", verifySession, async (req, res) => {
 });
 
 // ------------------------------
-// GET: Single guild info from Firestore
+// ✅ Get single server by ID (live check + Firestore fallback)
 // ------------------------------
 router.get("/:id", verifySession, async (req, res) => {
-  try {
-    const guildId = req.params.id;
-    const doc = await db.collection("guilds").doc(guildId).get();
+  const guildId = req.params.id;
 
-    if (!doc.exists) {
-      return res.status(404).json({ error: "Server not found" });
+  try {
+    // Check Firestore first
+    const guildDoc = await db.collection("guilds").doc(guildId).get();
+
+    // If exists in Firestore → merge live bot presence
+    if (guildDoc.exists) {
+      // Confirm bot is still in that guild
+      const botGuildsRes = await fetch("https://discord.com/api/v10/users/@me/guilds", {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` },
+      });
+      const botGuilds = botGuildsRes.ok ? await botGuildsRes.json() : [];
+      const isInGuild = botGuilds.some((g) => g.id === guildId);
+
+      return res.json({
+        id: guildId,
+        ...guildDoc.data(),
+        hasBot: isInGuild,
+      });
     }
 
-    return res.json({ id: doc.id, ...doc.data() });
+    // If not in Firestore → check Discord directly
+    const botGuildRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}`,
+      { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
+    );
+
+    if (botGuildRes.ok) {
+      const guildData = await botGuildRes.json();
+      return res.json({
+        id: guildData.id,
+        name: guildData.name,
+        icon: guildData.icon,
+        hasBot: true,
+      });
+    }
+
+    // Not in Firestore and bot not in guild
+    return res.status(404).json({ error: "Bot not in this server", hasBot: false });
   } catch (err) {
     console.error("Fetch server by ID failed:", err);
     return res.status(500).json({ error: "Failed to fetch server details" });
