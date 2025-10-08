@@ -168,12 +168,14 @@ router.get("/callback", async (req, res) => {
 
     const sessionToken = createSessionToken(userData.id);
 
-    res.cookie("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+  res.cookie("session", sessionToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production", 
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", 
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: "/", 
+});
+
 
     // ✅ Redirect user to dashboard (logged in)
     return res.redirect(`${FRONTEND_URL}/dashboard`);

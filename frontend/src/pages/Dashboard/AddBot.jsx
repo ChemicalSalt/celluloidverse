@@ -19,11 +19,13 @@ const AddBot = () => {
 
       if (res.ok) {
         setAuthChecked(true);
-      } else {
+      } else if (res.status === 401) {
+        // Only redirect if session is actually invalid
         startDiscordAuth();
       }
     } catch (err) {
       console.error("Session check failed:", err);
+      startDiscordAuth();
     }
   };
 
@@ -35,14 +37,9 @@ const AddBot = () => {
       });
       if (!res.ok) throw new Error("Failed to fetch guilds");
 
-      let data = await res.json();
-
-      // 🔹 Filter only servers user can manage (permission bit 0x20)
-     // data = data.filter((g) => (g.permissions & 0x20) === 0x20);
-
+      const data = await res.json();
       setServers(data);
-      console.log("Fetched servers:", servers);
-
+      console.log("Fetched servers:", data);
     } catch (err) {
       console.error("Failed to fetch guilds:", err);
     } finally {
@@ -56,7 +53,10 @@ const AddBot = () => {
   };
 
   useEffect(() => {
-    checkSession();
+    const init = async () => {
+      await checkSession();
+    };
+    init();
   }, []);
 
   useEffect(() => {

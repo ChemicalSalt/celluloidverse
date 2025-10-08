@@ -24,7 +24,7 @@ module.exports = {
           { name: "Signal", value: status ? (status.online ? "🟢 Online" : "🔴 Offline") : "❌ N/A", inline: false },
           { name: "Ping", value: status ? `${status.ping}ms` : "❌ N/A", inline: false },
           { name: "Servers", value: status ? `${status.servers}` : "❌ N/A", inline: false },
-          { name: "Last Update", value: status ? new Date(status.timestamp).toLocaleString() : "❌ N/A", inline: false }
+          { name: "Last Update(UTC)", value: status ? new Date(status.timestamp).toLocaleString() : "❌ N/A", inline: false }
         )
         .setTimestamp();
 
