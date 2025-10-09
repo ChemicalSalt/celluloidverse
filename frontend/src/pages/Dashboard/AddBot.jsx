@@ -11,23 +11,27 @@ const AddBot = () => {
   const navigate = useNavigate();
 
   // 1️⃣ Check session
-  const checkSession = async () => {
-    try {
-      const res = await fetch(`${API_URL}/dashboard/auth/session`, {
-        credentials: "include",
-      });
+ const checkSession = async () => {
+  try {
+    const res = await fetch(`${API_URL}/dashboard/auth/session`, {
+      credentials: "include",
+    });
 
-      if (res.ok) {
-        setAuthChecked(true);
-      } else if (res.status === 401) {
-        // Only redirect if session is actually invalid
-        startDiscordAuth();
-      }
-    } catch (err) {
-      console.error("Session check failed:", err);
-      startDiscordAuth();
+    if (res.ok) {
+      const data = await res.json();
+      console.log("Session valid:", data);
+      setAuthChecked(true); // ✅ mark session valid
+    } else if (res.status === 401) {
+      startDiscordAuth(); // redirect if invalid
     }
-  };
+  } catch (err) {
+    console.error("Session check failed:", err);
+    startDiscordAuth();
+  } finally {
+    setLoading(false); // stop showing loading
+  }
+};
+
 
   // 2️⃣ Fetch guilds
   const fetchGuilds = async () => {
