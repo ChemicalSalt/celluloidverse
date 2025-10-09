@@ -96,9 +96,10 @@ router.get("/session", async (req, res) => {
     // 🔹 Renew the JWT cookie each time user visits
     res.cookie("session", createSessionToken(decoded.userId), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: true,               // keep secure for live HTTPS
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/",
     });
 
     return res.json({ id: decoded.userId, user: userData.user });
@@ -168,15 +169,13 @@ router.get("/callback", async (req, res) => {
 
     const sessionToken = createSessionToken(userData.id);
 
-res.cookie("session", sessionToken, {
-  httpOnly: true,
-  secure: true,              
-  sameSite: "none",        
-  maxAge: 7 * 24 * 60 * 60 * 1000, 
-  path: "/",               
-});
-
-
+    res.cookie("session", sessionToken, {
+      httpOnly: true,
+      secure: true,               // keep secure for live HTTPS
+      sameSite: "none",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
 
     // ✅ Redirect user to dashboard (logged in)
     return res.redirect(`${FRONTEND_URL}/dashboard`);
