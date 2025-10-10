@@ -45,5 +45,20 @@ app.use("/api/dashboard", dashboardRoute);
 app.get("/", (_req, res) => res.send("✅ Backend running"));
 app.get("/api", (_req, res) => res.json({ success: true }));
 
+app.get("/api/test-cookie", (req, res) => {
+  res.cookie("test_cookie", "hello_render", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+  });
+  res.json({ message: "Cookie sent!" });
+});
+
+app.get("/api/check-cookie", (req, res) => {
+  console.log("Cookies received:", req.cookies);
+  res.json({ cookies: req.cookies || "No cookies" });
+});
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
