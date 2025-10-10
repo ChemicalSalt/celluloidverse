@@ -10,6 +10,9 @@ const statusRoute = require("./routes/dashboard/status");
 const app = express();
 app.set("trust proxy", 1);
 
+console.log("🚀 Loaded server.js on Render");
+
+
 // Safety check
 if (!process.env.JWT_SECRET) {
   console.error("FATAL: JWT_SECRET not set");
