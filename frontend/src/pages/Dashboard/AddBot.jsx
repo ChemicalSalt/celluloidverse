@@ -10,30 +10,33 @@ const AddBot = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
 
-  // 1️⃣ Check session
- const checkSession = async () => {
+  // ✅ 1️⃣ Check existing session before redirecting
+  const checkSession = async () => {
   try {
     const res = await fetch(`${API_URL}/dashboard/auth/session`, {
       credentials: "include",
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      console.log("Session valid:", data);
-      setAuthChecked(true); // ✅ mark session valid
-    } else if (res.status === 401) {
-      startDiscordAuth(); // redirect if invalid
+    if (res.status === 200 || res.status === 304) { // ✅ accept 304
+      const data = await res.json().catch(() => ({}));
+      console.log("✅ Session valid:", data);
+      setAuthChecked(true);
+      return;
+    }
+
+    if (res.status === 401) {
+      console.warn("🔒 No active session — redirecting...");
+      startDiscordAuth();
     }
   } catch (err) {
-    console.error("Session check failed:", err);
+    console.error("❌ Session check failed:", err);
     startDiscordAuth();
   } finally {
-    setLoading(false); // stop showing loading
+    setLoading(false);
   }
 };
 
-
-  // 2️⃣ Fetch guilds
+  // ✅ 2️⃣ Fetch guilds after session confirmed
   const fetchGuilds = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/servers`, {
@@ -43,31 +46,30 @@ const AddBot = () => {
 
       const data = await res.json();
       setServers(data);
-      console.log("Fetched servers:", data);
+      console.log("✅ Fetched servers:", data);
     } catch (err) {
-      console.error("Failed to fetch guilds:", err);
+      console.error("❌ Failed to fetch guilds:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // 3️⃣ Redirect to Discord OAuth if not logged in
+  // ✅ 3️⃣ Start Discord OAuth (only if no valid session)
   const startDiscordAuth = () => {
     window.location.href = `${API_URL}/dashboard/auth/login`;
   };
 
+  // ✅ Run session check once when component mounts
   useEffect(() => {
-    const init = async () => {
-      await checkSession();
-    };
-    init();
+    checkSession();
   }, []);
 
+  // ✅ Once authorized, fetch user guilds
   useEffect(() => {
     if (authChecked) fetchGuilds();
   }, [authChecked]);
 
-  // 4️⃣ Add bot to selected server
+  // ✅ 4️⃣ Add bot flow
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot+applications.commands&permissions=8&integration_type=0&guild_id=${guildId}`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -80,13 +82,13 @@ const AddBot = () => {
     }, 1000);
   };
 
-  // 5️⃣ Go to plugin dashboard
+  // ✅ 5️⃣ Navigate to plugin dashboard
   const goToPlugins = (guildId) => {
     navigate(`/dashboard/${guildId}/plugins/overview`);
   };
 
-  // 6️⃣ Loading
-  if (loading || !authChecked) {
+  // ✅ 6️⃣ Loading UI
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-lg font-semibold">Loading your servers...</p>
@@ -94,7 +96,7 @@ const AddBot = () => {
     );
   }
 
-  // 7️⃣ Render
+  // ✅ 7️⃣ Main render
   return (
     <div className="min-h-screen px-6 py-8">
       <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>

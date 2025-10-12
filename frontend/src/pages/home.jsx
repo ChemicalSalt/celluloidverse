@@ -2,10 +2,7 @@ import { useState, useEffect } from "react";
 
 const Home = () => {
   const [status, setStatus] = useState(null);
-
-  
-const API_URL = import.meta.env.VITE_API_URL;
-
+  const API_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -21,46 +18,81 @@ const API_URL = import.meta.env.VITE_API_URL;
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [API_URL]);
 
   return (
-    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center justify-start px-4 transition-colors duration-300 pt-16">
-      <section className="text-center w-full max-w-3xl">
-        <h1 className="text-4xl font-bold mb-4 tracking-wide">
-          Welcome to Celluloidverse
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
-          Explore your bot dashboard and enjoy videos and shorts posted on our YouTube channel.
-        </p>
+    <main
+      className="min-h-screen w-full flex flex-col items-center justify-center overflow-x-hidden transition-colors duration-700
+      bg-gradient-to-b from-zinc-100 via-zinc-50 to-zinc-100 text-zinc-900
+      dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 dark:text-zinc-100"
+    >
+      <section className="flex flex-col items-center justify-center text-center px-6 py-24 space-y-24 w-full max-w-4xl">
+        {/* Intro */}
+        <div>
+          <h1 className="text-5xl sm:text-6xl font-extrabold mb-6 tracking-tight">
+            Welcome to{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-zinc-800 via-zinc-600 to-zinc-800 dark:from-zinc-300 dark:via-zinc-100 dark:to-zinc-300">
+              Celluloidverse
+            </span>
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+            Celluloidverse lets you manage your Discord bot, track YouTube activity
+            and keep everything in sync - all in one clean, powerful interface built
+            for both creators and communities.
+          </p>
+          <FancyButton
+            text="Get Started"
+            onClick={() => (window.location.href = "/getstarted")}
+          />
+        </div>
 
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6 w-full">
-          <button
-            onClick={() => window.location.href = "/getstarted"}
-            className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-          >
-            Get Started
-          </button>
+        {/* Dashboard section */}
+        <div>
+          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+            Your dashboard is where everything connects - servers, plugins and content
+            tracking — designed for speed, simplicity and dark elegance.
+          </p>
+          <FancyButton
+            text="Open Dashboard"
+            onClick={() =>
+              (window.location.href = `${API_URL}/dashboard/auth/login`)
+            }
+          />
+        </div>
 
-           <button
-    onClick={() => window.location.href = "/botstatus"}
-    className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-  >
-    Bot Status
-  </button>
-
-
-          <button
- onClick={() => window.location.href = `${API_URL}/dashboard/auth/login`}  className="w-full sm:w-48 px-6 py-3 rounded-full font-semibold transition-colors bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
->
-  Dashboard
-</button>
-
+        {/* Status section */}
+        <div>
+          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+            Stay updated in real time. Know when your bot is live, check its health
+            and see what’s happening instantly - no refresh, no clutter.
+          </p>
+          <FancyButton
+            text="Check Bot Status"
+            onClick={() => (window.location.href = "/botstatus")}
+          />
         </div>
       </section>
     </main>
   );
 };
 
+/* Fancy neutral zinc-glow button */
+const FancyButton = ({ text, onClick }) => (
+  <button
+    onClick={onClick}
+    className="relative px-10 py-4 rounded-full font-semibold tracking-wide overflow-hidden
+      transition-all duration-300 group
+      bg-zinc-900 text-zinc-100 dark:bg-zinc-100 dark:text-zinc-900
+      hover:scale-105 hover:shadow-[0_0_25px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+  >
+    <span className="relative z-10">{text}</span>
+    <span
+      className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 blur-xl
+      bg-gradient-to-r from-zinc-400 via-zinc-200 to-zinc-500 
+      dark:from-zinc-700 dark:via-zinc-400 dark:to-zinc-700
+      transition-all duration-500"
+    ></span>
+  </button>
+);
+
 export default Home;
-
-
