@@ -20,31 +20,30 @@ const Videos = () => {
         const searchData = await searchRes.json();
 
         const videoItems = (searchData.items || []).filter(
-          item => item.id.kind === "youtube#video"
+          (item) => item.id.kind === "youtube#video"
         );
 
-        const videoIds = videoItems.map(item => item.id.videoId).join(",");
+        const videoIds = videoItems.map((item) => item.id.videoId).join(",");
 
         const detailsRes = await fetch(
           `https://www.googleapis.com/youtube/v3/videos?key=${API_KEY}&id=${videoIds}&part=contentDetails,snippet`
         );
         const detailsData = await detailsRes.json();
 
-        const parseDuration = iso => {
+        const parseDuration = (iso) => {
           const match = iso.match(/PT(?:(\d+)M)?(?:(\d+)S)?/);
           const minutes = parseInt(match?.[1] || "0");
           const seconds = parseInt(match?.[2] || "0");
           return minutes * 60 + seconds;
         };
 
-        const regularVideos = (detailsData.items || []).filter(video => {
+        const regularVideos = (detailsData.items || []).filter((video) => {
           const duration = parseDuration(video.contentDetails.duration);
-          const title = video.snippet.title.toLowerCase();
           return duration > 60;
         });
 
         setVideos(
-          regularVideos.map(video => ({
+          regularVideos.map((video) => ({
             id: video.id,
             title: video.snippet.title,
           }))
@@ -58,29 +57,46 @@ const Videos = () => {
   }, []);
 
   return (
-    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center px-4 py-10 transition-colors duration-300">
-      <section className="text-center mb-10">
-        <h1 className="text-3xl font-bold mb-4">Videos</h1>
-        <p className="text-gray-600 dark:text-gray-400 text-lg max-w-xl">
-          Dive into our full-length, story-rich videos that blend creativity and technology like never before.
+    <main className="min-h-screen flex flex-col items-center px-6 py-16 bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-black dark:to-zinc-900 text-black dark:text-white transition-all duration-300">
+      
+      {/* Header */}
+      <section className="text-center mb-12">
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">
+         
+          <span className="bg-gradient-to-r from-black to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
+            Videos
+          </span>
+        </h1>
+        <p className="text-gray-700 dark:text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
+          Watch our latest in-depth content that blends creativity with technology — all in timeless black & white.
         </p>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
+      {/* Video Grid */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 w-full max-w-6xl">
         {videos.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-gray-400 col-span-full">
+          <div className="col-span-full text-center text-gray-500 dark:text-gray-400">
             No videos to display yet.
           </div>
         ) : (
-          videos.map(video => (
-            <div key={video.id} className="aspect-w-16 aspect-h-9">
-              <iframe
-                className="w-full h-full rounded-lg"
-                src={`https://www.youtube.com/embed/${video.id}`}
-                title={video.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+          videos.map((video) => (
+            <div
+              key={video.id}
+              className="group relative bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
+            >
+              <div className="aspect-w-16 aspect-h-9">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${video.id}`}
+                  title={video.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <h3 className="absolute bottom-3 left-4 right-4 text-sm md:text-base font-semibold text-white opacity-0 group-hover:opacity-100 transition-all duration-300">
+                {video.title}
+              </h3>
             </div>
           ))
         )}

@@ -178,7 +178,7 @@ router.get("/callback", async (req, res) => {
     });
 
     // ✅ Redirect user to dashboard (logged in)
-    return res.redirect(`${FRONTEND_URL}/dashboard`);
+    return res.redirect(`${FRONTEND_URL}/dashboard/addbot`);
   } catch (err) {
     console.error("OAuth callback failed:", err);
     return res.status(500).send("OAuth callback failed");

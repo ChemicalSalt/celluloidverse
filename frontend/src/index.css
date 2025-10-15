@@ -32,3 +32,7 @@ html.dark, html.dark body, html.dark #root {
   display: flex;
   flex-direction: column;
 }
+/* index.css */
+body {
+  @apply bg-gradient-to-b from-black via-zinc-900 to-black text-white transition-colors duration-300;
+}

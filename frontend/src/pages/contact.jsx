@@ -10,7 +10,6 @@ const Contact = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load reCAPTCHA script only on this page (optional for now)
   useEffect(() => {
     const script = document.createElement("script");
     script.src =
@@ -31,7 +30,6 @@ const Contact = () => {
     setError(null);
 
     try {
-      // Sanitize all inputs
       const sanitizedName = sanitizeDynamic(name);
       const sanitizedEmail = sanitizeDynamic(email);
       const sanitizedMessage = sanitizeDynamic(message, { maxLen: 1000 });
@@ -62,63 +60,101 @@ const Contact = () => {
   };
 
   return (
-    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col items-center px-4 transition-colors duration-300">
-      <section className="text-center mt-12">
-        <h2 className="text-2xl font-bold mb-2">Welcome!</h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Have questions or feedback? Reach out to the Celluloidverse team to
-          connect about the bot or our latest videos.
+    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-black dark:to-zinc-900 text-black dark:text-white flex flex-col items-center justify-center px-6 py-20 transition-colors duration-300 font-sans">
+      {/* Header */}
+      <section className="text-center mb-12">
+        <h2 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight">
+          Contact <span className="bg-gradient-to-r from-black to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">Us</span>
+        </h2>
+        <p className="text-gray-700 dark:text-gray-400 text-base md:text-lg max-w-xl mx-auto">
+          Have any questions or feedback? Let’s stay connected.
         </p>
       </section>
 
-      <section className="w-full max-w-xl mt-12">
-        <h3 className="text-xl font-semibold mb-4">Contact Us</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full p-3 rounded bg-zinc-400 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-400 focus:outline-none"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-3 rounded bg-zinc-400 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-400 focus:outline-none"
-          />
-          <textarea
-            rows="4"
-            placeholder="Message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            required
-            className="w-full p-3 rounded bg-zinc-400 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-400 focus:outline-none"
-          ></textarea>
+      {/* Contact Form */}
+      <section className="w-full max-w-xl bg-zinc-100 dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-8 shadow-xl backdrop-blur-md">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-semibold mb-2 text-gray-800 dark:text-gray-300 uppercase tracking-wide">
+              Name
+            </label>
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full p-3 rounded-lg bg-zinc-200 dark:bg-zinc-900 text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-700 transition-all duration-200"
+            />
+          </div>
 
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-semibold mb-2 text-gray-800 dark:text-gray-300 uppercase tracking-wide">
+              Email
+            </label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full p-3 rounded-lg bg-zinc-200 dark:bg-zinc-900 text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-700 transition-all duration-200"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block text-sm font-semibold mb-2 text-gray-800 dark:text-gray-300 uppercase tracking-wide">
+              Message
+            </label>
+            <textarea
+              rows="5"
+              placeholder="Write your message..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              required
+              className="w-full p-3 rounded-lg bg-zinc-200 dark:bg-zinc-900 text-black dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-700 resize-none transition-all duration-200"
+            ></textarea>
+          </div>
+
+          {/* Submit */}
           <button
             type="submit"
-            className="w-full p-3 bg-black text-white dark:bg-white dark:text-black font-semibold rounded hover:bg-gray-900 dark:hover:bg-gray-200 transition"
+            className="w-full py-3 font-semibold rounded-lg bg-black text-white dark:bg-white dark:text-black shadow-md hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
           >
-            Send
+            Send Message
           </button>
 
-          {success && <p className="text-green-500">Message sent successfully!</p>}
-          {error && <p className="text-red-500">{error}</p>}
+          {/* Status */}
+          {success && (
+            <p className="text-center text-green-500 mt-3">
+              ✅ Message sent successfully!
+            </p>
+          )}
+          {error && (
+            <p className="text-center text-red-500 mt-3">
+              ❌ {error}
+            </p>
+          )}
 
-          <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            This site is protected by reCAPTCHA and the Google{" "}
-            <a href="https://policies.google.com/privacy" className="underline">
+          <p className="text-xs text-gray-500 dark:text-gray-500 text-center mt-4">
+            Protected by Google reCAPTCHA —{" "}
+            <a
+              href="https://policies.google.com/privacy"
+              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+            >
               Privacy Policy
             </a>{" "}
             and{" "}
-            <a href="https://policies.google.com/terms" className="underline">
+            <a
+              href="https://policies.google.com/terms"
+              className="underline hover:text-gray-700 dark:hover:text-gray-300"
+            >
               Terms of Service
-            </a>{" "}
-            apply.
+            </a>
+            .
           </p>
         </form>
       </section>

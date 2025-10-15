@@ -1,33 +1,12 @@
-import { useState, useEffect } from "react";
-
 const Home = () => {
-  const [status, setStatus] = useState(null);
-  const API_URL = import.meta.env.VITE_API_URL;
-
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        setStatus(data);
-      } catch (err) {
-        console.error("Failed to fetch bot status:", err);
-      }
-    };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
-  }, [API_URL]);
-
   return (
     <main
       className="min-h-screen w-full flex flex-col items-center justify-center overflow-x-hidden transition-colors duration-700
       bg-gradient-to-b from-zinc-100 via-zinc-50 to-zinc-100 text-zinc-900
       dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 dark:text-zinc-100"
     >
-      <section className="flex flex-col items-center justify-center text-center px-6 py-24 space-y-24 w-full max-w-4xl">
-        {/* Intro */}
+      <section className="flex flex-col items-center justify-center text-center px-6 py-24 space-y-16 w-full max-w-4xl">
+        {/* Title */}
         <div>
           <h1 className="text-5xl sm:text-6xl font-extrabold mb-6 tracking-tight">
             Welcome to{" "}
@@ -36,39 +15,13 @@ const Home = () => {
             </span>
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Celluloidverse lets you manage your Discord bot, track YouTube activity
-            and keep everything in sync - all in one clean, powerful interface built
-            for both creators and communities.
+            Your all-in-one dashboard for creators and communities — manage your Discord bot,
+            track YouTube updates, and connect everything in one smooth space.
           </p>
+
           <FancyButton
             text="Get Started"
             onClick={() => (window.location.href = "/getstarted")}
-          />
-        </div>
-
-        {/* Dashboard section */}
-        <div>
-          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Your dashboard is where everything connects - servers, plugins and content
-            tracking — designed for speed, simplicity and dark elegance.
-          </p>
-          <FancyButton
-            text="Open Dashboard"
-            onClick={() =>
-              (window.location.href = `${API_URL}/dashboard/auth/login`)
-            }
-          />
-        </div>
-
-        {/* Status section */}
-        <div>
-          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Stay updated in real time. Know when your bot is live, check its health
-            and see what’s happening instantly - no refresh, no clutter.
-          </p>
-          <FancyButton
-            text="Check Bot Status"
-            onClick={() => (window.location.href = "/botstatus")}
           />
         </div>
       </section>
@@ -76,7 +29,7 @@ const Home = () => {
   );
 };
 
-/* Fancy neutral zinc-glow button */
+/* Fancy button (same style for consistency) */
 const FancyButton = ({ text, onClick }) => (
   <button
     onClick={onClick}

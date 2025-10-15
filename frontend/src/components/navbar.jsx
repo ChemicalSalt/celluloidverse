@@ -30,7 +30,13 @@ const Navbar = () => {
   return (
     <header className="relative z-50 text-black dark:text-white">
       {/* Top Bar */}
-      <div className="flex items-center justify-between bg-gradient-to-b from-zinc-50 to-zinc-100 dark:from-zinc-950 dark:to-zinc-900 py-4 px-5 sm:px-8">
+      <div
+        className={`flex items-center justify-between py-4 px-5 sm:px-8 transition-colors duration-300 ${
+          darkMode
+            ? "bg-gradient-to-b from-zinc-950 to-zinc-900"
+            : "bg-gradient-to-b from-white to-zinc-100"
+        }`}
+      >
         {/* Left: Hamburger Icon */}
         <button
           onClick={() => setMenuOpen(true)}
@@ -61,19 +67,24 @@ const Navbar = () => {
       </div>
 
       {/* Main Nav */}
-      <nav className="py-4 bg-transparent">
+      <nav
+        className={`py-4 transition-colors duration-300 ${
+          darkMode ? "bg-zinc-900" : "bg-white"
+        }`}
+      >
         <div className="flex justify-center gap-6 sm:gap-10 text-base sm:text-lg font-medium px-4">
-          {["Home", "Shorts", "Videos", "Contact", "About"].map((item) => (
-            <Link
-              key={item}
-              to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-
-              className="relative group"
-            >
-              {item}
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-black dark:bg-white transition-all duration-300 group-hover:w-full"></span>
-            </Link>
-          ))}
+          {["Home", "Dashboard", "Shorts", "Videos", "Contact", "About"].map(
+            (item) => (
+              <Link
+                key={item}
+                to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+                className="relative group text-zinc-800 dark:text-zinc-200 transition-colors duration-300"
+              >
+                {item}
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-zinc-800 dark:bg-zinc-200 transition-all duration-300 group-hover:w-full"></span>
+              </Link>
+            )
+          )}
         </div>
       </nav>
 
@@ -87,9 +98,11 @@ const Navbar = () => {
 
       {/* Sidebar Menu */}
       <div
-        className={`fixed top-0 left-0 h-full w-72 bg-zinc-50 dark:bg-zinc-900 text-black dark:text-white z-[9999] shadow-xl transform ${
+        className={`fixed top-0 left-0 h-full w-72 z-[9999] shadow-xl transform ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 ease-in-out flex flex-col`}
+        } transition-transform duration-300 ease-in-out flex flex-col ${
+          darkMode ? "bg-zinc-900 text-white" : "bg-white text-black"
+        }`}
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-zinc-200 dark:border-zinc-700">
@@ -123,16 +136,18 @@ const Navbar = () => {
 
         {/* Links */}
         <div className="flex flex-col p-5 gap-5 text-lg font-medium mt-4">
-          {["Home", "Shorts", "Videos", "Contact", "About"].map((item) => (
-            <Link
-              key={item}
-              to={`/${item.toLowerCase()}`}
-              onClick={() => setMenuOpen(false)}
-              className="transition-all hover:translate-x-2 hover:text-zinc-600 dark:hover:text-zinc-300"
-            >
-              {item}
-            </Link>
-          ))}
+          {["Home", "Dashboard", "Shorts", "Videos", "Contact", "About"].map(
+            (item) => (
+              <Link
+                key={item}
+                to={`/${item.toLowerCase()}`}
+                onClick={() => setMenuOpen(false)}
+                className="transition-all hover:translate-x-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                {item}
+              </Link>
+            )
+          )}
         </div>
 
         {/* Socials */}
@@ -142,22 +157,43 @@ const Navbar = () => {
               href="https://youtube.com/@celluloidverse"
               target="_blank"
               rel="noopener noreferrer"
+              className="transition-transform hover:scale-110"
             >
-              <FaYoutube size={22} className="hover:text-red-500 transition-colors" />
+              <FaYoutube
+                className={`w-7 h-7 transition-colors duration-300 ${
+                  darkMode
+                    ? "text-white/80 hover:text-red-500"
+                    : "text-black/80 hover:text-red-600"
+                }`}
+              />
             </a>
             <a
               href="https://discord.com/invite/kxmZsh9GUT"
               target="_blank"
               rel="noopener noreferrer"
+              className="transition-transform hover:scale-110"
             >
-              <FaDiscord size={22} className="hover:text-indigo-500 transition-colors" />
+              <FaDiscord
+                className={`w-7 h-7 transition-colors duration-300 ${
+                  darkMode
+                    ? "text-white/80 hover:text-indigo-400"
+                    : "text-black/80 hover:text-indigo-600"
+                }`}
+              />
             </a>
             <a
               href="https://instagram.com/celluloidverse"
               target="_blank"
               rel="noopener noreferrer"
+              className="transition-transform hover:scale-110"
             >
-              <FaInstagram size={22} className="hover:text-pink-500 transition-colors" />
+              <FaInstagram
+                className={`w-7 h-7 transition-colors duration-300 ${
+                  darkMode
+                    ? "text-white/80 hover:text-pink-400"
+                    : "text-black/80 hover:text-pink-600"
+                }`}
+              />
             </a>
           </div>
         </div>
