@@ -19,7 +19,7 @@ const AddBot = () => {
 
     if (res.status === 200 || res.status === 304) { // ✅ accept 304
       const data = await res.json().catch(() => ({}));
-      console.log("✅ Session valid:", data);
+      console.log("✅ Session valid");
       setAuthChecked(true);
       return;
     }
@@ -46,7 +46,7 @@ const AddBot = () => {
 
       const data = await res.json();
       setServers(data);
-      console.log("✅ Fetched servers:", data);
+      console.log("✅ Fetched servers");
     } catch (err) {
       console.error("❌ Failed to fetch guilds:", err);
     } finally {

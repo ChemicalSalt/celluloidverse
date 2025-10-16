@@ -31,7 +31,15 @@ module.exports = {
         .setName("language")
         .setDescription("Select language for Word of the Day")
         .setRequired(true)
-        .addChoices({ name: "Japanese", value: "japanese" })
+        .addChoices(
+  { name: "Japanese", value: "japanese" },
+  { name: "Hindi", value: "hindi" },
+  { name: "English", value: "english" },
+  { name: "Mandarin", value: "mandarin" },
+  { name: "Arabic", value: "arabic" },
+  { name: "French", value: "french" }
+)
+
     ),
 
   async execute(interaction) {
