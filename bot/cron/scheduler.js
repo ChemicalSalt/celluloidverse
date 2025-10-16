@@ -106,6 +106,7 @@ function stopAll() {
 }
 
 /** Load all schedules from Firestore and reschedule them */
+/** Load all schedules from Firestore and reschedule them */
 async function loadAllSchedules() {
   try {
     const snapshot = await db.collection("guilds").get();
@@ -113,21 +114,23 @@ async function loadAllSchedules() {
 
     snapshot.forEach(doc => {
       const guildId = doc.id;
-   // When loading schedules from Firestore
-const plugin = doc.data().language; // <--- get the language map
-if (!plugin) return;
+      const pluginMap = doc.data()?.plugins?.language; // fixed path
+      if (!pluginMap) return;
 
-for (const [langKey, langData] of Object.entries(plugin)) {
-  if (!langData || !langData.enabled) continue;
-  scheduleWordOfTheDay(guildId, plugin, langKey);
-}
- });
+      for (const [langKey, langData] of Object.entries(pluginMap)) {
+        if (!langData || !langData.enabled) continue;
+
+        // Schedule only the specific language object
+        scheduleWordOfTheDay(guildId, langData, langKey);
+      }
+    });
 
     console.log("[Scheduler] ✅ All language schedules loaded.");
   } catch (err) {
     console.error("[Scheduler] ❌ Failed to load schedules:", err);
   }
 }
+
 
 module.exports = {
   scheduleWordOfTheDay,
