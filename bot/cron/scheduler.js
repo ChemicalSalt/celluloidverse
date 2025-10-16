@@ -113,25 +113,22 @@ async function loadAllSchedules() {
 
     snapshot.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data();
+    const plugin = doc.data().language; // instead of just doc.data()
 
+if (!plugin) {
+  console.log(`[Scheduler] No language plugin data for guild ${guildId}`);
+  return;
+}
 
-      if (!plugin) {
-        console.log(`[Scheduler] No language plugin data for guild ${guildId}`);
-        return;
-      }
+for (const [langKey, langData] of Object.entries(plugin)) {
+  if (!langData || typeof langData !== "object") continue;
+  if (langData.enabled) {
+    scheduleWordOfTheDay(guildId, plugin, langKey);
+  } else {
+    _stopJob(_makeKey(guildId, langKey));
+  }
+}
 
-      for (const [langKey, langData] of Object.entries(plugin)) {
-        // Skip global fields like "enabled"
-        if (!langData || typeof langData !== "object") continue;
-        if (langKey === "enabled") continue;
-
-        if (langData.enabled) {
-          scheduleWordOfTheDay(guildId, langData, langKey);
-        } else {
-          _stopJob(_makeKey(guildId, langKey));
-        }
-      }
     });
 
     console.log("[Scheduler] ✅ All language schedules loaded.");

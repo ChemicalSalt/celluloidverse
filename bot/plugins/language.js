@@ -174,10 +174,8 @@ async function sendLanguageNow(guildId, plugin) {
   const guild = clientRef.guilds.cache.get(guildId);
   if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
 
-  // Collect all language keys (ignore global fields)
-  const languages = Object.keys(plugin).filter(
-    key => !["enabled", "updatedAt", "language"].includes(key)
-  );
+ const languages = Object.keys(plugin); 
+
 
   for (const lang of languages) {
     const langConfig = plugin[lang];

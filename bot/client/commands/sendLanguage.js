@@ -73,15 +73,14 @@ module.exports = {
         utcTime: utcFormatted,
         updatedAt: new Date().toISOString(),
       };
-
-      await db
+// Save config to Firestore
+await db
   .collection("guilds")
   .doc(interaction.guild.id)
-  .set({ plugins: { [language]: pluginData } }, { merge: true });
+  .set({ language: { [language]: pluginData } }, { merge: true });
 
-
-      // ✅ Schedule cron job
-      scheduleWordOfTheDay(interaction.guild.id, pluginData);
+// ✅ Schedule cron job
+scheduleWordOfTheDay(interaction.guild.id, { [language]: pluginData }, language);
 
       // ✅ Confirmation message
       await interaction.reply(
