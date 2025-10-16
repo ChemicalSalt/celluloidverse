@@ -60,8 +60,6 @@ const Language = () => {
               <option value="english">English</option>
               <option value="mandarin">Mandarin</option>
               <option value="hindi">Hindi</option>
-              <option value="spanish">Spanish</option>
-              <option value="french">French</option>
               <option value="arabic">Arabic</option>
           </select>
         </div>

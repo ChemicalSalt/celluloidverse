@@ -17,35 +17,55 @@ router.get("/servers/:id/plugins/:plugin", verifySession, async (req, res) => {
     const doc = await db.collection("guilds").doc(id).get();
     res.json(doc.exists ? doc.data().plugins?.[plugin] || {} : {});
   } catch (err) {
+    console.error("[GET Plugin Error]", err);
     res.status(500).json({ error: "Failed to fetch plugin" });
   }
 });
 
+// ✅ SAVE / MERGE MULTI-LANGUAGE
 router.post(
   "/servers/:id/plugins/:plugin",
   verifySession,
-  [body("enabled").optional().isBoolean(), body("config").optional().isObject()],
+  [
+    body("enabled").optional().isBoolean(),
+    body("language").optional().isString(),
+    body("config").optional().isObject(),
+  ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
       const { id, plugin } = req.params;
+      const { language = "mandarin", ...data } = req.body;
+
       const docRef = db.collection("guilds").doc(id);
       const existing = await docRef.get();
       const plugins = existing.exists ? existing.data()?.plugins || {} : {};
+      const existingPlugin = plugins[plugin] || {};
 
       await docRef.set(
         {
           plugins: {
             ...plugins,
-            [plugin]: { ...req.body, updatedAt: new Date().toISOString() },
+            [plugin]: {
+              ...existingPlugin,
+              [language]: {
+                ...existingPlugin[language],
+                ...data,
+                updatedAt: new Date().toISOString(),
+                enabled: true,
+              },
+              enabled: true,
+            },
           },
         },
         { merge: true }
       );
-      res.json({ success: true });
+
+      res.json({ success: true, language });
     } catch (err) {
+      console.error("[POST Plugin Error]", err);
       res.status(500).json({ error: "Failed to save plugin" });
     }
   }
