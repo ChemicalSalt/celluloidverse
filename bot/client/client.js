@@ -156,47 +156,54 @@ client.on("interactionCreate", async (i) => {
     }
 
     // -------- LANGUAGE --------
-    if (i.commandName === "send_language") {
-      const channel = i.options.getChannel("channel");
-      const time = i.options.getString("time");
-      const timezone = i.options.getString("timezone");
-      const language = i.options.getString("language") || "japanese";
+   // -------- LANGUAGE --------
+if (i.commandName === "send_language") {
+  const channel = i.options.getChannel("channel");
+  const time = i.options.getString("time");
+  const timezone = i.options.getString("timezone");
+  const language = i.options.getString("language") || "japanese";
 
-      // Validate timezone
-      if (!moment.tz.zone(timezone)) {
-        return i.reply({
-          content: `❌ Invalid timezone: \`${timezone}\``,
-          ephemeral: true,
-        });
-      }
+  // Validate timezone
+  if (!moment.tz.zone(timezone)) {
+    return i.reply({
+      content: `❌ Invalid timezone: \`${timezone}\``,
+      ephemeral: true,
+    });
+  }
 
-      // Validate time format
-      if (!/^\d{2}:\d{2}$/.test(time)) {
-        return i.reply({
-          content: "❌ Invalid time format. Use HH:MM (24-hour format).",
-          ephemeral: true,
-        });
-      }
+  // Validate time format
+  if (!/^\d{2}:\d{2}$/.test(time)) {
+    return i.reply({
+      content: "❌ Invalid time format. Use HH:MM (24-hour format).",
+      ephemeral: true,
+    });
+  }
 
-      // Convert local time to UTC
-      const utcTime = moment.tz(time, "HH:mm", timezone).utc().format("HH:mm");
+  // Convert local time → UTC
+  const utcTime = moment.tz(time, "HH:mm", timezone).utc().format("HH:mm");
 
-      const p = {
-        channelId: channel.id,
-        time,
-        timezone,
-        utcTime,
-        language,
-        enabled: true,
-        updatedAt: new Date().toISOString(),
-      };
+  // Plugin object in correct format for scheduler
+  const pluginData = {
+    enabled: true,
+    channelId: channel.id,
+    timezone,
+    localTime: time,
+    utcTime,
+    updatedAt: new Date().toISOString(),
+  };
 
-      await savePluginConfig(i.guildId, "language", p);
+  // Save to Firestore
+  await savePluginConfig(i.guildId, "language", { [language]: pluginData });
 
-      return i.reply({
-        content: `✅ Word of the Day scheduled at **${time} (${timezone})** in ${channel} for **${language}**.`,
-      });
-    }
+  // ✅ Schedule immediately
+  const { scheduleWordOfTheDay } = require("../cron/scheduler");
+  scheduleWordOfTheDay(i.guildId, { [language]: pluginData }, language);
+
+  return i.reply({
+    content: `✅ Word of the Day scheduled at **${time} (${timezone})** in ${channel} for **${language}**.`,
+  });
+}
+
 
     // -------- WELCOME --------
     if (i.commandName === "send_welcome") {
