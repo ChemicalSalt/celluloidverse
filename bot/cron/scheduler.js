@@ -40,11 +40,11 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
 
   let utcTime = plugin.utcTime || plugin.timeUTC || null;
 
-  // Convert local time to UTC
-  if (!utcTime && plugin.time && plugin.timezone) {
+  // Convert local time to UTC if needed
+  if (!utcTime && plugin.localTime && plugin.timezone) {
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(plugin.time)) {
-      console.error(`[Scheduler] ❌ Invalid time format for ${guildId} (${plugin.time})`);
+    if (!timeRegex.test(plugin.localTime)) {
+      console.error(`[Scheduler] ❌ Invalid time format for ${guildId} (${plugin.localTime})`);
       _stopJob(key);
       return;
     }
@@ -54,9 +54,9 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
       return;
     }
 
-    const [h, m] = plugin.time.split(":").map(Number);
+    const [h, m] = plugin.localTime.split(":").map(Number);
     utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone).utc().format("HH:mm");
-    console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${plugin.time} (${plugin.timezone}) for ${guildId}`);
+    console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${plugin.localTime} (${plugin.timezone}) for ${guildId}`);
   }
 
   if (!utcTime) {
@@ -106,7 +106,6 @@ function stopAll() {
 }
 
 /** Load all schedules from Firestore and reschedule them */
-/** Load all schedules from Firestore and reschedule them */
 async function loadAllSchedules() {
   try {
     const snapshot = await db.collection("guilds").get();
@@ -114,7 +113,7 @@ async function loadAllSchedules() {
 
     snapshot.forEach(doc => {
       const guildId = doc.id;
-      const pluginMap = doc.data()?.plugins?.language; // fixed path
+      const pluginMap = doc.data()?.plugins?.language;
       if (!pluginMap) return;
 
       for (const [langKey, langData] of Object.entries(pluginMap)) {
@@ -130,7 +129,6 @@ async function loadAllSchedules() {
     console.error("[Scheduler] ❌ Failed to load schedules:", err);
   }
 }
-
 
 module.exports = {
   scheduleWordOfTheDay,
