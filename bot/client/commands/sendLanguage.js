@@ -75,9 +75,10 @@ module.exports = {
       };
 
       await db
-        .collection("guilds")
-        .doc(interaction.guild.id)
-        .set({ language: pluginData }, { merge: true });
+  .collection("guilds")
+  .doc(interaction.guild.id)
+  .set({ plugins: { [language]: pluginData } }, { merge: true });
+
 
       // ✅ Schedule cron job
       scheduleWordOfTheDay(interaction.guild.id, pluginData);
