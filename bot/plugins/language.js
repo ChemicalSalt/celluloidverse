@@ -1,3 +1,4 @@
+// bot/plugins/language.js
 const { google } = require("googleapis");
 const { sanitizeDynamic } = require("../utils/sanitize");
 
@@ -30,7 +31,6 @@ const LANGUAGE_SHEETS = {
       sentenceMeaning: sanitizeDynamic(row[7] || ""),
     }),
   },
-
   hindi: {
     id: process.env.SHEET_ID_HINDI,
     range: "Sheet1!A:F",
@@ -43,7 +43,6 @@ const LANGUAGE_SHEETS = {
       sentenceMeaning: sanitizeDynamic(row[5] || ""),
     }),
   },
-
   english: {
     id: process.env.SHEET_ID_ENGLISH,
     range: "Sheet1!A:E",
@@ -55,7 +54,6 @@ const LANGUAGE_SHEETS = {
       sentence: sanitizeDynamic(row[4] || ""),
     }),
   },
-
   mandarin: {
     id: process.env.SHEET_ID_MANDARIN,
     range: "Sheet1!A:F",
@@ -68,7 +66,6 @@ const LANGUAGE_SHEETS = {
       sentenceMeaning: sanitizeDynamic(row[5] || ""),
     }),
   },
-
   arabic: {
     id: process.env.SHEET_ID_ARABIC,
     range: "Sheet1!A:F",
@@ -83,7 +80,7 @@ const LANGUAGE_SHEETS = {
   },
 };
 
-// ======= CORE FUNCTION =======
+// ======= FETCH RANDOM WORD =======
 async function getRandomWord(language = "mandarin") {
   try {
     const config = LANGUAGE_SHEETS[language];
@@ -111,7 +108,65 @@ async function getRandomWord(language = "mandarin") {
   }
 }
 
-// ======= SEND MESSAGE TO DISCORD =======
+// ======= BUILD MESSAGE =======
+function buildMessage(language, word) {
+  switch (language) {
+    case "japanese":
+      return `📖 **Word of the Day — Japanese**
+**Kanji:** ${word.kanji}
+**Hiragana:** ${word.hiragana}
+**Romanization:** ${word.romaji}
+**Meaning:** ${word.meaning}
+
+📌 **Example Sentence**
+${word.sentenceJP} (${word.sentenceRomaji})
+Meaning: ${word.sentenceMeaning}`;
+
+    case "hindi":
+      return `📖 **Word of the Day — Hindi**
+**Word:** ${word.word}
+**Romanization:** ${word.romanization}
+**Meaning:** ${word.meaning}
+
+📌 ${word.sentence}
+(${word.sentenceRomanization})
+Meaning: ${word.sentenceMeaning}`;
+
+    case "english":
+      return `📖 **Word of the Day — English**
+**Word:** ${word.word}
+**Synonym:** ${word.synonym}
+**Part of Speech:** ${word.partOfSpeech}
+**Meaning:** ${word.meaning}
+📌 ${word.sentence}`;
+
+    case "mandarin":
+      return `📖 **Word of the Day — Mandarin**
+**Word:** ${word.word}
+**Romanization:** ${word.romanization}
+**Meaning:** ${word.meaning}
+
+📌 ${word.sentence}
+(${word.sentenceRomanization})
+Meaning: ${word.sentenceMeaning}`;
+
+    case "arabic":
+      return `📖 **Word of the Day — Arabic**
+**Word:** ${word.word}
+**Romanization:** ${word.romanization}
+**Meaning:** ${word.meaning}
+
+📌 ${word.sentence}
+(${word.sentenceRomanization})
+Meaning: ${word.sentenceMeaning}`;
+
+    default:
+      return `📖 **Word of the Day — ${language}**
+${JSON.stringify(word, null, 2)}`;
+  }
+}
+
+// ======= MAIN SEND FUNCTION =======
 async function sendLanguageNow(guildId, plugin) {
   if (!plugin?.enabled) return;
   if (!clientRef) return console.error("[Language] Client not set!");
@@ -119,91 +174,37 @@ async function sendLanguageNow(guildId, plugin) {
   const guild = clientRef.guilds.cache.get(guildId);
   if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
 
-  const channel =
-    guild.channels.cache.get(plugin.channelId) ||
-    (await guild.channels.fetch(plugin.channelId).catch(() => null));
+  // Collect all language keys (ignore global fields)
+  const languages = Object.keys(plugin).filter(
+    key => !["enabled", "updatedAt", "language"].includes(key)
+  );
 
-  if (!channel || channel.type !== 0) {
-    return console.warn(`[Language] Invalid or missing channel: ${plugin.channelId}`);
-  }
+  for (const lang of languages) {
+    const langConfig = plugin[lang];
+    if (!langConfig?.enabled) continue;
 
-  const word = await getRandomWord(plugin.language || "mandarin");
-  if (!word) return console.warn("[Language] No word found in Google Sheet");
+    const channel =
+      guild.channels.cache.get(langConfig.channelId) ||
+      (await guild.channels.fetch(langConfig.channelId).catch(() => null));
 
-  let msg = "";
+    if (!channel || channel.type !== 0) {
+      console.warn(`[Language] Invalid or missing channel for ${lang}: ${langConfig.channelId}`);
+      continue;
+    }
 
-  switch (plugin.language) {
-    case "japanese":
-      msg = `📖 **Word of the Day — Japanese**
-**Kanji:** ${word.kanji}
-**Hiragana/Katakana:** ${word.hiragana}
-**Romanization:** ${word.romaji}
-**Meaning:** ${word.meaning}
+    const word = await getRandomWord(lang);
+    if (!word) {
+      console.warn(`[Language] No word found for ${lang}`);
+      continue;
+    }
 
-📌 **Example Sentence**
-**Kanji:** ${word.sentenceJP}
-**Hiragana/Katakana:** ${word.sentenceHiragana}
-**Romanization:** ${word.sentenceRomaji}
-**Meaning:** ${word.sentenceMeaning}`;
-      break;
-
-    case "hindi":
-      msg = `📖 **Word of the Day — Hindi**
-**Word:** ${word.word}
-**Romanization:** ${word.romanization}
-**Meaning:** ${word.meaning}
-
-📌 **Example Sentence**
-**Hindi:** ${word.sentence}
-**Romanization:** ${word.sentenceRomanization}
-**Meaning:** ${word.sentenceMeaning}`;
-      break;
-
-    case "english":
-      msg = `📖 **Word of the Day — English**
-**Word:** ${word.word}
-**Synonym:** ${word.synonym}
-**Part of Speech:** ${word.partOfSpeech}
-**Meaning:** ${word.meaning}
-
-📌 **Example Sentence**
-${word.sentence}`;
-      break;
-
-    case "mandarin":
-      msg = `📖 **Word of the Day — Mandarin**
-**Word:** ${word.word}
-**Romanization:** ${word.romanization}
-**Meaning:** ${word.meaning}
-
-📌 **Example Sentence**
-**Mandarin:** ${word.sentence}
-**Romanization:** ${word.sentenceRomanization}
-**Meaning:** ${word.sentenceMeaning}`;
-      break;
-
-    case "arabic":
-      msg = `📖 **Word of the Day — Arabic**
-**Word:** ${word.word}
-**Romanization:** ${word.romanization}
-**Meaning:** ${word.meaning}
-
-📌 **Example Sentence**
-**Arabic:** ${word.sentence}
-**Romanization:** ${word.sentenceRomanization}
-**Meaning:** ${word.sentenceMeaning}`;
-      break;
-
-    default:
-      msg = `📖 **Word of the Day**
-${JSON.stringify(word, null, 2)}`;
-  }
-
-  try {
-    await channel.send({ content: msg, allowedMentions: { parse: [] } });
-    console.log(`[Language] ✅ Sent successfully to guild ${guildId}`);
-  } catch (e) {
-    console.error("[Language] ❌ Send failed:", e);
+    const msg = buildMessage(lang, word);
+    try {
+      await channel.send({ content: msg, allowedMentions: { parse: [] } });
+      console.log(`[Language] ✅ Sent ${lang} message in guild ${guildId}`);
+    } catch (e) {
+      console.error(`[Language] ❌ Send failed for ${lang}:`, e);
+    }
   }
 }
 
