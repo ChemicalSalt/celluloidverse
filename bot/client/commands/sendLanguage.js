@@ -67,13 +67,14 @@ module.exports = {
       };
 
       // Save under language map
-      await db
-        .collection("guilds")
-        .doc(interaction.guild.id)
-        .set({ language: { [language]: pluginData } }, { merge: true });
+     await db
+  .collection("guilds")
+  .doc(interaction.guild.id)
+  .set({ plugins: { language: { [language]: pluginData } } }, { merge: true });
 
       // Schedule
-      scheduleWordOfTheDay(interaction.guild.id, { [language]: pluginData }, language);
+    scheduleWordOfTheDay(interaction.guild.id, pluginData, language);
+
 
       await interaction.reply(
         `✅ **Word of the Day setup complete!**
