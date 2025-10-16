@@ -113,23 +113,15 @@ async function loadAllSchedules() {
 
     snapshot.forEach(doc => {
       const guildId = doc.id;
-    const plugin = doc.data().language; // instead of just doc.data()
-
-if (!plugin) {
-  console.log(`[Scheduler] No language plugin data for guild ${guildId}`);
-  return;
-}
+   // When loading schedules from Firestore
+const plugin = doc.data().language; // <--- get the language map
+if (!plugin) return;
 
 for (const [langKey, langData] of Object.entries(plugin)) {
-  if (!langData || typeof langData !== "object") continue;
-  if (langData.enabled) {
-    scheduleWordOfTheDay(guildId, plugin, langKey);
-  } else {
-    _stopJob(_makeKey(guildId, langKey));
-  }
+  if (!langData || !langData.enabled) continue;
+  scheduleWordOfTheDay(guildId, plugin, langKey);
 }
-
-    });
+ });
 
     console.log("[Scheduler] ✅ All language schedules loaded.");
   } catch (err) {

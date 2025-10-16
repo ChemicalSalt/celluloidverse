@@ -167,15 +167,14 @@ ${JSON.stringify(word, null, 2)}`;
 }
 
 // ======= MAIN SEND FUNCTION =======
+// sendLanguageNow simplified
 async function sendLanguageNow(guildId, plugin) {
-  if (!plugin?.enabled) return;
-  if (!clientRef) return console.error("[Language] Client not set!");
+  if (!plugin || !clientRef) return;
 
   const guild = clientRef.guilds.cache.get(guildId);
-  if (!guild) return console.warn(`[Language] Guild not found: ${guildId}`);
+  if (!guild) return;
 
- const languages = Object.keys(plugin); 
-
+  const languages = Object.keys(plugin); // map keys
 
   for (const lang of languages) {
     const langConfig = plugin[lang];
@@ -184,26 +183,17 @@ async function sendLanguageNow(guildId, plugin) {
     const channel =
       guild.channels.cache.get(langConfig.channelId) ||
       (await guild.channels.fetch(langConfig.channelId).catch(() => null));
-
-    if (!channel || channel.type !== 0) {
-      console.warn(`[Language] Invalid or missing channel for ${lang}: ${langConfig.channelId}`);
-      continue;
-    }
+    if (!channel || channel.type !== 0) continue;
 
     const word = await getRandomWord(lang);
-    if (!word) {
-      console.warn(`[Language] No word found for ${lang}`);
-      continue;
-    }
+    if (!word) continue;
 
     const msg = buildMessage(lang, word);
-    try {
-      await channel.send({ content: msg, allowedMentions: { parse: [] } });
-      console.log(`[Language] ✅ Sent ${lang} message in guild ${guildId}`);
-    } catch (e) {
-      console.error(`[Language] ❌ Send failed for ${lang}:`, e);
-    }
+    await channel.send({ content: msg, allowedMentions: { parse: [] } });
+    console.log(`[Language] Sent ${lang} word in guild ${guildId}`);
   }
+
+
 }
 
 module.exports = { sendLanguageNow, setClient };
