@@ -13,9 +13,10 @@ const PluginsOverview = () => {
 
     const fetchServer = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}`,
+          { credentials: "include" }
+        );
         const data = await res.json();
         setServer(data);
       } catch (err) {
@@ -35,17 +36,17 @@ const PluginsOverview = () => {
     {
       name: "Welcome",
       path: "welcome",
-      enabled: server.plugins?.welcome?.enabled || false,
+      enabled: server.plugins?.welcome?.enabled ?? false,
     },
     {
       name: "Farewell",
       path: "farewell",
-      enabled: server.plugins?.farewell?.enabled || false,
+      enabled: server.plugins?.farewell?.enabled ?? false,
     },
     {
       name: "Language",
       path: "language",
-      enabled: server.plugins?.language?.enabled || false,
+      enabled: server.plugins?.language?.globalEnabled ?? false,
     },
   ];
 
@@ -53,19 +54,24 @@ const PluginsOverview = () => {
     try {
       const newEnabled = !plugin.enabled;
 
+      // Optimistic UI update
       setServer((prev) => ({
         ...prev,
         plugins: {
           ...prev.plugins,
-          [plugin.path]: {
-            ...prev.plugins[plugin.path],
-            enabled: newEnabled,
-          },
+          [plugin.path]:
+            plugin.path === "language"
+              ? {
+                  ...prev.plugins[plugin.path],
+                  globalEnabled: newEnabled,
+                }
+              : { ...prev.plugins[plugin.path], enabled: newEnabled },
         },
       }));
 
+      // Call toggle endpoint
       await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}`,
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}/toggle`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
