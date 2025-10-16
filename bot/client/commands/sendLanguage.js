@@ -75,7 +75,7 @@ module.exports = {
       };
 
       await db
-        .collection("plugins")
+        .collection("guilds")
         .doc(interaction.guild.id)
         .set({ language: pluginData }, { merge: true });
 
