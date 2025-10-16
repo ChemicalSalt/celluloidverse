@@ -5,12 +5,16 @@ const { verifySession } = require("./session");
 
 const router = express.Router();
 
+// Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 const db = admin.firestore();
 
+/**
+ * GET plugin data
+ */
 router.get("/servers/:id/plugins/:plugin", verifySession, async (req, res) => {
   try {
     const { id, plugin } = req.params;
@@ -22,7 +26,17 @@ router.get("/servers/:id/plugins/:plugin", verifySession, async (req, res) => {
   }
 });
 
-// ✅ SAVE / MERGE MULTI-LANGUAGE
+/**
+ * POST plugin config (multi-language safe)
+ * Keeps all existing languages and clean structure:
+ * plugins: {
+ *   languageSummoner: {
+ *     english: {...},
+ *     japanese: {...},
+ *     mandarin: {...}
+ *   }
+ * }
+ */
 router.post(
   "/servers/:id/plugins/:plugin",
   verifySession,
@@ -40,24 +54,26 @@ router.post(
       const { language = "mandarin", ...data } = req.body;
 
       const docRef = db.collection("guilds").doc(id);
-      const existing = await docRef.get();
-      const plugins = existing.exists ? existing.data()?.plugins || {} : {};
-      const existingPlugin = plugins[plugin] || {};
+      const snap = await docRef.get();
+      const plugins = snap.exists ? snap.data()?.plugins || {} : {};
+      const currentPlugin = plugins[plugin] || {};
+
+      // Only update the specific language section
+      const updatedPlugin = {
+        ...currentPlugin,
+        [language]: {
+          ...(currentPlugin[language] || {}),
+          ...data,
+          updatedAt: new Date().toISOString(),
+          enabled: true,
+        },
+      };
 
       await docRef.set(
         {
           plugins: {
             ...plugins,
-            [plugin]: {
-              ...existingPlugin,
-              [language]: {
-                ...existingPlugin[language],
-                ...data,
-                updatedAt: new Date().toISOString(),
-                enabled: true,
-              },
-              enabled: true,
-            },
+            [plugin]: updatedPlugin,
           },
         },
         { merge: true }
@@ -71,6 +87,9 @@ router.post(
   }
 );
 
+/**
+ * Toggle plugin globally (keeps language data untouched)
+ */
 router.post(
   "/servers/:id/plugins/:plugin/toggle",
   verifySession,
@@ -85,21 +104,24 @@ router.post(
       const doc = await docRef.get();
       const plugins = doc.exists ? doc.data()?.plugins || {} : {};
 
+      // Only toggle the main plugin state, not nested languages
       await docRef.set(
         {
           plugins: {
             ...plugins,
             [plugin]: {
               ...(plugins[plugin] || {}),
-              enabled: !!req.body.enabled,
+              globalEnabled: !!req.body.enabled,
               updatedAt: new Date().toISOString(),
             },
           },
         },
         { merge: true }
       );
+
       res.json({ success: true, enabled: req.body.enabled });
     } catch (err) {
+      console.error("[Toggle Plugin Error]", err);
       res.status(500).json({ error: "Failed to toggle plugin" });
     }
   }

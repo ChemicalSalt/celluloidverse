@@ -113,7 +113,8 @@ async function loadAllSchedules() {
 
     snapshot.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data()?.plugins?.language;
+      const plugin = doc.data();
+
 
       if (!plugin) {
         console.log(`[Scheduler] No language plugin data for guild ${guildId}`);
