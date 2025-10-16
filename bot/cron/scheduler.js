@@ -1,11 +1,12 @@
 // cron/scheduler.js
 const cron = require("node-cron");
 const moment = require("moment-timezone");
-const { db } = require("../utils/firestore"); // used by loadAllSchedules
+const { db } = require("../utils/firestore");
 const { sendLanguageNow } = require("../plugins/language");
 
 const scheduledJobs = new Map();
 
+// ===== Internal Helpers =====
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
     try { scheduledJobs.get(key).stop(); } catch (e) {}
@@ -14,130 +15,123 @@ function _stopJob(key) {
   }
 }
 
-function _makeKey(guildId) {
-  return `language:${guildId}`;
+function _makeKey(guildId, lang) {
+  return `language:${guildId}:${lang}`;
 }
 
-/**
- * Schedule the Word of the Day for a guild plugin config.
- * Accepts plugin with either:
- *  - plugin.utcTime (or plugin.timeUTC) OR
- *  - plugin.time + plugin.timezone  (will be converted to UTC)
- */
+// ===== Main Scheduler =====
 function scheduleWordOfTheDay(guildId, plugin = {}) {
-  const key = _makeKey(guildId);
-
-  // Basic validation
   if (!plugin || !plugin.enabled) {
     console.warn(`[Scheduler] Disabled or missing plugin for guild ${guildId}`);
-    _stopJob(key);
-    return;
-  }
-  if (!plugin.channelId) {
-    console.warn(`[Scheduler] Missing channelId for guild ${guildId}`);
-    _stopJob(key);
     return;
   }
 
-  // Determine UTC time (HH:mm)
-  let utcTime = plugin.utcTime || plugin.timeUTC || null;
+  const languages = Object.keys(plugin.languages || {}).length
+    ? plugin.languages
+    : { [plugin.language || "japanese"]: plugin };
 
-  // If not present, but we have local time + timezone -> compute it
-  if (!utcTime && plugin.time && plugin.timezone) {
-    // Validate local time format
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(plugin.time)) {
-      console.error(`[Scheduler] Invalid local time format for guild ${guildId}: ${plugin.time}`);
+  // Schedule each language separately
+  for (const [lang, langConfig] of Object.entries(languages)) {
+    const key = _makeKey(guildId, lang);
+
+    if (!langConfig.enabled) {
       _stopJob(key);
-      return;
+      continue;
     }
-    if (!moment.tz.zone(plugin.timezone)) {
-      console.error(`[Scheduler] Invalid timezone for guild ${guildId}: ${plugin.timezone}`);
+    if (!langConfig.channelId) {
+      console.warn(`[Scheduler] Missing channelId for ${guildId} (${lang})`);
       _stopJob(key);
-      return;
+      continue;
     }
 
-    const [h, m] = plugin.time.split(":").map(Number);
-    utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone).utc().format("HH:mm");
-    console.log(`[Scheduler] Computed utcTime=${utcTime} from local ${plugin.time} (${plugin.timezone}) for guild ${guildId}`);
-  }
+    let utcTime = langConfig.utcTime || langConfig.timeUTC || null;
 
-  if (!utcTime) {
-    console.warn(`[Scheduler] No utcTime and cannot compute it for guild ${guildId}`);
+    // Compute UTC if only local time given
+    if (!utcTime && langConfig.time && langConfig.timezone) {
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(langConfig.time)) {
+        console.error(`[Scheduler] Invalid local time for ${guildId}:${lang}`);
+        _stopJob(key);
+        continue;
+      }
+      if (!moment.tz.zone(langConfig.timezone)) {
+        console.error(`[Scheduler] Invalid timezone for ${guildId}:${lang}`);
+        _stopJob(key);
+        continue;
+      }
+      const [h, m] = langConfig.time.split(":").map(Number);
+      utcTime = moment.tz({ hour: h, minute: m }, langConfig.timezone)
+        .utc()
+        .format("HH:mm");
+      console.log(`[Scheduler] Computed utcTime=${utcTime} for ${guildId}:${lang}`);
+    }
+
+    if (!utcTime) {
+      console.warn(`[Scheduler] No UTC time for ${guildId}:${lang}`);
+      _stopJob(key);
+      continue;
+    }
+
+    const [hour, minute] = utcTime.split(":").map(Number);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) {
+      console.error(`[Scheduler] Invalid utcTime for ${guildId}:${lang}`);
+      _stopJob(key);
+      continue;
+    }
+
     _stopJob(key);
-    return;
-  }
 
-  // Parse utcTime
-  const parts = utcTime.split(":");
-  if (parts.length !== 2) {
-    console.error(`[Scheduler] Invalid utcTime format for guild ${guildId}: ${utcTime}`);
-    _stopJob(key);
-    return;
-  }
-  const hour = parseInt(parts[0], 10);
-  const minute = parseInt(parts[1], 10);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    console.error(`[Scheduler] Invalid utcTime numbers for guild ${guildId}: ${utcTime}`);
-    _stopJob(key);
-    return;
-  }
+    try {
+      const expr = `${minute} ${hour} * * *`; // every day UTC
+      const job = cron.schedule(
+        expr,
+        async () => {
+          console.log(
+            `[Scheduler] 🔔 Trigger ${guildId}:${lang} — ${utcTime} UTC (${langConfig.time || "N/A"} ${langConfig.timezone || ""})`
+          );
+          try {
+            await sendLanguageNow(guildId, { ...langConfig, language: lang });
+          } catch (e) {
+            console.error(`[Scheduler] sendLanguageNow error for ${guildId}:${lang}`, e);
+          }
+        },
+        { scheduled: true, timezone: "UTC" }
+      );
 
-  // Stop any existing job first
-  _stopJob(key);
-
-  try {
-    const expr = `${minute} ${hour} * * *`; // every day at hour:minute UTC
-    const job = cron.schedule(
-      expr,
-      async () => {
-        console.log(`[Scheduler] 🔔 Triggering Word for ${guildId} — UTC ${utcTime} (local: ${plugin.time || "N/A"} ${plugin.timezone || ""})`);
-        try {
-          await sendLanguageNow(guildId, plugin);
-        } catch (e) {
-          console.error("[Scheduler] sendLanguageNow error:", e);
-        }
-      },
-      { scheduled: true, timezone: "UTC" }
-    );
-
-    scheduledJobs.set(key, job);
-
-    console.log(`[Scheduler] ✅ Scheduled Language for ${guildId} at ${utcTime} UTC (orig local: ${plugin.time || "N/A"} ${plugin.timezone || "N/A"})`);
-  } catch (err) {
-    console.error(`[Scheduler] failed to schedule for ${guildId}:`, err);
+      scheduledJobs.set(key, job);
+      console.log(`[Scheduler] ✅ Scheduled ${lang} for ${guildId} at ${utcTime} UTC`);
+    } catch (err) {
+      console.error(`[Scheduler] Failed to schedule ${guildId}:${lang}`, err);
+    }
   }
 }
 
-/**
- * Stop and clear all scheduled jobs
- */
+// ===== Stop All =====
 function stopAll() {
   for (const k of Array.from(scheduledJobs.keys())) {
     _stopJob(k);
   }
 }
 
-/**
- * Load all plugin configs from Firestore and schedule them.
- * Call this at bot startup after DB is ready.
- */
+// ===== Load All Guilds =====
 async function loadAllSchedules() {
   try {
     const snapshot = await db.collection("plugins").get();
     snapshot.forEach(doc => {
       const guildId = doc.id;
-      const plugin = doc.data()?.language;
-      if (!plugin) {
-        console.log(`[Scheduler] No language plugin for guild ${guildId}`);
+      const data = doc.data()?.language;
+
+      if (!data) {
+        console.log(`[Scheduler] No language config for guild ${guildId}`);
         return;
       }
-      // Schedule if enabled, else this will clear existing job
-      scheduleWordOfTheDay(guildId, plugin);
+
+      // backward compatibility — single language configs still work
+      scheduleWordOfTheDay(guildId, data);
     });
-    console.log("[Scheduler] All schedules loaded from Firestore.");
+    console.log("[Scheduler] ✅ All schedules loaded from Firestore");
   } catch (err) {
-    console.error("[Scheduler] Failed to load schedules:", err);
+    console.error("[Scheduler] ❌ Failed to load schedules:", err);
   }
 }
 

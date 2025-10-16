@@ -1,7 +1,5 @@
-// plugins/language.js
 const { google } = require("googleapis");
 const { sanitizeDynamic } = require("../utils/sanitize");
-const moment = require("moment-timezone");
 
 let clientRef;
 function setClient(client) {
@@ -38,10 +36,10 @@ const LANGUAGE_SHEETS = {
     range: "Sheet1!A:F",
     map: row => ({
       word: sanitizeDynamic(row[0] || ""),
-      romaji: sanitizeDynamic(row[1] || ""),
+      romanization: sanitizeDynamic(row[1] || ""),
       meaning: sanitizeDynamic(row[2] || ""),
       sentence: sanitizeDynamic(row[3] || ""),
-      sentenceRomaji: sanitizeDynamic(row[4] || ""),
+      sentenceRomanization: sanitizeDynamic(row[4] || ""),
       sentenceMeaning: sanitizeDynamic(row[5] || ""),
     }),
   },
@@ -58,15 +56,15 @@ const LANGUAGE_SHEETS = {
     }),
   },
 
-  chinese: {
-    id: process.env.SHEET_ID_CHINESE,
+  mandarin: {
+    id: process.env.SHEET_ID_MANDARIN,
     range: "Sheet1!A:F",
     map: row => ({
       word: sanitizeDynamic(row[0] || ""),
-      pinyin: sanitizeDynamic(row[1] || ""),
+      romanization: sanitizeDynamic(row[1] || ""),
       meaning: sanitizeDynamic(row[2] || ""),
       sentence: sanitizeDynamic(row[3] || ""),
-      sentencePinyin: sanitizeDynamic(row[4] || ""),
+      sentenceRomanization: sanitizeDynamic(row[4] || ""),
       sentenceMeaning: sanitizeDynamic(row[5] || ""),
     }),
   },
@@ -83,23 +81,10 @@ const LANGUAGE_SHEETS = {
       sentenceMeaning: sanitizeDynamic(row[5] || ""),
     }),
   },
-
-  spanish: {
-    id: process.env.SHEET_ID_SPANISH,
-    range: "Sheet1!A:F",
-    map: row => ({
-      word: sanitizeDynamic(row[0] || ""),
-      pronunciation: sanitizeDynamic(row[1] || ""),
-      meaning: sanitizeDynamic(row[2] || ""),
-      sentence: sanitizeDynamic(row[3] || ""),
-      sentencePronunciation: sanitizeDynamic(row[4] || ""),
-      sentenceMeaning: sanitizeDynamic(row[5] || ""),
-    }),
-  },
 };
 
 // ======= CORE FUNCTION =======
-async function getRandomWord(language = "japanese") {
+async function getRandomWord(language = "mandarin") {
   try {
     const config = LANGUAGE_SHEETS[language];
     if (!config) {
@@ -142,7 +127,7 @@ async function sendLanguageNow(guildId, plugin) {
     return console.warn(`[Language] Invalid or missing channel: ${plugin.channelId}`);
   }
 
-  const word = await getRandomWord(plugin.language || "japanese");
+  const word = await getRandomWord(plugin.language || "mandarin");
   if (!word) return console.warn("[Language] No word found in Google Sheet");
 
   let msg = "";
@@ -152,25 +137,25 @@ async function sendLanguageNow(guildId, plugin) {
       msg = `📖 **Word of the Day — Japanese**
 **Kanji:** ${word.kanji}
 **Hiragana/Katakana:** ${word.hiragana}
-**Romaji:** ${word.romaji}
+**Romanization:** ${word.romaji}
 **Meaning:** ${word.meaning}
 
 📌 **Example Sentence**
 **Kanji:** ${word.sentenceJP}
 **Hiragana/Katakana:** ${word.sentenceHiragana}
-**Romaji:** ${word.sentenceRomaji}
+**Romanization:** ${word.sentenceRomaji}
 **Meaning:** ${word.sentenceMeaning}`;
       break;
 
     case "hindi":
       msg = `📖 **Word of the Day — Hindi**
 **Word:** ${word.word}
-**Romanization:** ${word.romaji}
+**Romanization:** ${word.romanization}
 **Meaning:** ${word.meaning}
 
 📌 **Example Sentence**
 **Hindi:** ${word.sentence}
-**Romanization:** ${word.sentenceRomaji}
+**Romanization:** ${word.sentenceRomanization}
 **Meaning:** ${word.sentenceMeaning}`;
       break;
 
@@ -185,15 +170,15 @@ async function sendLanguageNow(guildId, plugin) {
 ${word.sentence}`;
       break;
 
-    case "chinese":
-      msg = `📖 **Word of the Day — Mandarin Chinese**
+    case "mandarin":
+      msg = `📖 **Word of the Day — Mandarin**
 **Word:** ${word.word}
-**Pinyin:** ${word.pinyin}
+**Romanization:** ${word.romanization}
 **Meaning:** ${word.meaning}
 
 📌 **Example Sentence**
-**Chinese:** ${word.sentence}
-**Pinyin:** ${word.sentencePinyin}
+**Mandarin:** ${word.sentence}
+**Romanization:** ${word.sentenceRomanization}
 **Meaning:** ${word.sentenceMeaning}`;
       break;
 
@@ -206,18 +191,6 @@ ${word.sentence}`;
 📌 **Example Sentence**
 **Arabic:** ${word.sentence}
 **Romanization:** ${word.sentenceRomanization}
-**Meaning:** ${word.sentenceMeaning}`;
-      break;
-
-    case "spanish":
-      msg = `📖 **Word of the Day — Spanish**
-**Word:** ${word.word}
-**Pronunciation:** ${word.pronunciation}
-**Meaning:** ${word.meaning}
-
-📌 **Example Sentence**
-**Spanish:** ${word.sentence}
-**Pronunciation:** ${word.sentencePronunciation}
 **Meaning:** ${word.sentenceMeaning}`;
       break;
 
