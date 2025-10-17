@@ -18,7 +18,7 @@ const sheets = google.sheets({ version: "v4", auth: sheetsAuth });
 // ======= LANGUAGE CONFIG =======
 const LANGUAGE_SHEETS = {
   japanese: {
-    id: process.env.SHEET_ID_JAPANESE,
+    id: process.env.SPREADSHEET_ID_JAPANESE,
     range: "Sheet1!A:H",
     map: (row) => ({
       kanji: sanitizeDynamic(row[0] || ""),
@@ -32,7 +32,7 @@ const LANGUAGE_SHEETS = {
     }),
   },
   hindi: {
-    id: process.env.SHEET_ID_HINDI,
+    id: process.env.SPREADSHEET_ID_HINDI,
     range: "Sheet1!A:F",
     map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
@@ -44,7 +44,7 @@ const LANGUAGE_SHEETS = {
     }),
   },
   english: {
-    id: process.env.SHEET_ID_ENGLISH,
+    id: process.env.SPREADSHEET_ID_ENGLISH,
     range: "Sheet1!A:E",
     map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
@@ -55,7 +55,7 @@ const LANGUAGE_SHEETS = {
     }),
   },
   mandarin: {
-    id: process.env.SHEET_ID_MANDARIN,
+    id: process.env.SPREADSHEET_ID_MANDARIN,
     range: "Sheet1!A:F",
     map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
@@ -67,7 +67,7 @@ const LANGUAGE_SHEETS = {
     }),
   },
   arabic: {
-    id: process.env.SHEET_ID_ARABIC,
+    id: process.env.SPREADSHEET_ID_ARABIC,
     range: "Sheet1!A:F",
     map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
