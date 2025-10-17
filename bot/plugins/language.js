@@ -6,7 +6,6 @@ let clientRef;
 function setClient(client) {
   clientRef = client;
 }
-console.log("[Debug] sendLanguageNow triggered", { guildId, language });
 
 // ======= GOOGLE AUTH SETUP =======
 const sheetsAuth = new google.auth.GoogleAuth({
@@ -170,6 +169,8 @@ ${JSON.stringify(word, null, 2)}`;
 // ======= MAIN SEND FUNCTION =======
 // sendLanguageNow simplified
 async function sendLanguageNow(guildId, plugin) {
+  console.log("[Language] sendLanguageNow called", { guildId, pluginKeys: Object.keys(plugin || {}) });
+
   if (!plugin || !clientRef) return;
 
   // If plugin is a single-language object (has channelId), wrap it into a map.
