@@ -171,19 +171,29 @@ ${JSON.stringify(word, null, 2)}`;
 async function sendLanguageNow(guildId, plugin) {
   if (!plugin || !clientRef) return;
 
+  // If plugin is a single-language object (has channelId), wrap it into a map.
+  let pluginMap = plugin;
+  if (plugin && plugin.channelId && typeof plugin.channelId === "string") {
+    // determine language key if present, otherwise use 'default'
+    const key = plugin.language || plugin.lang || "default";
+    pluginMap = { [key]: plugin };
+  }
+
   const guild = clientRef.guilds.cache.get(guildId);
   if (!guild) return;
 
-  const languages = Object.keys(plugin); // map keys
+  const languages = Object.keys(pluginMap); // map keys
 
   for (const lang of languages) {
-    const langConfig = plugin[lang];
-    if (!langConfig?.enabled) continue;
+    const langConfig = pluginMap[lang];
+    if (!langConfig || !langConfig.enabled) continue;
 
     const channel =
       guild.channels.cache.get(langConfig.channelId) ||
       (await guild.channels.fetch(langConfig.channelId).catch(() => null));
-    if (!channel || channel.type !== 0) continue;
+    // ensure it's a text channel (use isTextBased if available)
+    if (!channel || (typeof channel.isTextBased === "function" ? !channel.isTextBased() : channel.type !== 0))
+      continue;
 
     const word = await getRandomWord(lang);
     if (!word) continue;
@@ -192,8 +202,6 @@ async function sendLanguageNow(guildId, plugin) {
     await channel.send({ content: msg, allowedMentions: { parse: [] } });
     console.log(`[Language] Sent ${lang} word in guild ${guildId}`);
   }
-
-
 }
 
-module.exports = { sendLanguageNow, setClient };
+module.exports = { sendLanguageNow, setClient, getRandomWord };

@@ -1,11 +1,13 @@
+// bot/commands/sendLangauge.js
 const { SlashCommandBuilder, ChannelType } = require("discord.js");
-const { db } = require("../utils/firestore");
-const { scheduleWordOfTheDay } = require("../cron/scheduler");
+const { db } = require("../../utils/firestore");
+const { scheduleWordOfTheDay } = require("../../cron/scheduler");
 const moment = require("moment-timezone");
 
 module.exports = {
+  // keep command name consistent with your interaction handler ("send_language")
   data: new SlashCommandBuilder()
-    .setName("sendlanguage")
+    .setName("send_language")
     .setDescription("Setup Word of the Day for your server (local-time based)")
     .addChannelOption(opt =>
       opt.setName("channel")
@@ -46,17 +48,17 @@ module.exports = {
       // Validate time
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
       if (!timeRegex.test(time))
-        return interaction.reply("❌ Time must be in 24-hour format (HH:MM).");
+        return interaction.reply({ content: "❌ Time must be in 24-hour format (HH:MM).", ephemeral: true });
 
       // Validate timezone
       if (!moment.tz.zone(timezone))
-        return interaction.reply("❌ Invalid timezone.");
+        return interaction.reply({ content: "❌ Invalid timezone.", ephemeral: true });
 
       // Convert local → UTC
       const [hour, minute] = time.split(":").map(Number);
       const utcTime = moment.tz({ hour, minute }, timezone).utc().format("HH:mm");
 
-      // Plugin object
+      // Plugin object (single language object)
       const pluginData = {
         enabled: true,
         channelId: channel.id,
@@ -66,28 +68,28 @@ module.exports = {
         updatedAt: new Date().toISOString(),
       };
 
-      // Save under language map
-     await db
-  .collection("guilds")
-  .doc(interaction.guild.id)
-  .set({ plugins: { language: { [language]: pluginData } } }, { merge: true });
+      // Save under language map in Firestore (merge so we don't overwrite other plugins)
+      await db
+        .collection("guilds")
+        .doc(interaction.guild.id)
+        .set({ plugins: { language: { [language]: pluginData } } }, { merge: true });
 
-      // Schedule
-    scheduleWordOfTheDay(interaction.guild.id, pluginData, language);
+      // Important: scheduleWordOfTheDay expects a language map { <lang>: {...} }
+      scheduleWordOfTheDay(interaction.guild.id, { [language]: pluginData }, language);
 
-
-      await interaction.reply(
-        `✅ **Word of the Day setup complete!**
-📚 Language: **${capitalize(language)}**
-📢 Channel: ${channel}
-🕓 Local: **${time} (${timezone})**
-🌍 UTC: **${utcTime} UTC**`
-      );
+      await interaction.reply({
+        content:
+          `✅ **Word of the Day setup complete!**\n` +
+          `📚 Language: **${capitalize(language)}**\n` +
+          `📢 Channel: ${channel}\n` +
+          `🕓 Local: **${time} (${timezone})**\n` +
+          `🌍 UTC: **${utcTime} UTC**`,
+      });
 
       console.log(`[Scheduler] ${interaction.guild.id} → ${language} | Local: ${time} | UTC: ${utcTime}`);
     } catch (err) {
       console.error(err);
-      interaction.reply("❌ Something went wrong.");
+      try { await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true }); } catch {}
     }
   },
 };

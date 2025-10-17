@@ -6,23 +6,17 @@ const { sendLanguageNow } = require("../plugins/language");
 
 const scheduledJobs = new Map();
 
-/** Create a unique key per guild + language */
 function _makeKey(guildId, lang) {
   return `language:${guildId}:${lang}`;
 }
-
-/** Stop a running cron job */
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
-    try {
-      scheduledJobs.get(key).stop();
-    } catch (e) {}
+    try { scheduledJobs.get(key).stop(); } catch (e) {}
     scheduledJobs.delete(key);
     console.log(`[Scheduler] ⛔ Stopped job ${key}`);
   }
 }
 
-/** Schedule a daily word-of-the-day message for one language */
 function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
   const key = _makeKey(guildId, langKey);
 
@@ -40,11 +34,14 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
 
   let utcTime = plugin.utcTime || plugin.timeUTC || null;
 
+  // Accept either plugin.localTime or plugin.time (some DB entries use 'time')
+  const localTimeValue = plugin.localTime || plugin.time || null;
+
   // Convert local time to UTC if needed
-  if (!utcTime && plugin.localTime && plugin.timezone) {
+  if (!utcTime && localTimeValue && plugin.timezone) {
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(plugin.localTime)) {
-      console.error(`[Scheduler] ❌ Invalid time format for ${guildId} (${plugin.localTime})`);
+    if (!timeRegex.test(localTimeValue)) {
+      console.error(`[Scheduler] ❌ Invalid time format for ${guildId} (${localTimeValue})`);
       _stopJob(key);
       return;
     }
@@ -54,9 +51,9 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
       return;
     }
 
-    const [h, m] = plugin.localTime.split(":").map(Number);
+    const [h, m] = localTimeValue.split(":").map(Number);
     utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone).utc().format("HH:mm");
-    console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${plugin.localTime} (${plugin.timezone}) for ${guildId}`);
+    console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${localTimeValue} (${plugin.timezone}) for ${guildId}`);
   }
 
   if (!utcTime) {
@@ -72,7 +69,6 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
     return;
   }
 
-  // Stop any old job before starting a new one
   _stopJob(key);
 
   try {
@@ -82,7 +78,8 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
       async () => {
         console.log(`[Scheduler] 🔔 Triggering ${langKey} for ${guildId} at ${utcTime} UTC`);
         try {
-          await sendLanguageNow(guildId, { ...plugin, language: langKey });
+          // pass a language map shape that sendLanguageNow expects
+          await sendLanguageNow(guildId, { [langKey]: plugin });
         } catch (err) {
           console.error(`[Scheduler] ❌ sendLanguageNow error for ${guildId} (${langKey}):`, err);
         }
@@ -97,7 +94,6 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
   }
 }
 
-/** Stop all jobs safely */
 function stopAll() {
   for (const key of Array.from(scheduledJobs.keys())) {
     _stopJob(key);
@@ -105,7 +101,6 @@ function stopAll() {
   console.log("[Scheduler] 🧹 All jobs stopped.");
 }
 
-/** Load all schedules from Firestore and reschedule them */
 async function loadAllSchedules() {
   try {
     const snapshot = await db.collection("guilds").get();
@@ -118,8 +113,6 @@ async function loadAllSchedules() {
 
       for (const [langKey, langData] of Object.entries(pluginMap)) {
         if (!langData || !langData.enabled) continue;
-
-        // Schedule only the specific language object
         scheduleWordOfTheDay(guildId, langData, langKey);
       }
     });
