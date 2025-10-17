@@ -54,10 +54,7 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
     }
 
     const [h, m] = localTimeValue.split(":").map(Number);
-    utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone)
-      .utc()
-      .format("HH:mm");
-
+    utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone).utc().format("HH:mm");
     console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${localTimeValue} (${plugin.timezone}) for ${guildId}`);
   }
 
@@ -83,7 +80,7 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
       async () => {
         console.log(`[Scheduler] 🔔 Triggering ${langKey} for ${guildId} at ${utcTime} UTC`);
         try {
-          await languagePlugin.sendLanguageNow(guildId, plugin);
+          await languagePlugin.sendLanguageNow(guildId, plugin, langKey);
         } catch (err) {
           console.error(`[Scheduler] ❌ sendLanguageNow error for ${guildId} (${langKey}):`, err);
         }
@@ -127,9 +124,6 @@ async function loadAllSchedules() {
   }
 }
 
-/**
- * Reload all schedules (stop all jobs + reload from Firestore)
- */
 async function reloadAll() {
   console.log("[Scheduler] 🔁 Reloading all schedules...");
   stopAll();
@@ -141,5 +135,5 @@ module.exports = {
   scheduleWordOfTheDay,
   loadAllSchedules,
   stopAll,
-  reloadAll, // ✅ now properly defined
+  reloadAll,
 };

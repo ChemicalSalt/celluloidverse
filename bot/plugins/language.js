@@ -1,4 +1,4 @@
-// bot/plugins/language.js
+// plugins/language.js
 const { google } = require("googleapis");
 const { sanitizeDynamic } = require("../utils/sanitize");
 
@@ -20,7 +20,7 @@ const LANGUAGE_SHEETS = {
   japanese: {
     id: process.env.SHEET_ID_JAPANESE,
     range: "Sheet1!A:H",
-    map: row => ({
+    map: (row) => ({
       kanji: sanitizeDynamic(row[0] || ""),
       hiragana: sanitizeDynamic(row[1] || ""),
       romaji: sanitizeDynamic(row[2] || ""),
@@ -34,7 +34,7 @@ const LANGUAGE_SHEETS = {
   hindi: {
     id: process.env.SHEET_ID_HINDI,
     range: "Sheet1!A:F",
-    map: row => ({
+    map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
       romanization: sanitizeDynamic(row[1] || ""),
       meaning: sanitizeDynamic(row[2] || ""),
@@ -46,7 +46,7 @@ const LANGUAGE_SHEETS = {
   english: {
     id: process.env.SHEET_ID_ENGLISH,
     range: "Sheet1!A:E",
-    map: row => ({
+    map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
       synonym: sanitizeDynamic(row[1] || ""),
       partOfSpeech: sanitizeDynamic(row[2] || ""),
@@ -57,7 +57,7 @@ const LANGUAGE_SHEETS = {
   mandarin: {
     id: process.env.SHEET_ID_MANDARIN,
     range: "Sheet1!A:F",
-    map: row => ({
+    map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
       romanization: sanitizeDynamic(row[1] || ""),
       meaning: sanitizeDynamic(row[2] || ""),
@@ -69,7 +69,7 @@ const LANGUAGE_SHEETS = {
   arabic: {
     id: process.env.SHEET_ID_ARABIC,
     range: "Sheet1!A:F",
-    map: row => ({
+    map: (row) => ({
       word: sanitizeDynamic(row[0] || ""),
       romanization: sanitizeDynamic(row[1] || ""),
       meaning: sanitizeDynamic(row[2] || ""),
@@ -99,7 +99,7 @@ async function getRandomWord(language = "mandarin") {
     const rows = res.data.values || [];
     if (!rows.length) return null;
 
-    const validRows = rows.filter(r => r[0]);
+    const validRows = rows.filter((r) => r[0]);
     const row = validRows[Math.floor(Math.random() * validRows.length)];
     return config.map(row);
   } catch (err) {
@@ -167,46 +167,54 @@ ${JSON.stringify(word, null, 2)}`;
 }
 
 // ======= MAIN SEND FUNCTION =======
-// sendLanguageNow simplified
-async function sendLanguageNow(guildId, plugin) {
-  console.log("[Language] sendLanguageNow called", { guildId, pluginKeys: Object.keys(plugin || {}) });
+async function sendLanguageNow(guildId, plugin, languageKey = "japanese") {
+  console.log("[Language] sendLanguageNow called", { guildId, languageKey });
 
-  if (!plugin || !clientRef) return;
-if (typeof plugin.enabled === "boolean" && plugin.channelId) {
-  const key = plugin.language || plugin.lang || "default";
-  plugin = { [key]: plugin };
-}
-
-  // If plugin is a single-language object (has channelId), wrap it into a map.
-  let pluginMap = plugin;
-  if (plugin && plugin.channelId && typeof plugin.channelId === "string") {
-    // determine language key if present, otherwise use 'default'
-    const key = plugin.language || plugin.lang || "default";
-    pluginMap = { [key]: plugin };
+  if (!clientRef) {
+    console.error("[Language] ❌ clientRef not set!");
+    return;
   }
 
   const guild = clientRef.guilds.cache.get(guildId);
-  if (!guild) return;
+  if (!guild) {
+    console.error(`[Language] ❌ Guild not found: ${guildId}`);
+    return;
+  }
 
-  const languages = Object.keys(pluginMap); // map keys
+  // Ensure plugin is in correct map form
+  const pluginMap =
+    plugin && plugin.channelId ? { [languageKey]: plugin } : plugin;
 
-  for (const lang of languages) {
+  for (const lang of Object.keys(pluginMap || {})) {
     const langConfig = pluginMap[lang];
-    if (!langConfig || !langConfig.enabled) continue;
+    if (!langConfig?.enabled) {
+      console.log(`[Language] Skipping ${lang} (disabled)`);
+      continue;
+    }
 
     const channel =
       guild.channels.cache.get(langConfig.channelId) ||
       (await guild.channels.fetch(langConfig.channelId).catch(() => null));
-    // ensure it's a text channel (use isTextBased if available)
-    if (!channel || (typeof channel.isTextBased === "function" ? !channel.isTextBased() : channel.type !== 0))
+
+    if (!channel) {
+      console.error(`[Language] ❌ Channel not found for ${lang}`);
       continue;
+    }
+
+    if (typeof channel.isTextBased === "function" ? !channel.isTextBased() : channel.type !== 0) {
+      console.error(`[Language] ❌ Channel not text-based for ${lang}`);
+      continue;
+    }
 
     const word = await getRandomWord(lang);
-    if (!word) continue;
+    if (!word) {
+      console.error(`[Language] ❌ No word fetched for ${lang}`);
+      continue;
+    }
 
     const msg = buildMessage(lang, word);
     await channel.send({ content: msg, allowedMentions: { parse: [] } });
-    console.log(`[Language] Sent ${lang} word in guild ${guildId}`);
+    console.log(`[Language] ✅ Sent ${lang} word in guild ${guildId} -> #${channel.name}`);
   }
 }
 
