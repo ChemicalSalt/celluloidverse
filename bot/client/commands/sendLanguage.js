@@ -1,99 +1,107 @@
-// bot/commands/sendLangauge.js
 const { SlashCommandBuilder, ChannelType } = require("discord.js");
-const { db } = require("../../utils/firestore");
-const { scheduleWordOfTheDay } = require("../../cron/scheduler");
+const { db } = require("../utils/firestore");
+const { scheduleWordOfTheDay } = require("../cron/scheduler");
 const moment = require("moment-timezone");
 
 module.exports = {
-  // keep command name consistent with your interaction handler ("send_language")
   data: new SlashCommandBuilder()
-    .setName("send_language")
+    .setName("sendlanguage")
     .setDescription("Setup Word of the Day for your server (local-time based)")
+    .addStringOption(opt =>
+      opt.setName("language")
+        .setDescription("Choose the language")
+        .setRequired(true)
+        .addChoices(
+          { name: "Japanese", value: "japanese" },
+          { name: "Hindi", value: "hindi" },
+          { name: "English", value: "english" },
+          { name: "Mandarin", value: "mandarin" },
+          { name: "Arabic", value: "arabic" }
+        )
+    )
     .addChannelOption(opt =>
       opt.setName("channel")
-         .setDescription("Select the text channel to send the Word of the Day")
-         .addChannelTypes(ChannelType.GuildText)
-         .setRequired(true)
+        .setDescription("Channel to send Word of the Day in")
+        .setRequired(true)
+        .addChannelTypes(ChannelType.GuildText)
     )
     .addStringOption(opt =>
       opt.setName("time")
-         .setDescription("Enter local time in 24-hour format (HH:MM)")
-         .setRequired(true)
+        .setDescription("Time in 24-hour format (e.g. 19:30)")
+        .setRequired(true)
     )
     .addStringOption(opt =>
       opt.setName("timezone")
-         .setDescription("Enter your timezone (e.g. Asia/Kolkata)")
-         .setRequired(true)
-    )
-    .addStringOption(opt =>
-      opt.setName("language")
-         .setDescription("Choose the language for Word of the Day")
-         .setRequired(true)
-         .addChoices(
-           { name: "Japanese", value: "japanese" },
-           { name: "Hindi", value: "hindi" },
-           { name: "English", value: "english" },
-           { name: "Mandarin", value: "mandarin" },
-           { name: "Arabic", value: "arabic" }
-         )
+        .setDescription("Timezone (e.g. Asia/Kolkata, Europe/London)")
+        .setRequired(true)
     ),
 
   async execute(interaction) {
     try {
+      // collect input
+      const guildId = interaction.guild.id;
+      const language = interaction.options.getString("language");
       const channel = interaction.options.getChannel("channel");
       const time = interaction.options.getString("time");
-      const timezone = interaction.options.getString("timezone").trim();
-      const language = interaction.options.getString("language");
+      const timezone = interaction.options.getString("timezone");
 
-      // Validate time
+      // validate timezone
+      if (!moment.tz.zone(timezone)) {
+        return interaction.reply("❌ Invalid timezone. Example: `Asia/Kolkata`");
+      }
+
+      // validate time
       const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-      if (!timeRegex.test(time))
-        return interaction.reply({ content: "❌ Time must be in 24-hour format (HH:MM).", ephemeral: true });
+      if (!timeRegex.test(time)) {
+        return interaction.reply("❌ Invalid time format. Use `HH:mm` (24-hour).");
+      }
 
-      // Validate timezone
-      if (!moment.tz.zone(timezone))
-        return interaction.reply({ content: "❌ Invalid timezone.", ephemeral: true });
-
-      // Convert local → UTC
+      // convert local → UTC
       const [hour, minute] = time.split(":").map(Number);
       const utcTime = moment.tz({ hour, minute }, timezone).utc().format("HH:mm");
+      const updatedAt = new Date().toISOString();
 
-      // Plugin object (single language object)
-      const pluginData = {
+      // ✅ Firestore structure: plugins.language.<language>
+      await db.collection("guilds").doc(guildId).set({
+        plugins: {
+          language: {
+            [language]: {
+              enabled: true,
+              channelId: channel.id,
+              time,
+              timezone,
+              utcTime,
+              updatedAt,
+            },
+          },
+        },
+      }, { merge: true });
+
+      // ✅ Schedule job
+      scheduleWordOfTheDay(guildId, {
         enabled: true,
         channelId: channel.id,
+        time,
         timezone,
-        localTime: time,
         utcTime,
-        updatedAt: new Date().toISOString(),
-      };
+      }, language);
 
-      // Save under language map in Firestore (merge so we don't overwrite other plugins)
-      await db
-        .collection("guilds")
-        .doc(interaction.guild.id)
-        .set({ plugins: { language: { [language]: pluginData } } }, { merge: true });
+      // ✅ Confirm to user (no ephemeral, no double reply)
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply(
+          `✅ Word of the Day scheduled for **${language}** at **${time} (${timezone})** → <#${channel.id}>`
+        );
+      }
 
-      // Important: scheduleWordOfTheDay expects a language map { <lang>: {...} }
-      scheduleWordOfTheDay(interaction.guild.id, { [language]: pluginData }, language);
-
-      await interaction.reply({
-        content:
-          `✅ **Word of the Day setup complete!**\n` +
-          `📚 Language: **${capitalize(language)}**\n` +
-          `📢 Channel: ${channel}\n` +
-          `🕓 Local: **${time} (${timezone})**\n` +
-          `🌍 UTC: **${utcTime} UTC**`,
-      });
-
-      console.log(`[Scheduler] ${interaction.guild.id} → ${language} | Local: ${time} | UTC: ${utcTime}`);
     } catch (err) {
-      console.error(err);
-      try { await interaction.reply({ content: "❌ Something went wrong.", ephemeral: true }); } catch {}
+      console.error("❌ Error in /sendlanguage:", err);
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply("⚠️ Something went wrong while saving or scheduling.");
+        }
+      } catch (e) {
+        console.error("Reply failed:", e);
+      }
     }
   },
 };
-
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
