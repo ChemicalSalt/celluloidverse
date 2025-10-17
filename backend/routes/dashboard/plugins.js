@@ -70,6 +70,7 @@ router.post(
       };
 
       await docRef.set(
+        
         {
           plugins: {
             ...plugins,
@@ -91,40 +92,63 @@ router.post(
  * Toggle plugin globally (keeps language data untouched)
  */
 router.post(
-  "/servers/:id/plugins/:plugin/toggle",
+  "/servers/:id/plugins/:plugin",
   verifySession,
-  [body("enabled").isBoolean()],
+  [
+    body("enabled").optional().isBoolean(),
+    body("language").optional().isString(),
+    body("config").optional().isObject(),
+  ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
       const { id, plugin } = req.params;
-      const docRef = db.collection("guilds").doc(id);
-      const doc = await docRef.get();
-      const plugins = doc.exists ? doc.data()?.plugins || {} : {};
+      const { language = "mandarin", ...data } = req.body;
 
-      // Only toggle the main plugin state, not nested languages
+      const docRef = db.collection("guilds").doc(id);
+      const snap = await docRef.get();
+      const plugins = snap.exists ? snap.data()?.plugins || {} : {};
+      const currentPlugin = plugins[plugin] || {};
+
+      // Only update the specific language section
+      const updatedPlugin = {
+        ...currentPlugin,
+        [language]: {
+          ...(currentPlugin[language] || {}),
+          ...data,
+          updatedAt: new Date().toISOString(),
+          enabled: true,
+        },
+      };
+
       await docRef.set(
         {
           plugins: {
             ...plugins,
-            [plugin]: {
-              ...(plugins[plugin] || {}),
-              globalEnabled: !!req.body.enabled,
-              updatedAt: new Date().toISOString(),
-            },
+            [plugin]: updatedPlugin,
           },
         },
         { merge: true }
       );
 
-      res.json({ success: true, enabled: req.body.enabled });
+      // ✅ Trigger immediate scheduler resync for this guild
+      try {
+        const { scheduleWordOfTheDay } = require("../cron/scheduler");
+        scheduleWordOfTheDay(id, updatedPlugin[language], language);
+        console.log(`[Plugin Update] 🔄 Rescheduled ${plugin}:${language} for guild ${id}`);
+      } catch (err) {
+        console.error("[Plugin Update] ❌ Scheduler reload failed:", err);
+      }
+
+      res.json({ success: true, language });
     } catch (err) {
-      console.error("[Toggle Plugin Error]", err);
-      res.status(500).json({ error: "Failed to toggle plugin" });
+      console.error("[POST Plugin Error]", err);
+      res.status(500).json({ error: "Failed to save plugin" });
     }
   }
 );
+
 
 module.exports = router;

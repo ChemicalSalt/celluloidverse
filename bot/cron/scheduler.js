@@ -4,15 +4,17 @@ const moment = require("moment-timezone");
 const { db } = require("../utils/firestore");
 const languagePlugin = require("../plugins/language");
 
-
 const scheduledJobs = new Map();
 
 function _makeKey(guildId, lang) {
   return `language:${guildId}:${lang}`;
 }
+
 function _stopJob(key) {
   if (scheduledJobs.has(key)) {
-    try { scheduledJobs.get(key).stop(); } catch (e) {}
+    try {
+      scheduledJobs.get(key).stop();
+    } catch (e) {}
     scheduledJobs.delete(key);
     console.log(`[Scheduler] ⛔ Stopped job ${key}`);
   }
@@ -34,11 +36,9 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
   }
 
   let utcTime = plugin.utcTime || plugin.timeUTC || null;
-
-  // Accept either plugin.localTime or plugin.time (some DB entries use 'time')
   const localTimeValue = plugin.localTime || plugin.time || null;
 
-  // Convert local time to UTC if needed
+  // Compute UTC if not already present
   if (!utcTime && localTimeValue && plugin.timezone) {
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
     if (!timeRegex.test(localTimeValue)) {
@@ -46,6 +46,7 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
       _stopJob(key);
       return;
     }
+
     if (!moment.tz.zone(plugin.timezone)) {
       console.error(`[Scheduler] ❌ Invalid timezone for ${guildId}: ${plugin.timezone}`);
       _stopJob(key);
@@ -53,7 +54,10 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
     }
 
     const [h, m] = localTimeValue.split(":").map(Number);
-    utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone).utc().format("HH:mm");
+    utcTime = moment.tz({ hour: h, minute: m }, plugin.timezone)
+      .utc()
+      .format("HH:mm");
+
     console.log(`[Scheduler] 🕒 Computed UTC ${utcTime} from ${localTimeValue} (${plugin.timezone}) for ${guildId}`);
   }
 
@@ -73,15 +77,13 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
   _stopJob(key);
 
   try {
-    const expr = `${minute} ${hour} * * *`; // every day at HH:mm UTC
+    const expr = `${minute} ${hour} * * *`; // daily at HH:mm UTC
     const job = cron.schedule(
       expr,
       async () => {
         console.log(`[Scheduler] 🔔 Triggering ${langKey} for ${guildId} at ${utcTime} UTC`);
         try {
-          // pass a language map shape that sendLanguageNow expects
-         await languagePlugin.sendLanguageNow(guildId, { [langKey]: plugin });
-
+          await languagePlugin.sendLanguageNow(guildId, plugin);
         } catch (err) {
           console.error(`[Scheduler] ❌ sendLanguageNow error for ${guildId} (${langKey}):`, err);
         }
@@ -108,7 +110,7 @@ async function loadAllSchedules() {
     const snapshot = await db.collection("guilds").get();
     console.log(`[Scheduler] 🔄 Loading schedules for ${snapshot.size} guilds...`);
 
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc) => {
       const guildId = doc.id;
       const pluginMap = doc.data()?.plugins?.language;
       if (!pluginMap) return;
@@ -125,8 +127,19 @@ async function loadAllSchedules() {
   }
 }
 
+/**
+ * Reload all schedules (stop all jobs + reload from Firestore)
+ */
+async function reloadAll() {
+  console.log("[Scheduler] 🔁 Reloading all schedules...");
+  stopAll();
+  await loadAllSchedules();
+  console.log("[Scheduler] ✅ Reload complete.");
+}
+
 module.exports = {
   scheduleWordOfTheDay,
   loadAllSchedules,
   stopAll,
+  reloadAll, // ✅ now properly defined
 };
