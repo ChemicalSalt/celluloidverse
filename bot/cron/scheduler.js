@@ -2,7 +2,8 @@
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 const { db } = require("../utils/firestore");
-const { sendLanguageNow } = require("../plugins/language");
+const languagePlugin = require("../plugins/language");
+
 
 const scheduledJobs = new Map();
 
@@ -79,7 +80,8 @@ function scheduleWordOfTheDay(guildId, plugin = {}, langKey = "japanese") {
         console.log(`[Scheduler] 🔔 Triggering ${langKey} for ${guildId} at ${utcTime} UTC`);
         try {
           // pass a language map shape that sendLanguageNow expects
-          await sendLanguageNow(guildId, { [langKey]: plugin });
+         await languagePlugin.sendLanguageNow(guildId, { [langKey]: plugin });
+
         } catch (err) {
           console.error(`[Scheduler] ❌ sendLanguageNow error for ${guildId} (${langKey}):`, err);
         }

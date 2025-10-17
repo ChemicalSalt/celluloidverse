@@ -6,6 +6,7 @@ let clientRef;
 function setClient(client) {
   clientRef = client;
 }
+console.log("[Debug] sendLanguageNow triggered", { guildId, language });
 
 // ======= GOOGLE AUTH SETUP =======
 const sheetsAuth = new google.auth.GoogleAuth({
