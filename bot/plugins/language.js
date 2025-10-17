@@ -172,6 +172,10 @@ async function sendLanguageNow(guildId, plugin) {
   console.log("[Language] sendLanguageNow called", { guildId, pluginKeys: Object.keys(plugin || {}) });
 
   if (!plugin || !clientRef) return;
+if (typeof plugin.enabled === "boolean" && plugin.channelId) {
+  const key = plugin.language || plugin.lang || "default";
+  plugin = { [key]: plugin };
+}
 
   // If plugin is a single-language object (has channelId), wrap it into a map.
   let pluginMap = plugin;
