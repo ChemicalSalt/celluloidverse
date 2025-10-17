@@ -1,4 +1,3 @@
-// cron/scheduler.js
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 const { db } = require("../utils/firestore");
@@ -14,7 +13,7 @@ function _stopJob(key) {
   if (scheduledJobs.has(key)) {
     try {
       scheduledJobs.get(key).stop();
-    } catch (e) {}
+    } catch {}
     scheduledJobs.delete(key);
     console.log(`[Scheduler] ⛔ Stopped job ${key}`);
   }
@@ -107,16 +106,18 @@ async function loadAllSchedules() {
     const snapshot = await db.collection("guilds").get();
     console.log(`[Scheduler] 🔄 Loading schedules for ${snapshot.size} guilds...`);
 
-    snapshot.forEach((doc) => {
+    for (const doc of snapshot.docs) {
       const guildId = doc.id;
-      const pluginMap = doc.data()?.plugins?.language;
-      if (!pluginMap) return;
+      const data = doc.data();
 
-      for (const [langKey, langData] of Object.entries(pluginMap)) {
-        if (!langData || !langData.enabled) continue;
-        scheduleWordOfTheDay(guildId, langData, langKey);
+      // 🔧 Unified structure under plugins.language
+      const languagePlugins = data?.plugins?.language || {};
+      for (const [langKey, langData] of Object.entries(languagePlugins)) {
+        if (langData?.enabled) {
+          scheduleWordOfTheDay(guildId, langData, langKey);
+        }
       }
-    });
+    }
 
     console.log("[Scheduler] ✅ All language schedules loaded.");
   } catch (err) {
