@@ -9,15 +9,28 @@ module.exports = {
       description: "Open dashboard",
     },
     {
-      name: "send_language",
-      description: "Setup Word of the Day (Local time)",
-      options: [
-        { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
-        { name: "time", type: 3, description: "HH:MM 24h format (Local time)", required: true },
-         { name: "timezone", type: 3, description: "Your timezone (e.g., Asia/Kolkata)", required: true },
-        { name: "language", type: 3, description: "Pick language", required: true, choices: [{ name: "Japanese", value: "japanese" }] },
-      ],
+  name: "send_language",
+  description: "Setup Word of the Day (Local time)",
+  options: [
+    { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
+    { name: "time", type: 3, description: "HH:MM 24h format (Local time)", required: true },
+    { name: "timezone", type: 3, description: "Your timezone (e.g., Asia/Kolkata)", required: true },
+    { 
+      name: "language", 
+      type: 3, 
+      description: "Pick language", 
+      required: true, 
+      choices: [
+        { name: "Japanese", value: "japanese" },
+        { name: "English", value: "english" },
+        { name: "Mandarin", value: "mandarin" },
+        { name: "Hindi", value: "hindi" },
+        { name: "Arabic", value: "arabic" }
+      ] 
     },
+  ],
+},
+
     {
       name: "send_welcome",
       description: "Setup Welcome message",
