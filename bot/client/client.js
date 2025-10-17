@@ -27,7 +27,7 @@ const client = new Client({
 
 // Set client in language plugin
 languagePlugin.setClient(client);
-
+require("../cron/scheduler");
 // Register slash commands
 async function registerCommands() {
   try {
