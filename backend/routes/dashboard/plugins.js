@@ -28,14 +28,6 @@ router.get("/servers/:id/plugins/:plugin", verifySession, async (req, res) => {
 
 /**
  * POST plugin config (multi-language safe)
- * Keeps all existing languages and clean structure:
- * plugins: {
- *   languageSummoner: {
- *     english: {...},
- *     japanese: {...},
- *     mandarin: {...}
- *   }
- * }
  */
 router.post(
   "/servers/:id/plugins/:plugin",
@@ -58,7 +50,6 @@ router.post(
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
       const currentPlugin = plugins[plugin] || {};
 
-      // Only update the specific language section
       const updatedPlugin = {
         ...currentPlugin,
         [language]: {
@@ -70,7 +61,6 @@ router.post(
       };
 
       await docRef.set(
-        
         {
           plugins: {
             ...plugins,
@@ -92,35 +82,26 @@ router.post(
  * Toggle plugin globally (keeps language data untouched)
  */
 router.post(
-  "/servers/:id/plugins/:plugin",
+  "/servers/:id/plugins/:plugin/toggle",
   verifySession,
-  [
-    body("enabled").optional().isBoolean(),
-    body("language").optional().isString(),
-    body("config").optional().isObject(),
-  ],
+  [body("enabled").optional().isBoolean()],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
       const { id, plugin } = req.params;
-      const { language = "mandarin", ...data } = req.body;
+      const { enabled } = req.body;
 
       const docRef = db.collection("guilds").doc(id);
       const snap = await docRef.get();
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
       const currentPlugin = plugins[plugin] || {};
 
-      // Only update the specific language section
+      // Persist toggle correctly
       const updatedPlugin = {
         ...currentPlugin,
-        [language]: {
-          ...(currentPlugin[language] || {}),
-          ...data,
-          updatedAt: new Date().toISOString(),
-          enabled: true,
-        },
+        globalEnabled: typeof enabled === "boolean" ? enabled : true,
       };
 
       await docRef.set(
@@ -133,22 +114,12 @@ router.post(
         { merge: true }
       );
 
-      // ✅ Trigger immediate scheduler resync for this guild
-      try {
-        const { scheduleWordOfTheDay } = require("../cron/scheduler");
-        scheduleWordOfTheDay(id, updatedPlugin[language], language);
-        console.log(`[Plugin Update] 🔄 Rescheduled ${plugin}:${language} for guild ${id}`);
-      } catch (err) {
-        console.error("[Plugin Update] ❌ Scheduler reload failed:", err);
-      }
-
-      res.json({ success: true, language });
+      res.json({ success: true, enabled: updatedPlugin.globalEnabled });
     } catch (err) {
-      console.error("[POST Plugin Error]", err);
-      res.status(500).json({ error: "Failed to save plugin" });
+      console.error("[Toggle Plugin Error]", err);
+      res.status(500).json({ error: "Failed to toggle plugin" });
     }
   }
 );
-
 
 module.exports = router;
