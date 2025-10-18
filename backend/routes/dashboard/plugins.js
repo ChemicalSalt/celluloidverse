@@ -2,6 +2,7 @@ const express = require("express");
 const admin = require("firebase-admin");
 const { body, validationResult } = require("express-validator");
 const { verifySession } = require("./session");
+const moment = require("moment-timezone"); // ✅ Added for correct UTC handling
 
 const router = express.Router();
 
@@ -36,6 +37,8 @@ router.post(
     body("enabled").optional().isBoolean(),
     body("language").optional().isString(),
     body("config").optional().isObject(),
+    body("time").optional().isString(),
+    body("timezone").optional().isString(),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -43,9 +46,15 @@ router.post(
 
     try {
       const { id, plugin } = req.params;
-      const { language = "mandarin", ...data } = req.body;
+      const { language = "mandarin", time, timezone, ...data } = req.body;
 
-      // force all language plugin data under plugins.language
+      // ✅ compute utcTime only if time + timezone are present
+      let utcTime = null;
+      if (time && timezone) {
+        const localMoment = moment.tz(time, "HH:mm", timezone);
+        utcTime = localMoment.clone().utc().format("HH:mm");
+      }
+
       const docRef = db.collection("guilds").doc(id);
       const snap = await docRef.get();
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
@@ -56,6 +65,9 @@ router.post(
         [language]: {
           ...(currentLanguagePlugins[language] || {}),
           ...data,
+          time: time || currentLanguagePlugins[language]?.time,
+          timezone: timezone || currentLanguagePlugins[language]?.timezone,
+          utcTime: utcTime || currentLanguagePlugins[language]?.utcTime,
           updatedAt: new Date().toISOString(),
           enabled: typeof data.enabled === "boolean" ? data.enabled : true,
         },
@@ -71,7 +83,7 @@ router.post(
         { merge: true }
       );
 
-      res.json({ success: true, language });
+      res.json({ success: true, language, utcTime });
     } catch (err) {
       console.error("[POST Plugin Error]", err);
       res.status(500).json({ error: "Failed to save plugin" });
@@ -99,7 +111,6 @@ router.post(
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
       const currentLanguage = plugins.language || {};
 
-      // set globalEnabled flag at the language root
       const updatedLanguage = {
         ...currentLanguage,
         globalEnabled: typeof enabled === "boolean" ? enabled : true,
