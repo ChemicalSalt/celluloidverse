@@ -19,7 +19,8 @@
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.2.1",
     "firebase-admin": "^13.4.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.6.0"
   },
   "devDependencies": {
     "@express-rate-limit/tsconfig": "^1.0.2"
