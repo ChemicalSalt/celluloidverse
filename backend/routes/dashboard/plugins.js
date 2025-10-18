@@ -65,7 +65,7 @@ router.post(
           ...(currentPlugin[language] || {}),
           ...data,
           updatedAt: new Date().toISOString(),
-          enabled: true,
+          enabled: typeof data.enabled === "boolean" ? data.enabled : true,
         },
       };
 

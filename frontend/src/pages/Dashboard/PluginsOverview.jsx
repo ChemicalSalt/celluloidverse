@@ -71,7 +71,7 @@ const PluginsOverview = () => {
 
       // Call toggle endpoint
       await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}/toggle`,
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
