@@ -8,6 +8,7 @@ const PluginsOverview = () => {
   const [server, setServer] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch server data on load
   useEffect(() => {
     if (!serverId) return;
 
@@ -71,7 +72,7 @@ const PluginsOverview = () => {
 
       // Call toggle endpoint
       await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}`,
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}/toggle`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,6 +97,7 @@ const PluginsOverview = () => {
             key={plugin.name}
             className="p-6 rounded-2xl shadow-md border border-black dark:border-white flex flex-col justify-between"
           >
+            {/* Plugin Header */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-black dark:text-white mb-1">
@@ -115,14 +117,24 @@ const PluginsOverview = () => {
               </label>
             </div>
 
-            <button
-              className="mt-6 px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
-              onClick={() =>
-                navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)
-              }
-            >
-              Configure {plugin.name}
-            </button>
+            {/* Show Configure button only if enabled */}
+            {plugin.enabled ? (
+              <button
+                className="mt-6 px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
+                onClick={() =>
+                  navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)
+                }
+              >
+                Configure {plugin.name}
+              </button>
+            ) : (
+              <button
+                disabled
+                className="mt-6 px-4 py-2 rounded-xl bg-gray-400 text-white opacity-60 cursor-not-allowed transition"
+              >
+                Enable to Configure
+              </button>
+            )}
           </div>
         ))}
       </div>

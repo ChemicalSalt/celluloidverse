@@ -27,7 +27,7 @@ router.get("/servers/:id/plugins/:plugin", verifySession, async (req, res) => {
 });
 
 /**
- * POST plugin config (multi-language safe)
+ * POST plugin config — unified structure under plugins.language
  */
 router.post(
   "/servers/:id/plugins/:plugin",
@@ -45,15 +45,16 @@ router.post(
       const { id, plugin } = req.params;
       const { language = "mandarin", ...data } = req.body;
 
+      // force all language plugin data under plugins.language
       const docRef = db.collection("guilds").doc(id);
       const snap = await docRef.get();
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
-      const currentPlugin = plugins[plugin] || {};
+      const currentLanguagePlugins = plugins.language || {};
 
-      const updatedPlugin = {
-        ...currentPlugin,
+      const updatedLanguagePlugins = {
+        ...currentLanguagePlugins,
         [language]: {
-          ...(currentPlugin[language] || {}),
+          ...(currentLanguagePlugins[language] || {}),
           ...data,
           updatedAt: new Date().toISOString(),
           enabled: typeof data.enabled === "boolean" ? data.enabled : true,
@@ -64,7 +65,7 @@ router.post(
         {
           plugins: {
             ...plugins,
-            [plugin]: updatedPlugin,
+            language: updatedLanguagePlugins,
           },
         },
         { merge: true }
@@ -79,7 +80,7 @@ router.post(
 );
 
 /**
- * Toggle plugin globally (keeps language data untouched)
+ * Toggle plugin globally (keeps individual languages untouched)
  */
 router.post(
   "/servers/:id/plugins/:plugin/toggle",
@@ -90,17 +91,17 @@ router.post(
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
-      const { id, plugin } = req.params;
+      const { id } = req.params;
       const { enabled } = req.body;
 
       const docRef = db.collection("guilds").doc(id);
       const snap = await docRef.get();
       const plugins = snap.exists ? snap.data()?.plugins || {} : {};
-      const currentPlugin = plugins[plugin] || {};
+      const currentLanguage = plugins.language || {};
 
-      // Persist toggle correctly
-      const updatedPlugin = {
-        ...currentPlugin,
+      // set globalEnabled flag at the language root
+      const updatedLanguage = {
+        ...currentLanguage,
         globalEnabled: typeof enabled === "boolean" ? enabled : true,
       };
 
@@ -108,13 +109,13 @@ router.post(
         {
           plugins: {
             ...plugins,
-            [plugin]: updatedPlugin,
+            language: updatedLanguage,
           },
         },
         { merge: true }
       );
 
-      res.json({ success: true, enabled: updatedPlugin.globalEnabled });
+      res.json({ success: true, enabled: updatedLanguage.globalEnabled });
     } catch (err) {
       console.error("[Toggle Plugin Error]", err);
       res.status(500).json({ error: "Failed to toggle plugin" });
