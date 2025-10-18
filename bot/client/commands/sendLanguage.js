@@ -3,6 +3,35 @@ const { db } = require("../utils/firestore");
 const { scheduleWordOfTheDay } = require("../cron/scheduler");
 const moment = require("moment-timezone");
 
+// Common realistic timezones (max 25)
+const commonTimezones = [
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Asia/Kolkata",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Sao_Paulo",
+  "America/Mexico_City",
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Africa/Johannesburg",
+  "Africa/Cairo",
+  "Pacific/Auckland",
+  "Pacific/Honolulu",
+  "Asia/Seoul",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+];
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sendlanguage")
@@ -30,15 +59,22 @@ module.exports = {
         .setDescription("Time in 24-hour format (e.g. 19:30)")
         .setRequired(true)
     )
-    .addStringOption(opt =>
-      opt.setName("timezone")
-        .setDescription("Timezone (e.g. Asia/Kolkata, Europe/London)")
-        .setRequired(true)
-    ),
+    .addStringOption(opt => {
+      const tzOption = opt
+        .setName("timezone")
+        .setDescription("Timezone (e.g. Asia/Kolkata)")
+        .setRequired(true);
+
+      // Add common timezones as choices
+      commonTimezones.forEach(tz => {
+        tzOption.addChoices({ name: tz, value: tz });
+      });
+
+      return tzOption;
+    }),
 
   async execute(interaction) {
     try {
-      // collect input
       const guildId = interaction.guild.id;
       const language = interaction.options.getString("language");
       const channel = interaction.options.getChannel("channel");
@@ -61,7 +97,7 @@ module.exports = {
       const utcTime = moment.tz({ hour, minute }, timezone).utc().format("HH:mm");
       const updatedAt = new Date().toISOString();
 
-      // ✅ Firestore structure: plugins.language.<language>
+      // Save to Firestore
       await db.collection("guilds").doc(guildId).set({
         plugins: {
           language: {
@@ -77,7 +113,7 @@ module.exports = {
         },
       }, { merge: true });
 
-      // ✅ Schedule job
+      // Schedule job
       scheduleWordOfTheDay(guildId, {
         enabled: true,
         channelId: channel.id,
@@ -86,7 +122,7 @@ module.exports = {
         utcTime,
       }, language);
 
-      // ✅ Confirm to user (no ephemeral, no double reply)
+      // Confirm to user
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply(
           `✅ Word of the Day scheduled for **${language}** at **${time} (${timezone})** → <#${channel.id}>`

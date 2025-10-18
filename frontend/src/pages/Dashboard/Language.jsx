@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { sanitizeDynamic } from "../../utils/sanitize";
-
+import moment from "moment-timezone";
 const Language = () => {
   const { serverId } = useParams();
   const [channels, setChannels] = useState([]);
   const [settings, setSettings] = useState({
     channelId: "",
     time: "",
-    language: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    language: "",
     enabled: true,
   });
   const [loading, setLoading] = useState(true);
@@ -84,8 +84,8 @@ const Language = () => {
         setSettings({
           channelId: "",
           time: "",
-          language: "",
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+          language: "",
           enabled: true,
         });
       } else {
@@ -143,10 +143,32 @@ const Language = () => {
             className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
           />
         </div>
+<div>
+  <label className="block mb-2 text-black dark:text-white">
+    Select a timezone
+  </label>
+  <select
+  value={settings.timezone}
+  onChange={(e) =>
+    setSettings({ ...settings, timezone: e.target.value })
+  }
+  className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+>
+  <option value="">-- Select a timezone --</option>
+  {moment.tz.names().map((tz) => (
+    <option key={tz} value={tz}>
+      {tz}
+    </option>
+  ))}
+</select>
+
+</div>
+
+
 
         <div>
           <label className="block mb-2 text-black dark:text-white">
-            Select language
+            Select a language
           </label>
           <select
             value={settings.language}
@@ -164,24 +186,6 @@ const Language = () => {
           </select>
         </div>
 
-        <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Select timezone
-          </label>
-          <select
-            value={settings.timezone}
-            onChange={(e) =>
-              setSettings({ ...settings, timezone: e.target.value })
-            }
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
-          >
-            {timezones.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz}
-              </option>
-            ))}
-          </select>
-        </div>
 
         <button
           onClick={handleSave}

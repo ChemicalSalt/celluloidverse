@@ -1,3 +1,34 @@
+// bot/config/botConfig.js
+
+// Common realistic timezones (max 25)
+const commonTimezones = [
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Asia/Kolkata",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Dubai",
+  "Asia/Singapore",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Sao_Paulo",
+  "America/Mexico_City",
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Africa/Johannesburg",
+  "Africa/Cairo",
+  "Pacific/Auckland",
+  "Pacific/Honolulu",
+  "Asia/Seoul",
+  "Asia/Bangkok",
+  "Asia/Jakarta",
+];
+
 module.exports = {
   COMMANDS: [
     {
@@ -9,28 +40,33 @@ module.exports = {
       description: "Open dashboard",
     },
     {
-  name: "send_language",
-  description: "Setup Word of the Day (Local time)",
-  options: [
-    { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
-    { name: "time", type: 3, description: "HH:MM 24h format (Local time)", required: true },
-    { name: "timezone", type: 3, description: "Your timezone (e.g., Asia/Kolkata)", required: true },
-    { 
-      name: "language", 
-      type: 3, 
-      description: "Pick language", 
-      required: true, 
-      choices: [
-        { name: "Japanese", value: "japanese" },
-        { name: "English", value: "english" },
-        { name: "Mandarin", value: "mandarin" },
-        { name: "Hindi", value: "hindi" },
-        { name: "Arabic", value: "arabic" }
-      ] 
+      name: "send_language",
+      description: "Setup Word of the Day (Local time)",
+      options: [
+        { name: "channel", type: 7, description: "Channel ID or #channel", required: true },
+        { name: "time", type: 3, description: "HH:MM 24h format (Local time)", required: true },
+        { 
+          name: "timezone", 
+          type: 3, 
+          description: "Your timezone (e.g., Asia/Kolkata)", 
+          required: true,
+          choices: commonTimezones.map(tz => ({ name: tz, value: tz })) // Add choices
+        },
+        { 
+          name: "language", 
+          type: 3, 
+          description: "Pick language", 
+          required: true, 
+          choices: [
+            { name: "Japanese", value: "japanese" },
+            { name: "English", value: "english" },
+            { name: "Mandarin", value: "mandarin" },
+            { name: "Hindi", value: "hindi" },
+            { name: "Arabic", value: "arabic" }
+          ] 
+        },
+      ],
     },
-  ],
-},
-
     {
       name: "send_welcome",
       description: "Setup Welcome message",
