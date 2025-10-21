@@ -1,38 +1,84 @@
 @import "tailwindcss";
 
-/* Hide reCAPTCHA badge except on /contact */
-body:not(.contact-page) .grecaptcha-badge {
-  visibility: hidden !important;
-}
-
-/* Enable dark mode with the .dark class on <html> */
+/* ========== Dark mode variant ========= */
 @custom-variant dark (&:where(.dark, .dark *));
-html {
-  transition: background-color 0.3s ease, color 0.3s ease;
+
+/* ========== Theme variables (CSS-first config) ========= */
+@theme {
+  --font-sans: "Satoshi", sans-serif;
+  --spacing: 0.25rem;
+  --color-online: oklch(0.48 0.18 134.3);
+  --color-offline: oklch(0.48 0.15 30);
+  --color-inactive: oklch(0.55 0 0);
 }
 
-/* Full-screen seamless gradient background */
+/* ========== Global layout with middle gradient ========= */
 html, body, #root {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  background: linear-gradient(180deg, #fafafa 0%, #f4f4f4 100%);
-  color: #111;
-  transition: background 0.5s ease, color 0.5s ease;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans);
+  transition: background 0.5s, color 0.5s;
+  background: linear-gradient(
+    180deg,
+    #000 0%,      /* top solid black */
+    #111 40%,     /* start subtle middle */
+    #222 50%,     /* brightest middle */
+    #111 60%,     /* fade back down */
+    #000 100%     /* bottom solid black */
+  );
+  color: #f1f1f1;
 }
 
 /* Dark mode gradient */
 html.dark, html.dark body, html.dark #root {
-  background: linear-gradient(180deg, #080808 0%, #0e0e0e 100%);
+  background: linear-gradient(
+    180deg,
+    #080808 0%,
+    #111 40%,
+    #222 50%,
+    #111 60%,
+    #080808 100%
+  );
   color: #f1f1f1;
 }
 
-/* Ensure content is always full width */
-#root {
-  display: flex;
-  flex-direction: column;
-}
-/* index.css */
+/* Body base styles */
 body {
-  @apply bg-gradient-to-b from-black via-zinc-900 to-black text-white transition-colors duration-300;
+  @apply text-white transition-colors duration-300;
+}
+.navbar, .footer {
+  @apply bg-transparent text-white px-6 py-3;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.footer {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Badges */
+.badge-online {
+  @apply text-white px-2 py-1 rounded-full text-xs;
+  background-color: var(--color-online);
+}
+.badge-offline {
+  @apply text-white px-2 py-1 rounded-full text-xs;
+  background-color: var(--color-offline);
+}
+.badge-inactive {
+  @apply text-white px-2 py-1 rounded-full text-xs;
+  background-color: var(--color-inactive);
+}
+
+/* Fancy gradient sections */
+.bg-fancy-gradient {
+  @apply rounded-xl p-4;
+  background: linear-gradient(135deg, #1f2937 0%, #4b5563 50%, #1f2937 100%);
+}
+
+/* Hide reCAPTCHA badge except on /contact */
+body:not(.contact-page) .grecaptcha-badge {
+  visibility: hidden !important;
 }

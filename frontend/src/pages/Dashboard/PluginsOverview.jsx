@@ -8,7 +8,6 @@ const PluginsOverview = () => {
   const [server, setServer] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch server data on load
   useEffect(() => {
     if (!serverId) return;
 
@@ -30,8 +29,21 @@ const PluginsOverview = () => {
     fetchServer();
   }, [serverId]);
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
-  if (!server) return <div className="text-center mt-10">No server data</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900/80 dark:to-black">
+        <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-300 animate-pulse">
+          Loading plugins...
+        </p>
+      </div>
+    );
+
+  if (!server)
+    return (
+      <div className="text-center mt-10 text-zinc-600 dark:text-zinc-400">
+        No server data available.
+      </div>
+    );
 
   const plugins = [
     {
@@ -55,7 +67,6 @@ const PluginsOverview = () => {
     try {
       const newEnabled = !plugin.enabled;
 
-      // Optimistic UI update
       setServer((prev) => ({
         ...prev,
         plugins: {
@@ -70,7 +81,6 @@ const PluginsOverview = () => {
         },
       }));
 
-      // Call toggle endpoint
       await fetch(
         `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/${plugin.path}/toggle`,
         {
@@ -86,24 +96,27 @@ const PluginsOverview = () => {
   };
 
   return (
-    <div className="min-h-screen px-6 py-8 bg-white dark:bg-black">
-      <h1 className="text-3xl font-bold mb-8 text-black dark:text-white">
-        Plugins Overview
-      </h1>
+    <div className="min-h-screen px-6 py-16 text-zinc-900 dark:text-zinc-100 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900/80 dark:to-black transition-colors duration-700">
+      <div className="max-w-5xl mx-auto text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+          <span className="bg-gradient-to-r from-zinc-400 via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+            Plugins Overview
+          </span>
+        </h1>
+        <p className="mt-3 text-zinc-600 dark:text-zinc-400">
+          Manage and configure your bot’s features in one elegant dashboard.
+        </p>
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
         {plugins.map((plugin) => (
           <div
             key={plugin.name}
-            className="p-6 rounded-2xl shadow-md border border-black dark:border-white flex flex-col justify-between"
+            className="p-6 rounded-2xl shadow-lg border border-zinc-300/40 dark:border-zinc-700/40 bg-zinc-100/70 dark:bg-zinc-900/70 backdrop-blur-sm hover:scale-[1.02] hover:shadow-xl transition-all duration-300"
           >
             {/* Plugin Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-black dark:text-white mb-1">
-                  {plugin.name}
-                </h2>
-              </div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold">{plugin.name}</h2>
 
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -112,15 +125,15 @@ const PluginsOverview = () => {
                   checked={plugin.enabled}
                   onChange={() => handleToggle(plugin)}
                 />
-                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-green-500 transition"></div>
-                <div className="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition peer-checked:translate-x-5"></div>
+                <div className="w-12 h-7 rounded-full bg-zinc-300 peer-checked:bg-green-500 transition-all duration-300"></div>
+                <div className="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-all duration-300 peer-checked:translate-x-5"></div>
               </label>
             </div>
 
-            {/* Show Configure button only if enabled */}
+            {/* Button */}
             {plugin.enabled ? (
               <button
-                className="mt-6 px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
+                className="w-full px-4 py-2 rounded-xl bg-white text-black dark:bg-zinc-100 dark:text-black hover:bg-zinc-200 transition-all duration-300"
                 onClick={() =>
                   navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)
                 }
@@ -130,7 +143,7 @@ const PluginsOverview = () => {
             ) : (
               <button
                 disabled
-                className="mt-6 px-4 py-2 rounded-xl bg-gray-400 text-white opacity-60 cursor-not-allowed transition"
+                className="w-full px-4 py-2 rounded-xl bg-zinc-400 text-white opacity-60 cursor-not-allowed transition"
               >
                 Enable to Configure
               </button>

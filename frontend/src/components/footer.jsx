@@ -4,6 +4,7 @@ const Footer = () => {
   return (
     <footer className="w-full text-gray-800 dark:text-white/80 border-t border-gray-200 dark:border-white/10 py-8 px-6 mt-auto bg-white dark:bg-black">
       <div className="flex flex-col items-center justify-center space-y-5 text-center">
+        {/* Social Icons */}
         <div className="flex gap-6">
           <a
             href="https://youtube.com/@celluloidverse"
@@ -31,6 +32,7 @@ const Footer = () => {
           </a>
         </div>
 
+        {/* Copyright */}
         <p className="text-sm text-gray-500 dark:text-white/60">
           &copy; 2025 Celluloidverse. All rights reserved.
         </p>

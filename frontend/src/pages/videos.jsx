@@ -57,7 +57,14 @@ const Videos = () => {
   }, []);
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-6 py-16 bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-black dark:to-zinc-900 text-black dark:text-white transition-all duration-300">
+<main
+  className="min-h-screen w-full flex flex-col items-center justify-start px-6 py-20 
+  bg-[linear-gradient(180deg,_#f4f4f5_0%,_#e4e4e7_25%,_#d4d4d8_50%,_#e4e4e7_75%,_#f4f4f5_100%)]
+  dark:bg-[linear-gradient(180deg,_#000_0%,_#111_25%,_#1c1c1c_50%,_#111_75%,_#000_100%)]
+  text-black dark:text-zinc-100 transition-colors duration-700"
+>
+
+
       
       {/* Header */}
       <section className="text-center mb-12">
@@ -68,7 +75,7 @@ const Videos = () => {
           </span>
         </h1>
         <p className="text-gray-700 dark:text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
-          Watch our latest in-depth content that blends creativity with technology — all in timeless black & white.
+          Watch our latest in-depth content that blends creativity with technology - all in timeless black & white.
         </p>
       </section>
 

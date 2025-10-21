@@ -10,6 +10,7 @@ import {
 import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { sanitizeDynamic } from "../utils/sanitize";
+import { motion } from "framer-motion";
 
 const Auth = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -31,7 +32,6 @@ const Auth = () => {
     setError("");
 
     try {
-      // Sanitize inputs before sending to Firebase
       const safeEmail = sanitizeDynamic(email, { maxLen: 100 });
       const safePassword = sanitizeDynamic(password, { maxLen: 100 });
 
@@ -68,69 +68,77 @@ const Auth = () => {
   };
 
   return (
-    <main className="bg-white text-black dark:bg-black dark:text-white min-h-screen flex flex-col justify-center items-center px-4 transition-colors duration-300">
-      <h2 className="text-2xl font-bold mb-4">
-        {user ? "Welcome" : isRegister ? "Register" : "Sign in"}
-      </h2>
+    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-zinc-50 via-zinc-100 to-zinc-200 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950 transition-colors duration-500">
+      <motion.div
+        key={isRegister}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="w-full max-w-md p-8 rounded-3xl backdrop-blur-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-700 shadow-xl flex flex-col gap-6 transition-all duration-500"
+      >
+        <h2 className="text-2xl font-extrabold text-center text-zinc-900 dark:text-zinc-100">
+          {user ? "Welcome" : isRegister ? "Register" : "Sign in"}
+        </h2>
 
-      {user ? (
-        <div className="text-center space-y-4">
-          <p className="text-lg">Logged in as:</p>
-          <p className="text-yellow-500">{user.email}</p>
-          <button
-            onClick={handleLogout}
-            className="mt-4 p-3 bg-white text-black dark:bg-white dark:text-black rounded hover:bg-gray-200 transition"
-          >
-            Logout
-          </button>
-        </div>
-      ) : (
-        <form onSubmit={handleAuth} className="space-y-4 w-full max-w-sm">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-3 rounded bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-400 focus:outline-none"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full p-3 rounded bg-zinc-100 dark:bg-zinc-800 text-black dark:text-white placeholder-gray-400 focus:outline-none"
-          />
-
-          <button
-            type="submit"
-            className="w-full p-3 bg-black text-white dark:bg-white dark:text-black font-semibold rounded hover:bg-gray-800 dark:hover:bg-gray-200 transition"
-          >
-            {isRegister ? "Register" : "Sign in"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            className="w-full p-3 bg-red-500 text-white font-semibold rounded hover:bg-red-600 transition"
-          >
-            Sign in with Google
-          </button>
-
-          <p className="text-center text-sm mt-2 text-gray-500 dark:text-gray-400">
-            {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
-            <span
-              onClick={() => setIsRegister(!isRegister)}
-              className="text-blue-500 cursor-pointer hover:underline"
+        {user ? (
+          <div className="text-center space-y-4">
+            <p className="text-lg text-zinc-700 dark:text-zinc-300">Logged in as:</p>
+            <p className="text-yellow-500 font-mono">{user.email}</p>
+            <button
+              onClick={handleLogout}
+              className="mt-4 px-6 py-2 rounded-full bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-400 text-white dark:text-black font-semibold shadow hover:opacity-90 transition"
             >
-              {isRegister ? "Sign in" : "Register"}
-            </span>
-          </p>
+              Logout
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleAuth} className="flex flex-col gap-4">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-zinc-500 outline-none transition"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-zinc-500 outline-none transition"
+            />
 
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        </form>
-      )}
+            <button
+              type="submit"
+              className="w-full py-3 rounded-full bg-gradient-to-r from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-400 text-white dark:text-black font-semibold shadow-lg hover:scale-[1.03] transition-transform"
+            >
+              {isRegister ? "Register" : "Sign in"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full py-3 rounded-full bg-red-600 text-white font-semibold shadow hover:bg-red-700 transition"
+            >
+              Sign in with Google
+            </button>
+
+            <p className="text-center text-sm mt-2 text-zinc-600 dark:text-zinc-400">
+              {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
+              <span
+                onClick={() => setIsRegister(!isRegister)}
+                className="text-blue-500 cursor-pointer hover:underline"
+              >
+                {isRegister ? "Sign in" : "Register"}
+              </span>
+            </p>
+
+            {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+          </form>
+        )}
+      </motion.div>
     </main>
   );
 };

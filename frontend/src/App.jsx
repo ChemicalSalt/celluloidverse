@@ -1,7 +1,7 @@
 import './index.css';
 import { Routes, Route, Outlet } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import Navbar from './components/navbar';
+import Footer from './components/footer';
 
 import Home from './pages/Home';
 import Dashboard from './pages/dashboard';
@@ -10,23 +10,23 @@ import BotStatus from './pages/BotStatus';
 import Contact from './pages/contact';
 import Shorts from './pages/shorts';
 import Videos from './pages/videos';
-import About from './pages/About';
-import Auth from './pages/Auth';
+import About from './pages/about';
+import Auth from './pages/auth';
 
-/* Dashboard subpages (keep paths you already have) */
+/* Dashboard subpages */
 import AddBot from "./pages/Dashboard/AddBot";
-import PluginsOverview from "./pages/Dashboard/PluginsOverview";
-import Welcome from "./pages/Dashboard/Welcome";
+import PluginsOverview from "./pages/Dashboard/pluginsOverview";
+import Welcome from "./pages/Dashboard/welcome";
 import Farewell from "./pages/Dashboard/farewell";
-import Language from "./pages/Dashboard/Language";
+import Language from "./pages/Dashboard/language";
 
 function App() {
   return (
-    /* SINGLE SOURCE OF TRUTH: global gradient background here */
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-950 text-white">
+    /* GLOBAL BACKGROUND HANDLED VIA index.css */
+    <div className="min-h-screen flex flex-col text-white">
       <Navbar />
 
-      {/* main area stretches to fill and pages are transparent */}
+      {/* main content */}
       <main className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -38,7 +38,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/auth" element={<Auth />} />
 
-          {/* dashboard routes */}
+          {/* dashboard */}
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dashboard/addbot" element={<AddBot />} />
           <Route path="/dashboard/:serverId/plugins/overview" element={<PluginsOverview />} />
@@ -47,7 +47,6 @@ function App() {
           <Route path="/dashboard/:serverId/plugins/language" element={<Language />} />
         </Routes>
 
-        {/* in case nested routes or Outlet needed later */}
         <Outlet />
       </main>
 

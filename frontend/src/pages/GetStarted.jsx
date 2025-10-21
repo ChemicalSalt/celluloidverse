@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 const GetStarted = () => {
   const [step, setStep] = useState(1);
@@ -11,182 +12,124 @@ const GetStarted = () => {
     setTimeout(() => handleNext(), 5000);
   };
 
+  const steps = [
+    {
+      title: "Welcome to Celluloidverse",
+      desc: "Ready to explore our universe?",
+      button: { text: "Let's go", action: handleNext },
+    },
+    {
+      title: "Explore: Dashboard",
+      link: "/dashboard",
+      button: { text: "Next", action: handleNext },
+    },
+    {
+      title: "Explore: Shorts Page",
+      link: "/shorts",
+      button: { text: "Next", action: handleNext },
+    },
+    {
+      title: "Explore: Videos Page",
+      link: "/videos",
+      button: { text: "Next", action: handleNext },
+    },
+    {
+      title: "Explore: About Page",
+      link: "/about",
+      button: { text: "Next", action: handleNext },
+    },
+    {
+      title: "Explore: Contact Page",
+      link: "/contact",
+      button: { text: "Next", action: handleNext },
+    },
+    {
+      title: "Subscribe to our YouTube?",
+      desc: "You'll be asked to follow us on Instagram next.",
+      button: { text: "Yes", action: () => externalLink("https://youtube.com/@Celluloidverse") },
+      skip: handleNext,
+      color: "bg-red-600",
+    },
+    {
+      title: "Follow us on Instagram?",
+      desc: "You'll be asked to join our Discord next.",
+      button: { text: "Yes", action: () => externalLink("https://instagram.com/celluloidverse") },
+      skip: handleNext,
+      color: "bg-pink-500",
+    },
+    {
+      title: "Join our Discord server?",
+      desc: "Final step!",
+      button: { text: "Join Now", action: () => externalLink("https://discord.gg/kxmZsh9GUT") },
+      skip: handleNext,
+      color: "bg-indigo-600",
+    },
+    {
+      title: "You're all set!",
+      desc: "Thanks for exploring Celluloidverse",
+      button: { text: "Close", action: () => window.history.back() },
+    },
+  ];
+
+  const current = steps[step - 1];
+
   return (
     <main className="bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-zinc-950 dark:to-zinc-900 text-black dark:text-white min-h-screen flex flex-col items-center justify-start px-4 transition-colors duration-300 pt-16">
-      <div className="bg-transparent text-black dark:text-white p-8 rounded-2xl max-w-lg w-full transition-colors duration-300">
+      <motion.div
+        key={step}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl p-8 rounded-2xl max-w-lg w-full shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-6 transition-all duration-500"
+      >
         {/* Back Button */}
         {step > 1 && (
           <button
             onClick={handleBack}
-            className="mb-4 bg-gray-200 dark:bg-gray-800 text-black dark:text-white px-4 py-1 rounded-full shadow hover:underline"
+            className="mb-2 self-start px-4 py-1 rounded-full bg-zinc-200 dark:bg-zinc-800 text-black dark:text-white shadow hover:underline transition"
           >
             ← Back
           </button>
         )}
 
-        {/* Steps */}
-        {step === 1 && (
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Welcome to Celluloidverse</h2>
-            <p className="mb-6">Ready to explore our universe?</p>
-            <button
-              onClick={handleNext}
-              className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Let's go
-            </button>
-          </div>
+        {/* Title & Description */}
+        <h2 className="text-2xl font-bold text-center">{current.title}</h2>
+        {current.desc && <p className="text-center text-zinc-600 dark:text-zinc-400">{current.desc}</p>}
+
+        {/* Link if exists */}
+        {current.link && (
+          <a
+            href={current.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 underline text-center"
+          >
+            Open {current.title.split(": ")[1]}
+          </a>
         )}
 
-        {/* 🧭 DASHBOARD STEP */}
-        {step === 2 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-4">Explore: Dashboard</h2>
-            <a
-              href="/dashboard"
-              className="text-blue-500 underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open Dashboard
-            </a>
-            <button
-              onClick={handleNext}
-              className="block mt-6 bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Next
-            </button>
-          </div>
-        )}
+        {/* Main Button */}
+        <button
+          onClick={current.button.action}
+          className={`mt-4 px-6 py-2 rounded-full font-semibold text-white dark:text-black transition-all duration-300 shadow-lg ${
+            current.color
+              ? `${current.color} hover:opacity-90`
+              : "bg-black dark:bg-white hover:opacity-90"
+          }`}
+        >
+          {current.button.text}
+        </button>
 
-        {step === 3 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-4">Explore: Shorts Page</h2>
-            <a href="/shorts" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">Open Shorts Page</a>
-            <button
-              onClick={handleNext}
-              className="block mt-6 bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Next
-            </button>
-          </div>
+        {/* Skip button if exists */}
+        {current.skip && (
+          <button
+            onClick={current.skip}
+            className="text-sm text-gray-500 dark:text-gray-400 underline mt-2"
+          >
+            Skip
+          </button>
         )}
-
-        {step === 4 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-4">Explore: Videos Page</h2>
-            <a href="/videos" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">Open Videos Page</a>
-            <button
-              onClick={handleNext}
-              className="block mt-6 bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-4">Explore: About Page</h2>
-            <a href="/about" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">Open About Page</a>
-            <button
-              onClick={handleNext}
-              className="block mt-6 bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        {step === 6 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-4">Explore: Contact Page</h2>
-            <a href="/contact" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">Open Contact Page</a>
-            <button
-              onClick={handleNext}
-              className="block mt-6 bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        {step === 7 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-2">Subscribe to our YouTube?</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">You'll be asked to follow us on Instagram next.</p>
-            <div className="flex flex-col items-center gap-4">
-              <button
-                onClick={() => externalLink("https://youtube.com/@Celluloidverse")}
-                className="bg-red-600 text-white px-6 py-2 rounded-full w-40"
-              >
-                Yes
-              </button>
-              <button
-                onClick={handleNext}
-                className="text-sm text-gray-500 dark:text-gray-400 underline"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 8 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-2">Follow us on Instagram?</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">You'll be asked to join our Discord next.</p>
-            <div className="flex flex-col items-center gap-4">
-              <button
-                onClick={() => externalLink("https://instagram.com/celluloidverse")}
-                className="bg-pink-500 text-white px-6 py-2 rounded-full w-40"
-              >
-                Yes
-              </button>
-              <button
-                onClick={handleNext}
-                className="text-sm text-gray-500 dark:text-gray-400 underline"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 9 && (
-          <div className="text-center">
-            <h2 className="text-xl font-bold mb-2">Join our Discord server?</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Final step! 🎉</p>
-            <div className="flex flex-col items-center gap-4">
-              <button
-                onClick={() => externalLink("https://discord.gg/kxmZsh9GUT")}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-full w-40"
-              >
-                Join Now
-              </button>
-              <button
-                onClick={handleNext}
-                className="text-sm text-gray-500 dark:text-gray-400 underline"
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 10 && (
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">You're all set!</h2>
-            <p className="mb-6">Thanks for exploring Celluloidverse 🎉</p>
-            <button
-              onClick={() => window.history.back()}
-              className="bg-black dark:bg-white text-white dark:text-black px-6 py-2 rounded-full transition"
-            >
-              Close
-            </button>
-          </div>
-        )}
-      </div>
+      </motion.div>
     </main>
   );
 };

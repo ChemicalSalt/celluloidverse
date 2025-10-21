@@ -23,12 +23,16 @@ const BotStatus = () => {
     return () => clearInterval(interval);
   }, []);
 
-  if (!status)
-    return (
-      <p className="text-center mt-8 text-zinc-500 animate-pulse">
+ if (!status)
+  return (
+    <div className="min-h-screen flex items-center justify-center 
+                    bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-black dark:to-zinc-800
+                    transition-colors duration-500">
+      <p className="text-zinc-500 dark:text-zinc-400 animate-pulse text-lg">
         Loading bot status...
       </p>
-    );
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start px-4 pt-16 

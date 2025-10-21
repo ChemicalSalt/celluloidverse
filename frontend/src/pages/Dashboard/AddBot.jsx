@@ -10,33 +10,27 @@ const AddBot = () => {
   const [authChecked, setAuthChecked] = useState(false);
   const navigate = useNavigate();
 
-  // ✅ 1️⃣ Check existing session before redirecting
   const checkSession = async () => {
-  try {
-    const res = await fetch(`${API_URL}/dashboard/auth/session`, {
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(`${API_URL}/dashboard/auth/session`, {
+        credentials: "include",
+      });
 
-    if (res.status === 200 || res.status === 304) { // ✅ accept 304
-      const data = await res.json().catch(() => ({}));
-      console.log("✅ Session valid");
-      setAuthChecked(true);
-      return;
-    }
+      if (res.status === 200 || res.status === 304) {
+        await res.json().catch(() => ({}));
+        setAuthChecked(true);
+        return;
+      }
 
-    if (res.status === 401) {
-      console.warn("🔒 No active session — redirecting...");
+      if (res.status === 401) startDiscordAuth();
+    } catch (err) {
+      console.error("❌ Session check failed:", err);
       startDiscordAuth();
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("❌ Session check failed:", err);
-    startDiscordAuth();
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  // ✅ 2️⃣ Fetch guilds after session confirmed
   const fetchGuilds = async () => {
     try {
       const res = await fetch(`${API_URL}/dashboard/servers`, {
@@ -46,7 +40,6 @@ const AddBot = () => {
 
       const data = await res.json();
       setServers(data);
-      console.log("✅ Fetched servers");
     } catch (err) {
       console.error("❌ Failed to fetch guilds:", err);
     } finally {
@@ -54,22 +47,18 @@ const AddBot = () => {
     }
   };
 
-  // ✅ 3️⃣ Start Discord OAuth (only if no valid session)
   const startDiscordAuth = () => {
     window.location.href = `${API_URL}/dashboard/auth/login`;
   };
 
-  // ✅ Run session check once when component mounts
   useEffect(() => {
     checkSession();
   }, []);
 
-  // ✅ Once authorized, fetch user guilds
   useEffect(() => {
     if (authChecked) fetchGuilds();
   }, [authChecked]);
 
-  // ✅ 4️⃣ Add bot flow
   const handleAddBot = (guildId) => {
     const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&scope=bot+applications.commands&permissions=8&integration_type=0&guild_id=${guildId}`;
     const popup = window.open(url, "AddBot", "width=600,height=700");
@@ -82,53 +71,66 @@ const AddBot = () => {
     }, 1000);
   };
 
-  // ✅ 5️⃣ Navigate to plugin dashboard
   const goToPlugins = (guildId) => {
     navigate(`/dashboard/${guildId}/plugins/overview`);
   };
 
-  // ✅ 6️⃣ Loading UI
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-lg font-semibold">Loading your servers...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900 dark:to-black">
+        <p className="text-lg font-semibold text-zinc-700 dark:text-zinc-200 animate-pulse">
+          Loading your servers...
+        </p>
       </div>
     );
   }
 
-  // ✅ 7️⃣ Main render
   return (
-    <div className="min-h-screen px-6 py-8">
-      <h1 className="text-3xl font-bold mb-6">SELECT YOUR SERVER</h1>
+    <div className="min-h-screen px-6 py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900/80 dark:to-black text-zinc-900 dark:text-zinc-100 transition-colors duration-700">
+      <div className="max-w-4xl mx-auto text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+          <span className="bg-gradient-to-r from-zinc-400 via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+            Select Your Server
+          </span>
+        </h1>
+        <p className="mt-3 text-zinc-600 dark:text-zinc-400">
+          Choose a server to add Celluloidverse or manage its plugins.
+        </p>
+      </div>
 
       {servers.length > 0 ? (
-        <div className="p-6 bg-zinc-200 dark:bg-zinc-800 rounded-xl shadow flex flex-col gap-4 mb-6">
-          <h2 className="font-bold text-xl">Your Servers</h2>
-
+        <div className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {servers.map((g) => (
-            <div key={g.id} className="flex items-center justify-between p-2 border-b">
-              <div className="flex items-center gap-2">
-                {g.icon && (
+            <div
+              key={g.id}
+              className="group p-5 rounded-2xl bg-zinc-200/70 dark:bg-zinc-900/70 shadow-md border border-zinc-300/40 dark:border-zinc-700/40 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                {g.icon ? (
                   <img
                     src={`https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`}
                     alt={g.name}
-                    className="w-8 h-8 rounded-full"
+                    className="w-12 h-12 rounded-full border border-zinc-300 dark:border-zinc-700 shadow-sm"
                   />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-zinc-300 dark:bg-zinc-700 flex items-center justify-center text-lg font-bold">
+                    {g.name.charAt(0)}
+                  </div>
                 )}
-                <span>{g.name}</span>
+                <span className="font-semibold text-lg">{g.name}</span>
               </div>
 
               {!g.hasBot ? (
                 <button
                   onClick={() => handleAddBot(g.id)}
-                  className="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 text-white hover:from-zinc-700 hover:to-zinc-800 transition-all duration-300 shadow-inner"
                 >
                   Add Bot
                 </button>
               ) : (
                 <button
                   onClick={() => goToPlugins(g.id)}
-                  className="px-4 py-1 bg-black text-white rounded hover:bg-gray-300 dark:bg-white dark:text-black dark:hover:bg-gray-300"
+                  className="w-full px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 dark:bg-zinc-100 dark:text-black dark:hover:bg-zinc-300 transition-all duration-300"
                 >
                   Plug-ins
                 </button>
@@ -137,7 +139,9 @@ const AddBot = () => {
           ))}
         </div>
       ) : (
-        <p>You don't have permission to manage any servers.</p>
+        <div className="text-center text-zinc-600 dark:text-zinc-400">
+          You don’t have permission to manage any servers.
+        </div>
       )}
     </div>
   );

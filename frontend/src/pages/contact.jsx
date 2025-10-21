@@ -60,7 +60,11 @@ const Contact = () => {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-zinc-50 to-zinc-200 dark:from-black dark:to-zinc-900 text-black dark:text-white flex flex-col items-center justify-center px-6 py-20 transition-colors duration-300 font-sans">
+ <main className="min-h-screen text-black dark:text-white flex flex-col items-center justify-center px-6 py-20 transition-colors duration-300 font-sans
+  bg-[linear-gradient(180deg,_#fff_0%,_#f1f1f1_35%,_#e5e5e5_50%,_#f1f1f1_65%,_#fff_100%)]
+  dark:bg-[linear-gradient(180deg,_#000_0%,_#111_30%,_#222_50%,_#111_70%,_#000_100%)]">
+
+
       {/* Header */}
       <section className="text-center mb-12">
         <h2 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight">

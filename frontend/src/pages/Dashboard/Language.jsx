@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { sanitizeDynamic } from "../../utils/sanitize";
 import moment from "moment-timezone";
+import TimePicker from 'react-time-picker';
 const Language = () => {
   const { serverId } = useParams();
   const [channels, setChannels] = useState([]);
@@ -40,12 +41,10 @@ const Language = () => {
       const [hours, minutes] = localTime.split(":").map(Number);
       const local = new Date(now);
       local.setHours(hours, minutes, 0, 0);
-      const utc = new Date(
-        local.toLocaleString("en-US", { timeZone: "UTC" })
-      );
+      const utc = new Date(local.toLocaleString("en-US", { timeZone: "UTC" }));
       const tzOffset = local.getTime() - utc.getTime();
       const utcTime = new Date(local.getTime() - tzOffset);
-      return utcTime.toISOString().substring(11, 16); // HH:mm
+      return utcTime.toISOString().substring(11, 16);
     } catch {
       return null;
     }
@@ -80,7 +79,7 @@ const Language = () => {
 
       const data = await res.json();
       if (data.success) {
-        setSaveMessage("Saved successfully!");
+        setSaveMessage("✅ Saved successfully!");
         setSettings({
           channelId: "",
           time: "",
@@ -89,36 +88,45 @@ const Language = () => {
           enabled: true,
         });
       } else {
-        setSaveMessage("Failed to save settings");
+        setSaveMessage("❌ Failed to save settings");
       }
       setTimeout(() => setSaveMessage(""), 3000);
     } catch (err) {
       console.error(err);
-      setSaveMessage("Error saving settings");
+      setSaveMessage("⚠️ Error saving settings");
       setTimeout(() => setSaveMessage(""), 3000);
     }
   };
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
-
-  const timezones = Intl.supportedValuesOf("timeZone");
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-lg text-zinc-600 dark:text-zinc-400 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900/70 dark:to-black">
+        Loading...
+      </div>
+    );
 
   return (
-    <div className="min-h-screen px-6 py-8 bg-white dark:bg-black">
-      <h1 className="text-3xl font-bold mb-6 text-black dark:text-white">
-        Language Plugin
-      </h1>
-      <div className="max-w-xl mx-auto flex flex-col gap-6">
+    <div className="min-h-screen px-6 py-16 bg-gradient-to-b from-zinc-100 via-zinc-200 to-zinc-100 dark:from-black dark:via-zinc-900/70 dark:to-black transition-colors duration-700 text-zinc-900 dark:text-zinc-100">
+      <div className="max-w-3xl mx-auto text-center mb-10">
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-3">
+          <span className="bg-gradient-to-r from-zinc-400 via-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+            Language Plugin
+          </span>
+        </h1>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          Schedule daily word updates in your preferred language and time zone.
+        </p>
+      </div>
+
+      <div className="max-w-2xl mx-auto p-8 rounded-2xl shadow-lg border border-zinc-300/40 dark:border-zinc-700/40 bg-zinc-100/70 dark:bg-zinc-900/70 backdrop-blur-sm flex flex-col gap-6 transition-all duration-300">
+        
+        {/* Channel */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Select a channel
-          </label>
+          <label className="block mb-2 font-medium">Select a channel</label>
           <select
             value={settings.channelId}
-            onChange={(e) =>
-              setSettings({ ...settings, channelId: e.target.value })
-            }
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+            onChange={(e) => setSettings({ ...settings, channelId: e.target.value })}
+            className="w-full p-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-black dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none transition-all duration-300"
           >
             <option value="">-- Select a channel --</option>
             {channels.map((ch) => (
@@ -129,53 +137,42 @@ const Language = () => {
           </select>
         </div>
 
+        {/* Time */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Time (24-hour)
-          </label>
+          <label className="block mb-2 font-medium">Time (24-hour)</label>
           <input
             type="time"
             value={settings.time}
-            onChange={(e) =>
-              setSettings({ ...settings, time: e.target.value })
-            }
+            onChange={(e) => setSettings({ ...settings, time: e.target.value })}
             step="60"
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+            className="w-full p-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white focus:ring-2 focus:ring-zinc-500 outline-none transition-all duration-300"
           />
         </div>
-<div>
-  <label className="block mb-2 text-black dark:text-white">
-    Select a timezone
-  </label>
-  <select
-  value={settings.timezone}
-  onChange={(e) =>
-    setSettings({ ...settings, timezone: e.target.value })
-  }
-  className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
->
-  <option value="">-- Select a timezone --</option>
-  {moment.tz.names().map((tz) => (
-    <option key={tz} value={tz}>
-      {tz}
-    </option>
-  ))}
-</select>
 
-</div>
-
-
-
+        {/* Timezone */}
         <div>
-          <label className="block mb-2 text-black dark:text-white">
-            Select a language
-          </label>
+          <label className="block mb-2 font-medium">Select a timezone</label>
+          <select
+            value={settings.timezone}
+            onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
+            className="w-full p-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-400 transition-all duration-300"
+          >
+            <option value="">-- Select a timezone --</option>
+            {moment.tz.names().map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Language */}
+        <div>
+          <label className="block mb-2 font-medium">Select a language</label>
           <select
             value={settings.language}
-            onChange={(e) =>
-              setSettings({ ...settings, language: e.target.value })
-            }
-            className="w-full p-2 border rounded bg-white dark:bg-black dark:text-white"
+            onChange={(e) => setSettings({ ...settings, language: e.target.value })}
+            className="w-full p-3 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-black text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-400 transition-all duration-300"
           >
             <option value="">-- Select a language --</option>
             <option value="japanese">Japanese</option>
@@ -186,17 +183,17 @@ const Language = () => {
           </select>
         </div>
 
-
+        {/* Save Button */}
         <button
           onClick={handleSave}
-          className="px-6 py-3 rounded-lg bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
+          className="px-6 py-3 rounded-full font-semibold bg-black text-white dark:bg-white dark:text-black hover:scale-105 hover:shadow-[0_0_25px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] transition-all duration-300"
         >
           Save
         </button>
 
         {saveMessage && (
           <div
-            className={`mt-2 text-center ${
+            className={`mt-3 text-center font-medium ${
               saveMessage.includes("Please") ||
               saveMessage.includes("Error") ||
               saveMessage.includes("Failed")

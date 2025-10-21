@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Menu, X, Moon, Sun } from "lucide-react";
 import { FaYoutube, FaInstagram, FaDiscord } from "react-icons/fa";
@@ -16,6 +16,8 @@ const Navbar = () => {
     return true;
   });
 
+  const location = useLocation();
+
   useEffect(() => {
     const root = document.documentElement;
     if (darkMode) {
@@ -27,17 +29,17 @@ const Navbar = () => {
     }
   }, [darkMode]);
 
+  const navItems = ["Home", "Dashboard", "Shorts", "Videos", "Contact", "About"];
+
   return (
     <header className="relative z-50 text-black dark:text-white">
       {/* Top Bar */}
       <div
-        className={`flex items-center justify-between py-4 px-5 sm:px-8 transition-colors duration-300 ${
-          darkMode
-            ? "bg-gradient-to-b from-zinc-950 to-zinc-900"
-            : "bg-gradient-to-b from-white to-zinc-100"
+        className={`flex items-center justify-between py-4 px-5 sm:px-8 transition-colors duration-300 border-t ${
+          darkMode ? "bg-black border-zinc-800" : "bg-white border-zinc-300"
         }`}
       >
-        {/* Left: Hamburger Icon */}
+        {/* Left: Hamburger */}
         <button
           onClick={() => setMenuOpen(true)}
           className="text-black dark:text-white focus:outline-none transition-transform hover:scale-110"
@@ -45,7 +47,7 @@ const Navbar = () => {
           <Menu size={28} />
         </button>
 
-        {/* Center: Logo / Title */}
+        {/* Center: Logo */}
         <div className="flex-1 text-center px-4">
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-wide">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-zinc-700 via-black to-zinc-700 dark:from-zinc-300 dark:via-white dark:to-zinc-300">
@@ -66,29 +68,37 @@ const Navbar = () => {
         </Link>
       </div>
 
-      {/* Main Nav */}
+      {/* Desktop Nav */}
       <nav
-        className={`py-4 transition-colors duration-300 ${
-          darkMode ? "bg-zinc-900" : "bg-white"
+        className={`py-4 transition-colors duration-300 border-b ${
+          darkMode ? "bg-black border-zinc-800" : "bg-white border-zinc-300"
         }`}
       >
         <div className="flex justify-center gap-6 sm:gap-10 text-base sm:text-lg font-medium px-4">
-          {["Home", "Dashboard", "Shorts", "Videos", "Contact", "About"].map(
-            (item) => (
+          {navItems.map((item) => {
+            const isActive =
+              location.pathname === "/" && item === "Home"
+                ? true
+                : location.pathname.includes(item.toLowerCase());
+            return (
               <Link
                 key={item}
                 to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                className="relative group text-zinc-800 dark:text-zinc-200 transition-colors duration-300"
+                className={`relative group transition-colors duration-300 ${
+                  isActive
+                    ? "text-zinc-900 dark:text-zinc-100 font-semibold"
+                    : "text-zinc-800 dark:text-zinc-200"
+                }`}
               >
                 {item}
                 <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-zinc-800 dark:bg-zinc-200 transition-all duration-300 group-hover:w-full"></span>
               </Link>
-            )
-          )}
+            );
+          })}
         </div>
       </nav>
 
-      {/* Overlay when sidebar is open */}
+      {/* Overlay */}
       {menuOpen && (
         <div
           onClick={() => setMenuOpen(false)}
@@ -96,19 +106,19 @@ const Navbar = () => {
         ></div>
       )}
 
-      {/* Sidebar Menu */}
+      {/* Sidebar */}
       <div
         className={`fixed top-0 left-0 h-full w-72 z-[9999] shadow-xl transform ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         } transition-transform duration-300 ease-in-out flex flex-col ${
-          darkMode ? "bg-zinc-900 text-white" : "bg-white text-black"
+          darkMode ? "bg-black text-white" : "bg-white text-black"
         }`}
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-zinc-200 dark:border-zinc-700">
           <h2 className="text-xl font-bold">Menu</h2>
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
+            {/* Theme toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
               aria-label="Toggle Theme"
@@ -124,7 +134,7 @@ const Navbar = () => {
               )}
             </button>
 
-            {/* Close Button */}
+            {/* Close */}
             <button
               onClick={() => setMenuOpen(false)}
               className="text-black dark:text-white hover:scale-110 transition-transform"
@@ -136,18 +146,16 @@ const Navbar = () => {
 
         {/* Links */}
         <div className="flex flex-col p-5 gap-5 text-lg font-medium mt-4">
-          {["Home", "Dashboard", "Shorts", "Videos", "Contact", "About"].map(
-            (item) => (
-              <Link
-                key={item}
-                to={`/${item.toLowerCase()}`}
-                onClick={() => setMenuOpen(false)}
-                className="transition-all hover:translate-x-2 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
-                {item}
-              </Link>
-            )
-          )}
+          {navItems.map((item) => (
+            <Link
+              key={item}
+              to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+              onClick={() => setMenuOpen(false)}
+              className="transition-all hover:translate-x-2 hover:text-zinc-600 dark:hover:text-zinc-300"
+            >
+              {item}
+            </Link>
+          ))}
         </div>
 
         {/* Socials */}

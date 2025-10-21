@@ -8,8 +8,7 @@ if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
   document.documentElement.classList.remove('dark');
 }
 
-// -------------------------
-// Regular React imports
+// React imports
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
