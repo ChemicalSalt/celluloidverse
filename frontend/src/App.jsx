@@ -19,7 +19,7 @@ import PluginsOverview from "./pages/Dashboard/pluginsOverview";
 import Welcome from "./pages/Dashboard/welcome";
 import Farewell from "./pages/Dashboard/farewell";
 import Language from "./pages/Dashboard/language";
-
+import PluginsCategory from "./pages/Dashboard/pluginsCategory";
 function App() {
   return (
     /* GLOBAL BACKGROUND HANDLED VIA index.css */
@@ -45,6 +45,7 @@ function App() {
           <Route path="/dashboard/:serverId/plugins/welcome" element={<Welcome />} />
           <Route path="/dashboard/:serverId/plugins/farewell" element={<Farewell />} />
           <Route path="/dashboard/:serverId/plugins/language" element={<Language />} />
+          <Route path="/dashboard/:serverId/plugins/category" element={<PluginsCategory />} />
         </Routes>
 
         <Outlet />

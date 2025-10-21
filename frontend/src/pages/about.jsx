@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-const About = () => {
+const about = () => {
   return (
     <main
       className="min-h-screen w-full flex flex-col items-center justify-start px-6 py-20
@@ -59,4 +59,4 @@ const About = () => {
   );
 };
 
-export default About;
+export default about;
