@@ -8,8 +8,7 @@ import Dashboard from './pages/dashboard';
 import GetStarted from './pages/GetStarted';
 import BotStatus from './pages/BotStatus';
 import Contact from './pages/contact';
-import Shorts from './pages/shorts';
-import Videos from './pages/videos';
+import Content from './pages/content';
 import About from './pages/about';
 import Auth from './pages/auth';
 
@@ -19,6 +18,17 @@ import PluginsOverview from "./pages/Dashboard/pluginsOverview";
 import Welcome from "./pages/Dashboard/welcome";
 import Farewell from "./pages/Dashboard/farewell";
 import Language from "./pages/Dashboard/language";
+import Scheduler from "./pages/Dashboard/scheduler"; 
+import Automod from "./pages/Dashboard/autoMod";
+import Mute from "./pages/Dashboard/mute";
+import ReactionRoles from "./pages/Dashboard/reactionRoles";
+import Polls from "./pages/Dashboard/polls";
+import ServerInfo from "./pages/Dashboard/serverInfo";
+import InviteTracker from "./pages/Dashboard/inviteTracker";
+import Games from "./pages/Dashboard/games";
+import Memes from "./pages/Dashboard/memes";
+import Music from "./pages/Dashboard/music";
+import CommandsDocs from "./pages/commandsDocs";
 import PluginsCategory from "./pages/Dashboard/pluginsCategory";
 function App() {
   return (
@@ -33,10 +43,12 @@ function App() {
           <Route path="/getstarted" element={<GetStarted />} />
           <Route path="/botstatus" element={<BotStatus />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/shorts" element={<Shorts />} />
-          <Route path="/videos" element={<Videos />} />
+          <Route path="/content" element={<Content />} />
+
           <Route path="/about" element={<About />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/commands-docs" element={<CommandsDocs />} />
+
 
           {/* dashboard */}
           <Route path="/dashboard" element={<Dashboard />} />
@@ -45,6 +57,17 @@ function App() {
           <Route path="/dashboard/:serverId/plugins/welcome" element={<Welcome />} />
           <Route path="/dashboard/:serverId/plugins/farewell" element={<Farewell />} />
           <Route path="/dashboard/:serverId/plugins/language" element={<Language />} />
+          <Route path="/dashboard/:serverId/plugins/scheduler" element={<Scheduler />} />
+          <Route path="/dashboard/:serverId/plugins/automod" element={<Automod />} />
+<Route path="/dashboard/:serverId/plugins/mute" element={<Mute />} />
+<Route path="/dashboard/:serverId/plugins/reactionRoles" element={<ReactionRoles />} />
+<Route path="/dashboard/:serverId/plugins/polls" element={<Polls />} />
+<Route path="/dashboard/:serverId/plugins/serverInfo" element={<ServerInfo />} />
+<Route path="/dashboard/:serverId/plugins/inviteTracker" element={<InviteTracker />} />
+<Route path="/dashboard/:serverId/plugins/games" element={<Games />} />
+<Route path="/dashboard/:serverId/plugins/memes" element={<Memes />} />
+<Route path="/dashboard/:serverId/plugins/music" element={<Music />} />
+
           <Route path="/dashboard/:serverId/plugins/category" element={<PluginsCategory />} />
         </Routes>
 

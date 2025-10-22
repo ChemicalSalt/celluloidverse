@@ -48,17 +48,18 @@ const Dashboard = () => {
 
       <section className="flex flex-col items-center justify-center text-center px-6 py-24 space-y-24 w-full max-w-4xl relative z-10">
         {/* Welcome Section */}
-       <motion.div
-  initial={{ opacity: 0, y: -20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.7 }}
->
-  <h1 className="text-5xl sm:text-6xl font-extrabold mb-6 tracking-tight leading-tight bg-clip-text text-transparent
-    bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-800 dark:from-zinc-200 dark:via-zinc-400 dark:to-zinc-300">
-    Celluloidverse Dashboard
-  </h1>
-</motion.div>
-
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7 }}
+        >
+          <h1
+            className="text-5xl sm:text-6xl font-extrabold mb-6 tracking-tight leading-tight bg-clip-text text-transparent
+            bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-800 dark:from-zinc-200 dark:via-zinc-400 dark:to-zinc-300"
+          >
+            Celluloidverse Dashboard
+          </h1>
+        </motion.div>
 
         {/* Login Section */}
         <motion.div
@@ -67,11 +68,14 @@ const Dashboard = () => {
           transition={{ duration: 0.9 }}
         >
           <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Easily manage your Discord servers, connect plugins and track everything in one place - simple, fast and built for your needs.
+            Easily manage your Discord servers, connect plugins and track
+            everything in one place - simple, fast and built for your needs.
           </p>
           <FancyButton
             text="Login with Discord"
-            onClick={() => (window.location.href = `${API_URL}/dashboard/auth/login`)}
+            onClick={() =>
+              (window.location.href = `${API_URL}/dashboard/auth/login`)
+            }
           />
         </motion.div>
 
@@ -82,11 +86,27 @@ const Dashboard = () => {
           transition={{ duration: 1.1 }}
         >
           <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            Check your bot’s live status anytime. See when it’s online, monitor performance and get instant updates - no refresh needed.
+            Check your bot’s live status anytime. See when it’s online, monitor
+            performance and get instant updates - no refresh needed.
           </p>
           <FancyButton
             text="Check Bot Status"
             onClick={() => (window.location.href = "/botstatus")}
+          />
+        </motion.div>
+
+        {/* Commands Docs Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.3 }}
+        >
+          <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
+            Want to explore all available commands and learn how to use them?
+          </p>
+          <FancyButton
+            text="Commands Docs"
+            onClick={() => (window.location.href = "/commands-docs")}
           />
         </motion.div>
       </section>

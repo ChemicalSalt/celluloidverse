@@ -79,7 +79,7 @@ const Language = () => {
 
       const data = await res.json();
       if (data.success) {
-        setSaveMessage("✅ Saved successfully!");
+        setSaveMessage("Saved successfully!");
         setSettings({
           channelId: "",
           time: "",

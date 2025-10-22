@@ -42,13 +42,28 @@ const PluginsOverview = () => {
       </div>
     );
 
+  // ------------------------- ALL PLUGINS -------------------------
   const allPlugins = {
     moderation: [
-      { name: "Welcome", path: "welcome", enabled: server.plugins?.welcome?.enabled ?? false },
-      { name: "Farewell", path: "farewell", enabled: server.plugins?.farewell?.enabled ?? false },
+      { name: "Auto-Moderation", path: "automod", enabled: server.plugins?.automod?.enabled ?? false },
+      { name: "Mute/Unmute", path: "mute", enabled: server.plugins?.mute?.enabled ?? false },
     ],
     automation: [
       { name: "Language", path: "language", enabled: server.plugins?.language?.globalEnabled ?? false },
+      { name: "Scheduler", path: "scheduler", enabled: server.plugins?.scheduler?.enabled ?? false },
+      { name: "Welcome", path: "welcome", enabled: server.plugins?.welcome?.enabled ?? false },
+      { name: "Farewell", path: "farewell", enabled: server.plugins?.farewell?.enabled ?? false },
+    ],
+    utility: [
+      { name: "Polls", path: "polls", enabled: server.plugins?.polls?.enabled ?? false },
+      { name: "Server Info", path: "serverInfo", enabled: server.plugins?.serverInfo?.enabled ?? false },
+      { name: "Invite Tracker", path: "inviteTracker", enabled: server.plugins?.inviteTracker?.enabled ?? false },
+      { name: "Reaction Roles", path: "reactionRoles", enabled: server.plugins?.reactionRoles?.enabled ?? false },
+    ],
+    entertainment: [
+      { name: "Games", path: "games", enabled: server.plugins?.games?.enabled ?? false },
+      { name: "Memes", path: "memes", enabled: server.plugins?.memes?.enabled ?? false },
+      { name: "Music", path: "music", enabled: server.plugins?.music?.enabled ?? false },
     ],
   };
 
@@ -88,44 +103,56 @@ const PluginsOverview = () => {
         {category} Plugins
       </h1>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-        {plugins.map((plugin) => (
-          <div
-            key={plugin.name}
-            className="p-6 bg-white/10 dark:bg-black/30 backdrop-blur-md border border-black/10 dark:border-white/20 rounded-3xl shadow-lg hover:shadow-2xl hover:scale-[1.03] transition-all flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">{plugin.name}</h2>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="sr-only peer"
-                  checked={plugin.enabled}
-                  onChange={() => handleToggle(plugin)}
-                />
-                <div className="w-12 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-green-500 transition-all duration-300"></div>
-                <div className="absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition-all duration-300 peer-checked:translate-x-6"></div>
-              </label>
-            </div>
+      {plugins.length === 0 ? (
+        <p className="text-center text-gray-500 dark:text-gray-400">
+          No plugins added for this category yet.
+        </p>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {plugins.map((plugin) => (
+            <div
+              key={plugin.name}
+              className="p-6 bg-white/10 dark:bg-black/30 backdrop-blur-md border border-black/10 dark:border-white/20 rounded-3xl shadow-lg hover:shadow-2xl hover:scale-[1.03] transition-all flex flex-col justify-between"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">{plugin.name}</h2>
+                {/* Fancy Toggle */}
+               <label className="relative inline-flex items-center cursor-pointer select-none">
+  <input
+    type="checkbox"
+    className="sr-only peer"
+    checked={plugin.enabled}
+    onChange={() => handleToggle(plugin)}
+  />
+  {/* Background */}
+  <div className="w-16 h-8 bg-gray-300 dark:bg-gray-700 rounded-full peer-checked:bg-green-500 transition-colors duration-300"></div>
+  {/* Circle */}
+  <div className="absolute top-0.5 left-0.5 w-7 h-7 bg-white rounded-full shadow-md transition-transform duration-300 peer-checked:translate-x-8 flex items-center justify-center">
+    <div className="w-5 h-5 bg-white rounded-full"></div>
+  </div>
+</label>
 
-            {plugin.enabled ? (
-              <button
-                onClick={() => navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)}
-                className="w-full py-2 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition font-semibold"
-              >
-                Configure
-              </button>
-            ) : (
-              <button
-                disabled
-                className="w-full py-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
-              >
-                Disabled
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
+              </div>
+
+              {plugin.enabled ? (
+                <button
+                  onClick={() => navigate(`/dashboard/${serverId}/plugins/${plugin.path}`)}
+                  className="w-full py-3 rounded-full bg-black dark:bg-white text-white dark:text-black hover:opacity-90 transition font-semibold"
+                >
+                  Configure
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full py-3 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed"
+                >
+                  Disabled
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

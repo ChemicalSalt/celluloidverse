@@ -46,14 +46,6 @@ const about = () => {
           The Celluloidverse dashboard brings together automation, creativity and simplicity - made
           for communities that love staying active, inspired and connected.
         </motion.p>
-
-        {/* Subtle Divider */}
-        <motion.div
-          className="my-10 h-px w-2/3 mx-auto bg-gradient-to-r from-transparent via-zinc-500 to-transparent"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.3 }}
-        />
       </section>
     </main>
   );
