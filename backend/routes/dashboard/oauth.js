@@ -147,6 +147,7 @@ router.get("/callback", async (req, res) => {
     
     console.log("=== DEBUG OAuth ===");
     console.log("CLIENT_ID:", CLIENT_ID);
+    console.log("CLIENT_SECRET:", CLIENT_SECRET ? "SET" : "MISSING"); // Don't log the actual secret
     console.log("REDIRECT_URI:", REDIRECT_URI);
     console.log("CODE:", code);
     console.log("==================");
@@ -157,12 +158,22 @@ router.get("/callback", async (req, res) => {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
-    const data = await tokenRes.json();
+    console.log("Discord response status:", tokenRes.status);
+    const responseText = await tokenRes.text();
+    console.log("Discord response body:", responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      console.error("Failed to parse Discord response as JSON");
+      return res.status(500).send("Discord returned invalid response");
+    }
+
     if (!tokenRes.ok || data.error) {
       console.error("OAuth token exchange failed:", data);
       return res.status(400).send("OAuth failed");
     }
-
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
