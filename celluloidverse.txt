@@ -1,0 +1,132 @@
+
+backend/
+├─ node_modules
+├─ server.js              
+├─ firebase.js              
+├─ package.json
+├─ package-lock.json
+├─ serviceAccountKey.json   
+├─ .env
+└─ routes/
+    └─ dashboard/           
+        ├─ oauth.js          
+        ├─ servers.js        
+        ├─ plugins.js    
+        ├─ guild.js  
+	├─ servers.js
+	├─ index.js 
+	├─ session.js     
+        └─ status.js  
+
+
+
+bot/
+ ├─ node_modules
+ ├─ serviceAccountKey.json
+ ├─ index.js            
+ ├─ .env                    
+ ├─ package.json
+ ├─ package-lock.json
+ ├─ config/
+ │    ├─ botConfig.js         
+ │    └─ sheetsConfig.js       
+ ├─ client/
+ │    ├─ client.js          
+ │    ├─ events/
+ │    │    ├─ ready.js
+ │    │    ├─ guildMemberAdd.js
+ │    │    └─ guildMemberRemove.js
+ │    └─ commands/
+ │	   ├─ sendWelcome.js
+ │	   ├─ sendFarewell.js
+ │	   ├─ sendLangauge.js
+ │         ├─ ping.js
+ │         └─ dashboard.js
+ │        
+ │        
+ │         
+ ├─ plugins/
+ │    ├─ language.js
+ │    ├─ welcome.js
+ │    └─ farewell.js
+ ├─ utils/
+ │    ├─ firestore.js
+ │    ├─ sheets.js
+ │    └─ helpers.js
+ ├─ web/
+ │    └─ server.js
+ └─ cron/
+   ├─ scheduler.js
+   ├─ messsageScheduler.js
+
+
+
+
+frontend/
+├─ .firebase/
+│  ├─ hosting.cHVibGlj.cache
+│  └─ hosting.ZGlzdA.cache
+├─ dist/
+│  ├─ assets/
+│  ├─ auth/
+│  │	└─ discord/
+│  │	      └─ callback.html
+│  ├─ favicon.ico
+│  ├─ index.html
+│  ├─ robots.txt
+│  └─ sitemap.xml
+├─ functions/
+│  ├─ .eslintrc.js
+│  ├─ index.js
+│  ├─ package-lock.json
+│  └─ package.json
+├─ node_modules/
+├─ src/
+│  ├─ components/
+│  │  ├─ footer.jsx
+│  │  └─ navbar.jsx
+│  ├─ pages/
+│  │  ├─ botStatus.jsx
+│  │  ├─ contact.jsx
+│  │  ├─ getStarted.jsx
+│  │  ├─ commandsDocs.jsx
+│  │  ├─ home.jsx
+│  │  ├─ dashboard.jsx
+│  │  ├─ content.jsx
+│  │  ├─ shorts.jsx
+│  │  ├─ videos.jsx
+│  │  └─ dashboard/
+│  │     ├─ addBot.jsx
+│  │     ├─ farewell.jsx
+│  │     ├─ language.jsx
+│  │     ├─ pluginsOverview.jsx
+│  │ 	 ├─ pluginsCategory.jsx
+│  │     ├─ welcome.jsx
+│  │     ├─ scheduler.jsx
+│  │     ├─ autoMod.jsx
+│  │     ├─ mute.jsx
+│  │     ├─ reactionRoles.jsx
+│  │     ├─ polls.jsx
+│  │     ├─ serverInfo.jsx
+│  │     ├─ inviteTracker.jsx
+│  │     ├─ games.jsx
+│  │     ├─ memes.jsx
+│  │     └─ music.jsx
+│  ├─ utils/
+│  │  	└─ sanitize.js 
+│  ├─ App.jsx
+│  ├─ firebase.js
+│  ├─ index.css
+│  └─ main.jsx
+├─ .env
+├─ firebase.json
+├─ index.html
+├─ package-lock.json
+├─ package.json
+├─ README.md
+└─ vite.config.js
+
+Welcome to {server}! {here}
+{everyone} check out {channel:lobby}!
+Shoutout to {usermention:colorsalt} and {role:human}! {user:colorsalt}
+{gif:https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif}

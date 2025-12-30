@@ -18,19 +18,19 @@ const GetStarted = () => {
       desc: "Ready to explore our universe?",
       button: { text: "Let's go", action: handleNext },
     },
+     {
+      title: "Explore: Cellulordle Page",
+      link: "/cellulordle",
+      button: { text: "Next", action: handleNext },
+    },
     {
       title: "Explore: Dashboard",
       link: "/dashboard",
       button: { text: "Next", action: handleNext },
     },
     {
-      title: "Explore: Shorts Page",
+      title: "Explore: Content Page",
       link: "/shorts",
-      button: { text: "Next", action: handleNext },
-    },
-    {
-      title: "Explore: Videos Page",
-      link: "/videos",
       button: { text: "Next", action: handleNext },
     },
     {

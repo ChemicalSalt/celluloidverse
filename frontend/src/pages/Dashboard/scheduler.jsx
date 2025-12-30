@@ -49,7 +49,7 @@ const Scheduler = () => {
       };
 
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/plugins/scheduler`,
+        `${import.meta.env.VITE_API_URL}/dashboard/servers/${serverId}/scheduler`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

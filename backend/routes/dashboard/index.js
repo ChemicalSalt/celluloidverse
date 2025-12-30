@@ -4,13 +4,14 @@ const serversRoutes = require("./servers");
 const pluginsRoutes = require("./plugins");
 const guildRoutes = require("./guild");
 const statusRoutes = require("./status");
-
+const schedulerRoutes = require("./scheduler");
 const router = express.Router();
 
 // Mount routes
 router.use("/auth", oauthRoutes);
 router.use("/servers", serversRoutes);       // servers routes
-router.use("/", pluginsRoutes);       // plugins under servers
+router.use("/", pluginsRoutes);    
+router.use("/servers", schedulerRoutes);
 router.use("/guild", guildRoutes);
 router.use("/status", statusRoutes);
 

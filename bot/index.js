@@ -1,5 +1,7 @@
 // index.js (entry)
 require("dotenv").config();
+require("./cron/messageScheduler");
+
 const client = require("./client/client");
 const webServer = require("./web/server");
 

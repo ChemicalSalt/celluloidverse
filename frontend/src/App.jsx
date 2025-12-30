@@ -30,6 +30,8 @@ import Memes from "./pages/Dashboard/memes";
 import Music from "./pages/Dashboard/music";
 import CommandsDocs from "./pages/commandsDocs";
 import PluginsCategory from "./pages/Dashboard/pluginsCategory";
+
+
 function App() {
   return (
     /* GLOBAL BACKGROUND HANDLED VIA index.css */
@@ -69,6 +71,8 @@ function App() {
 <Route path="/dashboard/:serverId/plugins/music" element={<Music />} />
 
           <Route path="/dashboard/:serverId/plugins/category" element={<PluginsCategory />} />
+       
+
         </Routes>
 
         <Outlet />

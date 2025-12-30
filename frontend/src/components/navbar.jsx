@@ -55,7 +55,7 @@ const Navbar = () => {
             </span>
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400 text-[10px] sm:text-sm mt-1">
-            Creativity is what makes us stand out.
+            Creativity is what makes us different.
           </p>
         </div>
 

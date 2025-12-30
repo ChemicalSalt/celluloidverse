@@ -6,6 +6,7 @@ const moment = require("moment-timezone");
 
 const router = express.Router();
 
+
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || "{}");
@@ -130,6 +131,35 @@ router.post(
     } catch (err) {
       console.error("[Toggle Plugin Error]", err);
       res.status(500).json({ error: "Failed to toggle plugin" });
+    }
+  }
+);
+
+router.post("/servers/:id/plugins/scheduler", verifySession, async (req, res) => {
+    console.log("Scheduler POST hit", req.params.id, req.body);
+    try {
+      const { id } = req.params;
+      const { channelId, message, date, time } = req.body;
+
+      if (!channelId || !message || !date || !time) {
+        return res.status(400).json({ error: "Missing fields" });
+      }
+
+await db.collection("scheduledMessages").add({
+    serverId: id,
+    channelId,
+    message,
+    date,
+    time,
+    sent: false,
+    createdAt: new Date(),
+});
+
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[Scheduler Save Error]", err);
+      res.status(500).json({ error: "Failed to save schedule" });
     }
   }
 );
