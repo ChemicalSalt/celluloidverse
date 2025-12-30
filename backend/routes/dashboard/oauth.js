@@ -96,7 +96,7 @@ router.get("/session", async (req, res) => {
     // 🔹 Renew the JWT cookie each time user visits
     res.cookie("session", createSessionToken(decoded.userId), {
       httpOnly: true,
-      secure: true,               // keep secure for live HTTPS
+      secure: true,
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/",
@@ -113,11 +113,18 @@ router.get("/session", async (req, res) => {
 // 2️⃣ DISCORD LOGIN (redirect)
 // ------------------------------
 router.get("/login", (_req, res) => {
+  console.log("=== LOGIN REDIRECT_URI ===");
+  console.log("REDIRECT_URI:", REDIRECT_URI);
+  console.log("==========================");
+  
   const url = new URL("https://discord.com/api/oauth2/authorize");
   url.searchParams.set("client_id", CLIENT_ID);
   url.searchParams.set("scope", "identify guilds");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", REDIRECT_URI);
+  
+  console.log("Full Discord URL:", url.toString());
+  
   res.redirect(url.toString());
 });
 
@@ -137,11 +144,13 @@ router.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
-console.log("=== DEBUG OAuth ===");
-console.log("CLIENT_ID:", CLIENT_ID);
-console.log("REDIRECT_URI:", REDIRECT_URI);
-console.log("CODE:", code);
-console.log("==================");
+    
+    console.log("=== DEBUG OAuth ===");
+    console.log("CLIENT_ID:", CLIENT_ID);
+    console.log("REDIRECT_URI:", REDIRECT_URI);
+    console.log("CODE:", code);
+    console.log("==================");
+    
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
@@ -175,7 +184,7 @@ console.log("==================");
 
     res.cookie("session", sessionToken, {
       httpOnly: true,
-      secure: true,               // keep secure for live HTTPS
+      secure: true,
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/",
