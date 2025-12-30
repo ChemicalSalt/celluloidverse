@@ -137,7 +137,11 @@ router.get("/callback", async (req, res) => {
       redirect_uri: REDIRECT_URI,
       scope: "identify guilds",
     });
-
+console.log("=== DEBUG OAuth ===");
+console.log("CLIENT_ID:", CLIENT_ID);
+console.log("REDIRECT_URI:", REDIRECT_URI);
+console.log("CODE:", code);
+console.log("==================");
     const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       body: params,
