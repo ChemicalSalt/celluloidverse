@@ -40,12 +40,20 @@ async function refreshAccessToken(userId, refreshToken) {
     refresh_token: refreshToken,
   });
 
-  const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
-    method: "POST",
-    body: params,
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
+ const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+  method: "POST",
+  body: params,
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+});
 
+console.log("=== DISCORD TOKEN RESPONSE ===");
+console.log("Status:", tokenRes.status);
+console.log("Status Text:", tokenRes.statusText);
+console.log("Headers:", Object.fromEntries(tokenRes.headers.entries()));
+
+const responseText = await tokenRes.text();
+console.log("Response Body:", responseText.substring(0, 500)); // First 500 chars
+console.log("==============================");
   const data = await tokenRes.json();
 
   if (!tokenRes.ok || data.error) {
