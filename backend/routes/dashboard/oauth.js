@@ -40,20 +40,20 @@ async function refreshAccessToken(userId, refreshToken) {
     refresh_token: refreshToken,
   });
 
- const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
-  method: "POST",
-  body: params,
-  headers: { "Content-Type": "application/x-www-form-urlencoded" },
-});
+  const tokenRes = await fetch("https://discord.com/api/oauth2/token", {
+    method: "POST",
+    body: params,
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
 
-console.log("=== DISCORD TOKEN RESPONSE ===");
-console.log("Status:", tokenRes.status);
-console.log("Status Text:", tokenRes.statusText);
-console.log("Headers:", Object.fromEntries(tokenRes.headers.entries()));
+  console.log("=== DISCORD TOKEN RESPONSE ===");
+  console.log("Status:", tokenRes.status);
+  console.log("Status Text:", tokenRes.statusText);
+  console.log("Headers:", Object.fromEntries(tokenRes.headers.entries()));
 
-const responseText = await tokenRes.text();
-console.log("Response Body:", responseText.substring(0, 500)); // First 500 chars
-console.log("==============================");
+  const responseText = await tokenRes.text();
+  console.log("Response Body:", responseText.substring(0, 500)); // First 500 chars
+  console.log("==============================");
   const data = await tokenRes.json();
 
   if (!tokenRes.ok || data.error) {
@@ -140,6 +140,10 @@ router.get("/login", (_req, res) => {
 // 3️⃣ DISCORD CALLBACK
 // ------------------------------
 router.get("/callback", async (req, res) => {
+  console.log("🔥🔥🔥 CALLBACK HIT! 🔥🔥🔥");
+  console.log("Query params:", req.query);
+  console.log("Code received:", req.query.code);
+  
   const code = req.query.code;
   if (!code) return res.status(400).send("No code provided");
 
@@ -155,7 +159,7 @@ router.get("/callback", async (req, res) => {
     
     console.log("=== DEBUG OAuth ===");
     console.log("CLIENT_ID:", CLIENT_ID);
-    console.log("CLIENT_SECRET:", CLIENT_SECRET ? "SET" : "MISSING"); // Don't log the actual secret
+    console.log("CLIENT_SECRET:", CLIENT_SECRET ? "SET" : "MISSING");
     console.log("REDIRECT_URI:", REDIRECT_URI);
     console.log("CODE:", code);
     console.log("==================");
@@ -182,6 +186,7 @@ router.get("/callback", async (req, res) => {
       console.error("OAuth token exchange failed:", data);
       return res.status(400).send("OAuth failed");
     }
+    
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${data.access_token}` },
     });
