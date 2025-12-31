@@ -7,9 +7,9 @@ const cookieParser = require("cookie-parser");
 const router = express.Router();
 
 const {
-  CLIENT_ID,
-  CLIENT_SECRET,
-  REDIRECT_URI,
+  DISCORD_CLIENT_ID: CLIENT_ID,
+  DISCORD_CLIENT_SECRET: CLIENT_SECRET,
+  DISCORD_REDIRECT_URI: REDIRECT_URI,
   FRONTEND_URL,
   JWT_SECRET,
 } = process.env;
